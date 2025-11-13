@@ -1,0 +1,813 @@
+---
+title: カルーセル（Framer Motion版）
+description: Framer Motionのdrag機能を使った滑らかなスワイプカルーセル。
+tags: [carousel, framer-motion, react, animation]
+frameworks: [React, Next.js]
+level: intermediate
+prompt_template: |
+  目的: Framer Motionのdrag機能を使った高度なカルーセルコンポーネント実装
+  前提: React + TypeScript + Framer Motion
+  要件:
+  - framer-motionのdrag機能とAnimatePresenceでスムーズなページ切替
+  - スワイプ閾値（velocity/distance判定）
+  - ループ対応（最後のスライドから最初へ）
+  - インジケーター（ドット）でナビゲーション
+  - 自動再生オプション（停止/再開可能）
+  - prefers-reduced-motion対応（アニメーション無効化）
+  - キーボード操作対応（左右キー）
+  - ARIA属性でアクセシビリティ確保
+  - パフォーマンス考慮（GPU最適化）
+  納品: Reactコンポーネント+TypeScript型定義+スタイル
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## 概要
+
+Framer Motionの高度なアニメーション機能を活用したカルーセルコンポーネント。
+drag機能による直感的なスワイプ操作と、AnimatePresenceによる美しいページ遷移アニメーションを実現します。
+
+## 実装のポイント
+
+### 1. Framer Motionの主要機能
+
+- **motion.div**: アニメーション可能なHTML要素
+- **drag**: ドラッグ/スワイプ機能
+- **AnimatePresence**: 要素の出入りアニメーション
+- **dragConstraints**: ドラッグ範囲の制限
+- **onDragEnd**: ドラッグ終了時のコールバック
+
+<LiveDemo title="Interactive Carousel Demo" height="500px">
+{`
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0c1218;
+      color: #e5edf4;
+      overflow: hidden;
+    }
+
+    .carousel-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0c1218;
+    }
+
+    .carousel-viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .carousel-track {
+      display: flex;
+      transition: transform 0.5s ease-out;
+      height: 100%;
+      will-change: transform;
+    }
+
+    .carousel-slide {
+      min-width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      font-weight: bold;
+      user-select: none;
+      cursor: grab;
+    }
+
+    .carousel-slide:active {
+      cursor: grabbing;
+    }
+
+    .slide-1 { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); }
+    .slide-2 { background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%); }
+    .slide-3 { background: linear-gradient(135deg, #db2777 0%, #f472b6 100%); }
+    .slide-4 { background: linear-gradient(135deg, #059669 0%, #34d399 100%); }
+
+    .carousel-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(21, 32, 43, 0.9);
+      border: 1px solid #1f2a37;
+      color: #e5edf4;
+      font-size: 2rem;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      z-index: 2;
+      backdrop-filter: blur(4px);
+    }
+
+    .carousel-btn:hover {
+      background: rgba(31, 42, 55, 0.95);
+      border-color: #60a5fa;
+      transform: translateY(-50%) scale(1.1);
+    }
+
+    .carousel-btn-prev {
+      left: 1rem;
+    }
+
+    .carousel-btn-next {
+      right: 1rem;
+    }
+
+    .carousel-dots {
+      position: absolute;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 0.5rem;
+      z-index: 2;
+    }
+
+    .carousel-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1px solid #1f2a37;
+      background: rgba(12, 18, 24, 0.8);
+      cursor: pointer;
+      transition: all 0.3s;
+      padding: 0;
+    }
+
+    .carousel-dot:hover {
+      background: #3b82f6;
+      border-color: #60a5fa;
+    }
+
+    .carousel-dot.active {
+      background: #60a5fa;
+      border-color: #60a5fa;
+      width: 24px;
+      border-radius: 5px;
+    }
+
+    .slide-content {
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .slide-number {
+      font-size: 1rem;
+      opacity: 0.7;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="carousel-container">
+    <div class="carousel-viewport">
+      <div class="carousel-track" id="track">
+        <div class="carousel-slide slide-1">
+          <div class="slide-content">
+            <div class="slide-number">1 / 4</div>
+            <div>Slide 1</div>
+          </div>
+        </div>
+        <div class="carousel-slide slide-2">
+          <div class="slide-content">
+            <div class="slide-number">2 / 4</div>
+            <div>Slide 2</div>
+          </div>
+        </div>
+        <div class="carousel-slide slide-3">
+          <div class="slide-content">
+            <div class="slide-number">3 / 4</div>
+            <div>Slide 3</div>
+          </div>
+        </div>
+        <div class="carousel-slide slide-4">
+          <div class="slide-content">
+            <div class="slide-number">4 / 4</div>
+            <div>Slide 4</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="carousel-btn carousel-btn-prev" id="prevBtn">‹</button>
+    <button class="carousel-btn carousel-btn-next" id="nextBtn">›</button>
+
+    <div class="carousel-dots" id="dots"></div>
+  </div>
+
+  <script>
+    const track = document.getElementById('track');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const dotsContainer = document.getElementById('dots');
+    const slides = document.querySelectorAll('.carousel-slide');
+    const totalSlides = slides.length;
+
+    let currentIndex = 0;
+    let startX = 0;
+    let isDragging = false;
+    let currentTranslate = 0;
+    let prevTranslate = 0;
+
+    // Create dots
+    for (let i = 0; i < totalSlides; i++) {
+      const dot = document.createElement('button');
+      dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
+      dot.addEventListener('click', () => goToSlide(i));
+      dotsContainer.appendChild(dot);
+    }
+
+    const dots = document.querySelectorAll('.carousel-dot');
+
+    function updateCarousel() {
+      track.style.transform = \`translateX(-\${currentIndex * 100}%)\`;
+      dots.forEach((dot, index) => {
+        dot.classList.toggle('active', index === currentIndex);
+      });
+    }
+
+    function goToSlide(index) {
+      currentIndex = Math.max(0, Math.min(index, totalSlides - 1));
+      updateCarousel();
+    }
+
+    function nextSlide() {
+      currentIndex = (currentIndex + 1) % totalSlides;
+      updateCarousel();
+    }
+
+    function prevSlide() {
+      currentIndex = (currentIndex - 1 + totalSlides) % totalSlides;
+      updateCarousel();
+    }
+
+    // Button navigation
+    nextBtn.addEventListener('click', nextSlide);
+    prevBtn.addEventListener('click', prevSlide);
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') prevSlide();
+      if (e.key === 'ArrowRight') nextSlide();
+    });
+
+    // Touch/Mouse drag functionality
+    track.addEventListener('mousedown', dragStart);
+    track.addEventListener('touchstart', dragStart);
+    track.addEventListener('mouseup', dragEnd);
+    track.addEventListener('touchend', dragEnd);
+    track.addEventListener('mouseleave', dragEnd);
+    track.addEventListener('mousemove', drag);
+    track.addEventListener('touchmove', drag);
+
+    function dragStart(e) {
+      isDragging = true;
+      startX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+      track.style.transition = 'none';
+    }
+
+    function drag(e) {
+      if (!isDragging) return;
+
+      const currentX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+      const diff = currentX - startX;
+      currentTranslate = prevTranslate + diff;
+
+      const maxTranslate = 0;
+      const minTranslate = -(totalSlides - 1) * track.offsetWidth;
+      currentTranslate = Math.max(minTranslate, Math.min(maxTranslate, currentTranslate));
+
+      track.style.transform = \`translateX(\${currentTranslate}px)\`;
+    }
+
+    function dragEnd() {
+      if (!isDragging) return;
+      isDragging = false;
+
+      track.style.transition = 'transform 0.5s ease-out';
+
+      const movedBy = currentTranslate - prevTranslate;
+      const threshold = track.offsetWidth / 4;
+
+      if (movedBy < -threshold && currentIndex < totalSlides - 1) {
+        currentIndex++;
+      } else if (movedBy > threshold && currentIndex > 0) {
+        currentIndex--;
+      }
+
+      prevTranslate = -currentIndex * track.offsetWidth;
+      currentTranslate = prevTranslate;
+      updateCarousel();
+    }
+
+    // Auto-play (optional)
+    let autoplayInterval = setInterval(nextSlide, 4000);
+
+    // Pause on hover
+    track.addEventListener('mouseenter', () => {
+      clearInterval(autoplayInterval);
+    });
+
+    track.addEventListener('mouseleave', () => {
+      autoplayInterval = setInterval(nextSlide, 4000);
+    });
+  </script>
+</body>
+</html>
+`}
+</LiveDemo>
+
+### 2. スワイプ判定の実装
+
+```typescript
+// velocity（速度）とoffset（距離）の両方で判定
+const swipeConfidenceThreshold = 10000;
+const swipePower = (offset: number, velocity: number) => {
+  return Math.abs(offset) * velocity;
+};
+```
+
+## コード例
+
+### TypeScript（React + Framer Motion）
+
+```tsx
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface CarouselProps {
+  slides: React.ReactNode[];
+  autoPlayInterval?: number;
+  showDots?: boolean;
+  loop?: boolean;
+}
+
+const Carousel: React.FC<CarouselProps> = ({
+  slides,
+  autoPlayInterval = 0,
+  showDots = true,
+  loop = true,
+}) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [direction, setDirection] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  // prefers-reduced-motion チェック
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // スライド切替
+  const paginate = useCallback(
+    (newDirection: number) => {
+      let newIndex = currentIndex + newDirection;
+
+      if (loop) {
+        newIndex = (newIndex + slides.length) % slides.length;
+      } else {
+        newIndex = Math.max(0, Math.min(slides.length - 1, newIndex));
+      }
+
+      setCurrentIndex(newIndex);
+      setDirection(newDirection);
+    },
+    [currentIndex, slides.length, loop]
+  );
+
+  // 自動再生
+  useEffect(() => {
+    if (!autoPlayInterval || isPaused) return;
+
+    const timer = setInterval(() => {
+      paginate(1);
+    }, autoPlayInterval);
+
+    return () => clearInterval(timer);
+  }, [autoPlayInterval, isPaused, paginate]);
+
+  // キーボード操作
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') paginate(-1);
+      if (e.key === 'ArrowRight') paginate(1);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [paginate]);
+
+  // スワイプ判定
+  const swipeConfidenceThreshold = 10000;
+  const swipePower = (offset: number, velocity: number) => {
+    return Math.abs(offset) * velocity;
+  };
+
+  // アニメーション設定
+  const variants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 1000 : -1000,
+      opacity: 0,
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      opacity: 1,
+    },
+    exit: (direction: number) => ({
+      zIndex: 0,
+      x: direction < 0 ? 1000 : -1000,
+      opacity: 0,
+    }),
+  };
+
+  const transition = prefersReducedMotion
+    ? { duration: 0 }
+    : {
+        x: { type: 'spring', stiffness: 300, damping: 30 },
+        opacity: { duration: 0.2 },
+      };
+
+  return (
+    <div
+      className="carousel-container"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      role="region"
+      aria-roledescription="carousel"
+      aria-label="画像カルーセル"
+    >
+      <div className="carousel-viewport">
+        <AnimatePresence initial={false} custom={direction} mode="wait">
+          <motion.div
+            key={currentIndex}
+            custom={direction}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={transition}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={1}
+            onDragEnd={(e, { offset, velocity }) => {
+              const swipe = swipePower(offset.x, velocity.x);
+
+              if (swipe < -swipeConfidenceThreshold) {
+                paginate(1);
+              } else if (swipe > swipeConfidenceThreshold) {
+                paginate(-1);
+              }
+            }}
+            className="carousel-slide"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {slides[currentIndex]}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* ナビゲーションボタン */}
+      <button
+        className="carousel-btn carousel-btn-prev"
+        onClick={() => paginate(-1)}
+        disabled={!loop && currentIndex === 0}
+        aria-label="前のスライドへ"
+      >
+        ‹
+      </button>
+      <button
+        className="carousel-btn carousel-btn-next"
+        onClick={() => paginate(1)}
+        disabled={!loop && currentIndex === slides.length - 1}
+        aria-label="次のスライドへ"
+      >
+        ›
+      </button>
+
+      {/* インジケーター（ドット） */}
+      {showDots && (
+        <div className="carousel-dots" role="tablist" aria-label="スライド選択">
+          {slides.map((_, index) => (
+            <button
+              key={index}
+              role="tab"
+              aria-selected={index === currentIndex}
+              aria-label={`スライド ${index + 1} へ移動`}
+              className={`carousel-dot ${
+                index === currentIndex ? 'active' : ''
+              }`}
+              onClick={() => {
+                setDirection(index > currentIndex ? 1 : -1);
+                setCurrentIndex(index);
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Carousel;
+```
+
+### 使用例
+
+```tsx
+import Carousel from './Carousel';
+
+function App() {
+  const slides = [
+    <div className="slide" style={{ background: '#1e3a8a' }}>Slide 1</div>,
+    <div className="slide" style={{ background: '#7c3aed' }}>Slide 2</div>,
+    <div className="slide" style={{ background: '#db2777' }}>Slide 3</div>,
+  ];
+
+  return (
+    <Carousel
+      slides={slides}
+      autoPlayInterval={5000}
+      showDots={true}
+      loop={true}
+    />
+  );
+}
+```
+
+### CSS
+
+```css
+.carousel-container {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  overflow: hidden;
+  background: #0c1218;
+  border-radius: 12px;
+  border: 1px solid #1f2a37;
+}
+
+.carousel-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.carousel-slide {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  user-select: none;
+}
+
+.carousel-slide:active {
+  cursor: grabbing;
+}
+
+.slide {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #e5edf4;
+}
+
+/* ナビゲーションボタン */
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(21, 32, 43, 0.9);
+  border: 1px solid #1f2a37;
+  color: #e5edf4;
+  font-size: 2rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 2;
+  backdrop-filter: blur(4px);
+}
+
+.carousel-btn:hover:not(:disabled) {
+  background: rgba(31, 42, 55, 0.95);
+  border-color: #60a5fa;
+}
+
+.carousel-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.carousel-btn-prev {
+  left: 1rem;
+}
+
+.carousel-btn-next {
+  right: 1rem;
+}
+
+/* インジケーター（ドット） */
+.carousel-dots {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  z-index: 2;
+}
+
+.carousel-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid #1f2a37;
+  background: rgba(12, 18, 24, 0.8);
+  cursor: pointer;
+  transition: all 0.3s;
+  padding: 0;
+}
+
+.carousel-dot:hover {
+  background: #3b82f6;
+  border-color: #60a5fa;
+}
+
+.carousel-dot.active {
+  background: #60a5fa;
+  border-color: #60a5fa;
+  width: 24px;
+  border-radius: 5px;
+}
+
+/* prefers-reduced-motion 対応 */
+@media (prefers-reduced-motion: reduce) {
+  .carousel-slide {
+    transition: none !important;
+  }
+}
+
+/* レスポンシブ */
+@media (max-width: 768px) {
+  .carousel-container {
+    height: 300px;
+  }
+
+  .carousel-btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 1.5rem;
+  }
+
+  .carousel-btn-prev {
+    left: 0.5rem;
+  }
+
+  .carousel-btn-next {
+    right: 0.5rem;
+  }
+}
+```
+
+## 高度な機能
+
+### 1. サムネイル付きカルーセル
+
+```tsx
+const [thumbnails, setThumbnails] = useState<string[]>([]);
+
+// サムネイルナビゲーション
+<div className="carousel-thumbnails">
+  {thumbnails.map((thumb, index) => (
+    <button
+      key={index}
+      onClick={() => {
+        setDirection(index > currentIndex ? 1 : -1);
+        setCurrentIndex(index);
+      }}
+      className={index === currentIndex ? 'active' : ''}
+    >
+      <img src={thumb} alt={`Thumbnail ${index + 1}`} />
+    </button>
+  ))}
+</div>
+```
+
+### 2. カスタムトランジション
+
+```tsx
+const customTransition = {
+  // バウンス効果
+  bounce: { type: 'spring', stiffness: 100, damping: 10 },
+  // フェードのみ
+  fade: { duration: 0.5, ease: 'easeInOut' },
+  // スライド + ズーム
+  scaleSlide: {
+    x: { type: 'spring', stiffness: 300, damping: 30 },
+    scale: { duration: 0.3 },
+  },
+};
+```
+
+### 3. 複数スライド表示
+
+```tsx
+// 一度に3つのスライドを表示
+const visibleSlides = 3;
+const slideWidth = 100 / visibleSlides;
+
+<motion.div
+  style={{ width: `${slideWidth}%` }}
+  // ... 他の設定
+/>
+```
+
+## パフォーマンス最適化
+
+### 1. GPU アクセラレーション
+
+```css
+.carousel-slide {
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+```
+
+### 2. 画像の遅延読み込み
+
+```tsx
+<img
+  src={slide.src}
+  alt={slide.alt}
+  loading="lazy"
+  decoding="async"
+/>
+```
+
+### 3. メモ化
+
+```tsx
+import { memo } from 'react';
+
+const CarouselSlide = memo(({ children }: { children: React.ReactNode }) => {
+  return <div className="slide">{children}</div>;
+});
+```
+
+## アクセシビリティ
+
+- ARIA属性（role, aria-label, aria-live）
+- キーボード操作対応
+- prefers-reduced-motion対応
+- スクリーンリーダー対応
+- フォーカス管理
+
+## 注意点
+
+1. **Framer Motionのバンドルサイズ**: 約40KB（gzip）。軽量化が必要な場合は検討
+2. **モバイルでのドラッグ**: touchイベントは自動対応済み
+3. **自動再生**: ホバー時は一時停止推奨（UX改善）
+4. **画像最適化**: WebP形式推奨、適切なサイズ設定
+
+## まとめ
+
+Framer Motionを使うことで、複雑なアニメーションロジックを簡潔に実装できます。
+drag機能とAnimatePresenceの組み合わせにより、ネイティブアプリのような滑らかなUXを実現できます。
+
+## 参考リンク
+
+- [Framer Motion Documentation](https://www.framer.com/motion/)
+- [Framer Motion Examples](https://www.framer.com/motion/examples/)
+- [AnimatePresence Guide](https://www.framer.com/motion/animate-presence/)

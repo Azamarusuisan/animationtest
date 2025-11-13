@@ -1,0 +1,604 @@
+---
+title: ブラウザDevToolsの便利な使い方
+description: Chrome DevToolsのLighthouse、Performance、Consoleを使ったデバッグとパフォーマンス改善
+tags: [debugging, devtools, performance, lighthouse, chrome]
+category: debugging
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## Chrome DevToolsの基本
+
+Chrome DevToolsは開発者にとって最も重要なツールの1つです。適切に使いこなすことで、デバッグ時間を大幅に短縮し、パフォーマンスの問題を素早く特定できます。
+
+<LiveDemo
+  title="Console APIの便利な機能"
+  height="600px"
+  html={`
+<div style="max-width: 800px; margin: 0 auto;">
+  <h3 style="margin-bottom: 1.5rem; color: #60a5fa;">Console APIのデモ</h3>
+
+  <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+    <button id="console-log" class="demo-btn">
+      📝 console.log
+    </button>
+    <button id="console-table" class="demo-btn">
+      📊 console.table
+    </button>
+    <button id="console-group" class="demo-btn">
+      📁 console.group
+    </button>
+    <button id="console-time" class="demo-btn">
+      ⏱️ console.time
+    </button>
+    <button id="console-trace" class="demo-btn">
+      🔍 console.trace
+    </button>
+    <button id="console-assert" class="demo-btn">
+      ⚠️ console.assert
+    </button>
+    <button id="console-dir" class="demo-btn">
+      📋 console.dir
+    </button>
+    <button id="console-count" class="demo-btn">
+      🔢 console.count
+    </button>
+  </div>
+
+  <div style="padding: 1.5rem; background: #1f2a37; border-radius: 8px; border: 2px solid #374151;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <h4 style="color: #60a5fa; margin: 0;">コンソール出力</h4>
+      <button id="clear-console" style="padding: 0.5rem 1rem; background: #374151; border: 1px solid #4b5563; border-radius: 6px; color: #e5edf4; cursor: pointer; font-size: 0.875rem;">
+        🗑️ クリア
+      </button>
+    </div>
+    <div id="output" style="font-family: 'Monaco', 'Menlo', monospace; font-size: 0.875rem; color: #e5edf4; background: #0c1218; padding: 1rem; border-radius: 6px; min-height: 200px; max-height: 300px; overflow-y: auto; line-height: 1.6;"></div>
+  </div>
+
+  <div style="margin-top: 1rem; padding: 1rem; background: #374151; border-radius: 8px; font-size: 0.875rem; color: #9ca3af;">
+    💡 ブラウザのコンソール（F12）も確認してください。より詳細な出力が表示されます。
+  </div>
+</div>
+  `}
+  css={`
+    .demo-btn {
+      padding: 0.75rem 1rem;
+      background: #1f2a37;
+      border: 2px solid #374151;
+      border-radius: 8px;
+      color: #e5edf4;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      text-align: left;
+    }
+    .demo-btn:hover {
+      background: #374151;
+      border-color: #60a5fa;
+      transform: translateY(-2px);
+    }
+    .demo-btn:active {
+      transform: translateY(0);
+    }
+    .log-line {
+      margin: 0.25rem 0;
+      padding: 0.25rem 0;
+      border-bottom: 1px solid #1f2a37;
+    }
+    .log-info { color: #60a5fa; }
+    .log-warn { color: #f59e0b; }
+    .log-error { color: #ef4444; }
+    .log-success { color: #10b981; }
+  `}
+  js={`
+    const output = document.getElementById('output');
+
+    function addOutput(text, type = 'info') {
+      const div = document.createElement('div');
+      div.className = \`log-line log-\${type}\`;
+      div.textContent = text;
+      output.appendChild(div);
+      output.scrollTop = output.scrollHeight;
+    }
+
+    // console.log のデモ
+    document.getElementById('console-log').addEventListener('click', () => {
+      const user = { name: 'Taro', age: 30, role: 'Developer' };
+      console.log('User object:', user);
+      addOutput('✓ console.log でオブジェクトを出力しました', 'success');
+    });
+
+    // console.table のデモ
+    document.getElementById('console-table').addEventListener('click', () => {
+      const users = [
+        { name: 'Taro', age: 30, city: 'Tokyo' },
+        { name: 'Hanako', age: 25, city: 'Osaka' },
+        { name: 'Jiro', age: 35, city: 'Nagoya' }
+      ];
+      console.table(users);
+      addOutput('✓ console.table でテーブル表示しました（コンソールを確認）', 'success');
+    });
+
+    // console.group のデモ
+    document.getElementById('console-group').addEventListener('click', () => {
+      console.group('ユーザー情報');
+      console.log('Name: Taro Yamada');
+      console.log('Email: taro@example.com');
+      console.group('アドレス');
+      console.log('郵便番号: 100-0001');
+      console.log('住所: 東京都千代田区');
+      console.groupEnd();
+      console.groupEnd();
+      addOutput('✓ console.group でグループ化しました', 'success');
+    });
+
+    // console.time のデモ
+    document.getElementById('console-time').addEventListener('click', () => {
+      console.time('処理時間');
+      let sum = 0;
+      for (let i = 0; i < 1000000; i++) {
+        sum += i;
+      }
+      console.timeEnd('処理時間');
+      addOutput('✓ console.time で処理時間を測定しました', 'success');
+    });
+
+    // console.trace のデモ
+    document.getElementById('console-trace').addEventListener('click', () => {
+      function foo() {
+        function bar() {
+          function baz() {
+            console.trace('スタックトレース');
+          }
+          baz();
+        }
+        bar();
+      }
+      foo();
+      addOutput('✓ console.trace でスタックトレースを表示しました', 'success');
+    });
+
+    // console.assert のデモ
+    document.getElementById('console-assert').addEventListener('click', () => {
+      const age = 15;
+      console.assert(age >= 18, '年齢は18歳以上である必要があります', { age });
+      addOutput('✓ console.assert で条件チェックしました', 'warn');
+    });
+
+    // console.dir のデモ
+    document.getElementById('console-dir').addEventListener('click', () => {
+      const element = document.getElementById('output');
+      console.dir(element);
+      addOutput('✓ console.dir でDOM要素のプロパティを表示しました', 'success');
+    });
+
+    // console.count のデモ
+    let clickCount = 0;
+    document.getElementById('console-count').addEventListener('click', () => {
+      console.count('ボタンクリック');
+      addOutput(\`✓ クリック回数: \${++clickCount}回\`, 'info');
+    });
+
+    // クリア
+    document.getElementById('clear-console').addEventListener('click', () => {
+      output.innerHTML = '';
+      console.clear();
+    });
+
+    addOutput('コンソールAPIのデモを開始します', 'info');
+  `}
+/>
+
+## Console APIの高度な使い方
+
+### 1. console.table - データの可視化
+
+```javascript
+// 配列の表示
+const users = [
+  { id: 1, name: 'Taro', role: 'Admin' },
+  { id: 2, name: 'Hanako', role: 'User' },
+  { id: 3, name: 'Jiro', role: 'Moderator' }
+];
+console.table(users);
+
+// 特定のカラムのみ表示
+console.table(users, ['name', 'role']);
+
+// オブジェクトの表示
+const user = {
+  name: 'Taro',
+  email: 'taro@example.com',
+  age: 30
+};
+console.table(user);
+```
+
+### 2. console.time/timeEnd - パフォーマンス測定
+
+```javascript
+// 処理時間の測定
+console.time('データ処理');
+
+// 重い処理
+processLargeDataset();
+
+console.timeEnd('データ処理'); // データ処理: 123.45ms
+
+// 複数のタイマー
+console.time('API呼び出し');
+console.time('データ変換');
+
+await fetchData();
+console.timeEnd('API呼び出し');
+
+transformData();
+console.timeEnd('データ変換');
+```
+
+### 3. console.group - ログのグループ化
+
+```javascript
+console.group('API リクエスト');
+console.log('URL:', '/api/users');
+console.log('Method:', 'GET');
+
+console.group('レスポンス');
+console.log('Status:', 200);
+console.log('Data:', data);
+console.groupEnd();
+
+console.groupEnd();
+
+// 折りたたまれた状態で開始
+console.groupCollapsed('詳細ログ');
+console.log('デバッグ情報...');
+console.groupEnd();
+```
+
+### 4. console.assert - 条件チェック
+
+```javascript
+function divide(a, b) {
+  console.assert(b !== 0, 'ゼロで割ることはできません', { a, b });
+  return a / b;
+}
+
+divide(10, 0); // Assertion failed: ゼロで割ることはできません
+
+// 配列のバリデーション
+function processItems(items) {
+  console.assert(Array.isArray(items), 'items must be an array');
+  console.assert(items.length > 0, 'items must not be empty');
+  // 処理...
+}
+```
+
+### 5. スタイル付きログ
+
+```javascript
+// CSSスタイルを適用
+console.log(
+  '%c Success! ',
+  'background: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;'
+);
+
+console.log(
+  '%c Error! ',
+  'background: #ef4444; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;'
+);
+
+// 複数のスタイル
+console.log(
+  '%cApp%cStarted',
+  'background: #3b82f6; color: white; padding: 2px 6px;',
+  'background: #10b981; color: white; padding: 2px 6px; margin-left: 4px;'
+);
+```
+
+## Performance タブの使い方
+
+### 1. パフォーマンスの記録と分析
+
+```javascript
+// 記録手順:
+// 1. Performance タブを開く
+// 2. Record ボタン（●）をクリック
+// 3. 分析したい操作を実行
+// 4. Stop ボタンをクリック
+
+// プログラムから記録を開始
+performance.mark('operation-start');
+
+// 重い処理
+expensiveOperation();
+
+performance.mark('operation-end');
+performance.measure('operation', 'operation-start', 'operation-end');
+
+// 測定結果を取得
+const measures = performance.getEntriesByType('measure');
+console.log(measures[0].duration); // ms単位
+```
+
+### 2. FPS（フレームレート）の監視
+
+```javascript
+// FPSメーターの表示
+// DevTools → More tools → Rendering → Frame Rendering Stats
+
+// コードでFPSを測定
+let lastTime = performance.now();
+let frames = 0;
+let fps = 0;
+
+function measureFPS() {
+  frames++;
+  const now = performance.now();
+
+  if (now >= lastTime + 1000) {
+    fps = Math.round((frames * 1000) / (now - lastTime));
+    console.log('FPS:', fps);
+    frames = 0;
+    lastTime = now;
+  }
+
+  requestAnimationFrame(measureFPS);
+}
+
+measureFPS();
+```
+
+### 3. メモリ使用量の監視
+
+```javascript
+// Performance タブでメモリをチェック
+// 1. ⚙️（設定）→ Memory にチェック
+// 2. Record して操作
+// 3. メモリグラフを確認
+
+// コードでメモリ使用量を取得
+if (performance.memory) {
+  console.log({
+    used: (performance.memory.usedJSHeapSize / 1048576).toFixed(2) + ' MB',
+    total: (performance.memory.totalJSHeapSize / 1048576).toFixed(2) + ' MB',
+    limit: (performance.memory.jsHeapSizeLimit / 1048576).toFixed(2) + ' MB'
+  });
+}
+```
+
+## Lighthouse の活用
+
+### 1. パフォーマンス監査の実行
+
+```javascript
+// Lighthouseの実行:
+// 1. DevTools → Lighthouse タブ
+// 2. Categories を選択（Performance, Accessibility, など）
+// 3. "Analyze page load" をクリック
+
+// 主要な指標:
+// - FCP (First Contentful Paint): 最初のコンテンツ表示
+// - LCP (Largest Contentful Paint): 最大コンテンツ表示
+// - TBT (Total Blocking Time): ブロッキング時間
+// - CLS (Cumulative Layout Shift): レイアウトシフト
+// - SI (Speed Index): 速度指数
+```
+
+### 2. パフォーマンス改善の優先順位
+
+```javascript
+// Lighthouseの提案を確認
+// 1. Opportunities: 最も効果的な改善策
+// 2. Diagnostics: 診断情報
+// 3. Passed audits: 合格した項目
+
+// よくある改善項目:
+// - 画像の最適化
+// - 未使用のJavaScriptの削減
+// - レンダリングブロックリソースの排除
+// - テキスト圧縮の有効化
+```
+
+## Network タブのテクニック
+
+### 1. リクエストのフィルタリング
+
+```javascript
+// フィルター機能:
+// - is:running - 実行中のリクエスト
+// - method:POST - POSTリクエストのみ
+// - domain:example.com - 特定ドメイン
+// - status-code:404 - ステータスコード
+// - larger-than:1000 - 1KB以上
+
+// スロットリング:
+// Network タブ → Throttling → Slow 3G
+// モバイル環境をシミュレート
+```
+
+### 2. リクエストのブロック
+
+```javascript
+// 特定のリクエストをブロック:
+// 1. リクエストを右クリック
+// 2. "Block request URL" を選択
+// 3. パターンを編集（例: *.ads.com）
+
+// 使用例:
+// - 広告スクリプトをブロックして速度を測定
+// - サードパーティのスクリプトの影響を確認
+```
+
+## Sourcesタブでのデバッグ
+
+### 1. ブレークポイントの種類
+
+```javascript
+// 通常のブレークポイント
+// 行番号をクリック
+
+// 条件付きブレークポイント
+// 行番号を右クリック → "Add conditional breakpoint"
+// 条件: i > 100
+
+// ログポイント
+// 行番号を右クリック → "Add logpoint"
+// ログ: 'Count:', i
+
+// DOMブレークポイント
+// Elements タブ → 要素を右クリック → Break on
+// - subtree modifications
+// - attribute modifications
+// - node removal
+```
+
+### 2. デバッガーの活用
+
+```javascript
+function processData(data) {
+  debugger; // ここで実行が一時停止
+
+  const result = data.map(item => {
+    return transform(item);
+  });
+
+  return result;
+}
+
+// 便利なショートカット:
+// F8: 実行を再開
+// F10: ステップオーバー（次の行へ）
+// F11: ステップイン（関数の中へ）
+// Shift+F11: ステップアウト（関数から出る）
+```
+
+## Application タブの活用
+
+### 1. LocalStorage / SessionStorageの確認
+
+```javascript
+// Application → Storage → Local Storage
+
+// データの確認と編集
+localStorage.setItem('user', JSON.stringify({ name: 'Taro' }));
+
+// DevToolsで直接編集可能
+// 右クリック → Edit / Delete
+```
+
+### 2. キャッシュの管理
+
+```javascript
+// Service Worker のキャッシュを確認
+// Application → Cache Storage
+
+// キャッシュのクリア
+// Application → Clear storage → Clear site data
+
+// プログラムからキャッシュをクリア
+if ('caches' in window) {
+  caches.keys().then(names => {
+    names.forEach(name => caches.delete(name));
+  });
+}
+```
+
+## Coverage タブで未使用コードを検出
+
+```javascript
+// Coverage タブの使用:
+// 1. Cmd+Shift+P (Mac) / Ctrl+Shift+P (Win)
+// 2. "Show Coverage" を入力
+// 3. Record ボタンをクリック
+// 4. ページを操作
+// 5. 未使用のCSS/JSが赤く表示される
+
+// 未使用コードの削除:
+// - 赤いバーが多いファイルを確認
+// - コード分割を検討
+// - Tree-shakingを有効化
+```
+
+## デバッグの実践テクニック
+
+### 1. オブジェクトの詳細な検査
+
+```javascript
+// console.log の代わりに console.dir
+const element = document.querySelector('#app');
+
+console.log(element);  // HTML表示
+console.dir(element);  // オブジェクトのプロパティ表示
+
+// JSON形式で確認
+console.log(JSON.stringify(object, null, 2));
+```
+
+### 2. エラーのスタックトレース
+
+```javascript
+function level1() {
+  level2();
+}
+
+function level2() {
+  level3();
+}
+
+function level3() {
+  console.trace('Call stack');
+  throw new Error('Something went wrong');
+}
+
+try {
+  level1();
+} catch (error) {
+  console.error('Error:', error);
+  console.error('Stack:', error.stack);
+}
+```
+
+### 3. 変数の監視
+
+```javascript
+// Sources タブ → Watch
+// 変数やを追加して値の変化を監視
+
+// 例:
+// - user.name
+// - items.length
+// - this.state
+```
+
+## まとめ
+
+### Console API
+
+- `console.table`: データの可視化
+- `console.time`: パフォーマンス測定
+- `console.group`: ログのグループ化
+- `console.assert`: 条件チェック
+
+### Performance タブ
+
+- FPS監視でアニメーションの滑らかさを確認
+- メモリ使用量でメモリリークを検出
+- CPU使用率で重い処理を特定
+
+### Lighthouse
+
+- パフォーマンススコアで総合評価
+- 具体的な改善提案を取得
+- 定期的に監査して品質を維持
+
+### Network タブ
+
+- リクエストのタイミングを確認
+- スロットリングでモバイルをシミュレート
+- 不要なリクエストをブロック
+
+これらのツールを組み合わせて、効率的にデバッグとパフォーマンス改善を行いましょう。

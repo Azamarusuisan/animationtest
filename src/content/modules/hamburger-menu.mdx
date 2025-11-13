@@ -1,0 +1,251 @@
+---
+title: ハンバーガーメニュー（ZettAI式）
+description: モバイル/狭い幅でのナビゲーション展開。アクセシブル・オーバーレイ付き。
+tags: [navigation, menu, accessibility, animation]
+frameworks: [Next.js, Tailwind]
+level: basic
+demo_url: ""
+code_url: ""
+prompt_template: |
+  次の要件でハンバーガーメニューを実装してください。
+
+  フレームワーク: {{framework}}（デフォルト: Next.js + Tailwind CSS）
+
+  要件:
+  - 右上固定のトグルボタン
+  - aria-controls="site-nav" と aria-expanded の同期
+  - 開閉アニメーション: 200ms, ease-out, フェード+スライド
+  - 背景スクロール抑止（オーバーレイ使用）
+  - prefers-reduced-motion でアニメーション無効化
+  - キーボード操作対応（Escで閉じる、タブリング維持）
+  - カラースキーム: {{scheme}}（デフォルト: light）
+
+  納品物:
+  - コンポーネント本体
+  - 最小限のCSS
+  - 読みやすいコメント付き
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## 概要
+
+モバイルデバイスや狭い画面幅でのナビゲーション展開に使用するハンバーガーメニューです。
+視覚的アフォーダンスとアクセシビリティを両立させた実装を目指します。
+
+## 実装のポイント
+
+### 1. アクセシビリティ
+
+- `aria-expanded` でメニューの開閉状態を明示
+- `aria-controls` でトグルボタンと関連要素を紐付け
+- キーボード操作（Esc キー、Tab キー）のサポート
+- スクリーンリーダー対応
+
+### 2. アニメーション
+
+```css
+/* トランジション設定 */
+.menu {
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+/* prefers-reduced-motion 対応 */
+@media (prefers-reduced-motion: reduce) {
+  .menu {
+    transition: none;
+  }
+}
+```
+
+### 3. 背景スクロール抑止
+
+メニュー展開時に背景のスクロールを防ぐため、body要素に `overflow: hidden` を追加します。
+
+```javascript
+// メニューを開く
+document.body.style.overflow = 'hidden';
+
+// メニューを閉じる
+document.body.style.overflow = '';
+```
+
+<LiveDemo height="300px">
+{`<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0c1218; color: #e5edf4; height: 100vh; overflow: hidden; }
+
+    .demo-container { position: relative; width: 100%; height: 100%; padding: 1rem; background: linear-gradient(135deg, #0c1218 0%, #1f2a37 100%); }
+    .demo-content { padding: 2rem; }
+    .demo-content h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .demo-content p { color: #9ca3af; line-height: 1.6; }
+
+    .hamburger-btn { position: fixed; top: 1rem; right: 1rem; z-index: 50; background: #1f2a37; border: 1px solid #374151; padding: 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+    .hamburger-btn:hover { background: #374151; }
+    .hamburger-icon { width: 24px; height: 20px; display: flex; flex-direction: column; justify-content: space-between; }
+    .hamburger-icon span { display: block; height: 2px; background: #e5edf4; border-radius: 2px; transition: transform 0.2s ease-out, opacity 0.2s ease-out; }
+    .hamburger-btn.active .hamburger-icon span:nth-child(1) { transform: translateY(9px) rotate(45deg); }
+    .hamburger-btn.active .hamburger-icon span:nth-child(2) { opacity: 0; }
+    .hamburger-btn.active .hamburger-icon span:nth-child(3) { transform: translateY(-9px) rotate(-45deg); }
+
+    .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.2s ease-out; }
+    .overlay.active { opacity: 1; pointer-events: auto; }
+
+    .menu { position: fixed; top: 0; right: 0; height: 100vh; width: 280px; background: #1f2a37; border-left: 1px solid #374151; z-index: 40; transform: translateX(100%); transition: transform 0.2s ease-out; padding: 5rem 2rem 2rem; }
+    .menu.active { transform: translateX(0); }
+    .menu ul { list-style: none; }
+    .menu li { margin-bottom: 0.5rem; }
+    .menu a { display: block; color: #e5edf4; text-decoration: none; padding: 0.75rem 1rem; border-radius: 8px; transition: background 0.2s; }
+    .menu a:hover { background: #374151; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hamburger-icon span, .overlay, .menu { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <div class="demo-content">
+      <h1>ハンバーガーメニュー</h1>
+      <p>右上のボタンをクリックしてメニューを開閉できます。Escキーでも閉じることができます。</p>
+    </div>
+
+    <button class="hamburger-btn" id="menuBtn" aria-expanded="false" aria-controls="siteNav" aria-label="メニュー">
+      <div class="hamburger-icon">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </button>
+
+    <div class="overlay" id="overlay"></div>
+
+    <nav class="menu" id="siteNav">
+      <ul>
+        <li><a href="#home">ホーム</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#services">Services</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+    </nav>
+  </div>
+
+  <script>
+    const menuBtn = document.getElementById('menuBtn');
+    const overlay = document.getElementById('overlay');
+    const menu = document.getElementById('siteNav');
+
+    function toggleMenu() {
+      const isOpen = menuBtn.classList.toggle('active');
+      overlay.classList.toggle('active');
+      menu.classList.toggle('active');
+      menuBtn.setAttribute('aria-expanded', isOpen);
+    }
+
+    function closeMenu() {
+      menuBtn.classList.remove('active');
+      overlay.classList.remove('active');
+      menu.classList.remove('active');
+      menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    menuBtn.addEventListener('click', toggleMenu);
+    overlay.addEventListener('click', closeMenu);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && menuBtn.classList.contains('active')) {
+        closeMenu();
+      }
+    });
+  </script>
+</body>
+</html>`}
+</LiveDemo>
+
+## コード例
+
+### React + Tailwind CSS
+
+```jsx
+import { useState, useEffect } from 'react';
+
+export default function HamburgerMenu() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Escキーで閉じる
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
+
+  // 背景スクロール抑止
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  return (
+    <>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-controls="site-nav"
+        className="fixed top-4 right-4 z-50 p-2"
+      >
+        <span className="sr-only">メニュー</span>
+        <div className="w-6 h-5 flex flex-col justify-between">
+          <span className="block h-0.5 bg-current" />
+          <span className="block h-0.5 bg-current" />
+          <span className="block h-0.5 bg-current" />
+        </div>
+      </button>
+
+      {/* オーバーレイ */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* メニュー */}
+      <nav
+        id="site-nav"
+        className={`
+          fixed top-0 right-0 h-full w-64 bg-white z-40
+          transform transition-transform duration-200 ease-out
+          ${isOpen ? 'translate-x-0' : 'translate-x-full'}
+        `}
+      >
+        <ul className="p-8 space-y-4">
+          <li><a href="/">ホーム</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/contact">Contact</a></li>
+        </ul>
+      </nav>
+    </>
+  );
+}
+```
+
+## 注意点
+
+- iOS Safari でのスクロール問題に注意（position: fixed の挙動）
+- トグルボタンは常に最前面に表示（z-index を適切に設定）
+- メニュー外をクリックした際の閉じる挙動を実装
+- フォーカストラップを実装すると、さらにアクセシビリティが向上
+
+## 参考リンク
+
+- [ARIA: button role - MDN](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/button_role)
+- [prefers-reduced-motion - MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion)

@@ -1,0 +1,337 @@
+---
+title: 画像遅延読み込み（Lazy Loading）
+description: loading="lazy"とIntersectionObserverの併用。プログレッシブ画像対応。
+tags: [lazy-loading, images, performance, optimization]
+frameworks: [Vanilla, Any]
+level: basic
+prompt_template: |
+  画像の遅延読み込みを実装：
+  - ネイティブloading="lazy"を優先
+  - IntersectionObserverでフォールバック
+  - data-src → srcへの置き換え
+  - プレースホルダー画像（ぼかし効果）
+  - 読み込み完了アニメーション
+  - srcset、sizes対応
+  - エラー時のフォールバック画像
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo height="600px" html={`
+<div style="background: #0c1218; padding: 2rem;">
+  <h2 style="color: #e5edf4; margin-bottom: 1.5rem;">画像遅延読み込みデモ</h2>
+  <p style="color: #9ca3af; margin-bottom: 2rem;">スクロールして画像の読み込みを確認してください。</p>
+
+  <div style="display: grid; gap: 2rem;">
+    <div class="lazy-wrapper" style="height: 300px; border-radius: 8px;">
+      <img
+        class="lazy"
+        data-src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=400&fit=crop"
+        alt="Mountain landscape"
+        style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;"
+      />
+      <div class="lazy-placeholder" style="background: linear-gradient(135deg, #1f2a37 0%, #374151 100%);"></div>
+    </div>
+
+    <div class="lazy-wrapper" style="height: 300px; border-radius: 8px;">
+      <img
+        class="lazy"
+        data-src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&h=400&fit=crop"
+        alt="Nature scene"
+        style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;"
+      />
+      <div class="lazy-placeholder" style="background: linear-gradient(135deg, #374151 0%, #1f2a37 100%);"></div>
+    </div>
+
+    <div class="lazy-wrapper" style="height: 300px; border-radius: 8px;">
+      <img
+        class="lazy"
+        data-src="https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=800&h=400&fit=crop"
+        alt="Forest path"
+        style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;"
+      />
+      <div class="lazy-placeholder" style="background: linear-gradient(135deg, #1f2a37 0%, #374151 100%);"></div>
+    </div>
+
+    <div class="lazy-wrapper" style="height: 300px; border-radius: 8px;">
+      <img
+        class="lazy"
+        data-src="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&h=400&fit=crop"
+        alt="Sunset"
+        style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;"
+      />
+      <div class="lazy-placeholder" style="background: linear-gradient(135deg, #374151 0%, #1f2a37 100%);"></div>
+    </div>
+  </div>
+</div>
+`} css={`
+.lazy {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.lazy.loaded {
+  opacity: 1;
+}
+
+.lazy.error {
+  opacity: 1;
+  background: #374151;
+}
+
+.lazy-wrapper {
+  position: relative;
+  overflow: hidden;
+  background: #1f2a37;
+}
+
+.lazy-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  transition: opacity 0.5s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lazy-placeholder::after {
+  content: 'Loading...';
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-weight: 500;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.lazy-wrapper .lazy.loaded ~ .lazy-placeholder {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lazy.error::before {
+  content: '⚠';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  color: #9ca3af;
+  z-index: 2;
+}
+`} js={`
+(() => {
+  function loadImage(img) {
+    const src = img.dataset.src;
+    const srcset = img.dataset.srcset;
+
+    if (!src) return;
+
+    const tempImg = new Image();
+
+    tempImg.onload = () => {
+      img.src = src;
+      if (srcset) img.srcset = srcset;
+      img.classList.add('loaded');
+      img.classList.remove('lazy');
+    };
+
+    tempImg.onerror = () => {
+      img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23374151" width="400" height="300"/%3E%3C/svg%3E';
+      img.classList.add('error', 'loaded');
+      img.classList.remove('lazy');
+    };
+
+    tempImg.src = src;
+    if (srcset) tempImg.srcset = srcset;
+  }
+
+  const io = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        const img = entry.target;
+        loadImage(img);
+        io.unobserve(img);
+      }
+    }
+  }, {
+    rootMargin: '50px'
+  });
+
+  const lazyImages = document.querySelectorAll('img.lazy');
+  lazyImages.forEach(img => {
+    io.observe(img);
+  });
+})();
+`} />
+
+## 実装コード
+
+**HTML**
+```html
+<img
+  class="lazy"
+  src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect fill='%23e5e7eb' width='400' height='300'/%3E%3C/svg%3E"
+  data-src="image-large.jpg"
+  data-srcset="image-small.jpg 400w, image-medium.jpg 800w, image-large.jpg 1200w"
+  sizes="(max-width: 600px) 100vw, 50vw"
+  alt="画像の説明"
+  loading="lazy"
+/>
+
+<!-- プレースホルダー付き（ぼかし効果） -->
+<div class="lazy-wrapper">
+  <img
+    class="lazy-placeholder"
+    src="image-tiny-blur.jpg"
+    aria-hidden="true"
+  />
+  <img
+    class="lazy"
+    data-src="image-large.jpg"
+    alt="画像の説明"
+  />
+</div>
+```
+
+**CSS**
+```css
+.lazy { opacity: 0; transition: opacity 0.3s ease; }
+.lazy.loaded { opacity: 1; }
+.lazy.error { opacity: 1; background: #f3f4f6; }
+
+/* プレースホルダー付きレイアウト */
+.lazy-wrapper { position: relative; overflow: hidden; background: #e5e7eb; }
+.lazy-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(20px);
+  transform: scale(1.1);
+}
+.lazy-wrapper .lazy { position: relative; width: 100%; height: auto; display: block; }
+.lazy-wrapper .lazy.loaded + .lazy-placeholder { opacity: 0; transition: opacity 0.3s ease; }
+
+/* エラー時のスタイル */
+.lazy.error::before {
+  content: '⚠';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  color: #9ca3af;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lazy, .lazy-wrapper .lazy.loaded + .lazy-placeholder { transition: none; }
+}
+```
+
+**JS**
+```js
+(() => {
+  // ネイティブlazyloadingサポート確認
+  const supportsNativeLazy = 'loading' in HTMLImageElement.prototype;
+
+  function loadImage(img) {
+    const src = img.dataset.src;
+    const srcset = img.dataset.srcset;
+
+    if (!src) return;
+
+    // 新しい画像を読み込み
+    const tempImg = new Image();
+
+    tempImg.onload = () => {
+      img.src = src;
+      if (srcset) img.srcset = srcset;
+      img.classList.add('loaded');
+      img.classList.remove('lazy');
+
+      // プレースホルダーを削除
+      const placeholder = img.previousElementSibling;
+      if (placeholder && placeholder.classList.contains('lazy-placeholder')) {
+        setTimeout(() => placeholder.remove(), 300);
+      }
+    };
+
+    tempImg.onerror = () => {
+      // エラー時のフォールバック
+      img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" fill="%239ca3af" font-family="sans-serif"%3E画像を読み込めません%3C/text%3E%3C/svg%3E';
+      img.classList.add('error', 'loaded');
+      img.classList.remove('lazy');
+    };
+
+    tempImg.src = src;
+    if (srcset) tempImg.srcset = srcset;
+  }
+
+  // IntersectionObserverでの遅延読み込み
+  if (!supportsNativeLazy) {
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          const img = entry.target;
+          loadImage(img);
+          io.unobserve(img);
+        }
+      }
+    }, {
+      rootMargin: '50px'
+    });
+
+    document.querySelectorAll('img.lazy').forEach(img => {
+      // loading属性を削除（IntersectionObserverを使用）
+      img.removeAttribute('loading');
+      io.observe(img);
+    });
+  } else {
+    // ネイティブlazyをサポートしている場合
+    document.querySelectorAll('img.lazy').forEach(img => {
+      // data-srcからsrcに移行
+      if (img.dataset.src) {
+        img.addEventListener('load', () => {
+          img.classList.add('loaded');
+        }, { once: true });
+
+        img.addEventListener('error', () => {
+          img.classList.add('error', 'loaded');
+        }, { once: true });
+
+        // srcがプレースホルダーの場合のみ置き換え
+        if (img.src.startsWith('data:image/svg+xml')) {
+          loadImage(img);
+        }
+      }
+    });
+  }
+
+  // 動的に追加された画像にも対応
+  window.lazyLoadImage = (img) => {
+    if (!supportsNativeLazy) {
+      const io = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            loadImage(entry.target);
+            io.unobserve(entry.target);
+          }
+        }
+      }, { rootMargin: '50px' });
+      io.observe(img);
+    } else {
+      loadImage(img);
+    }
+  };
+})();
+```

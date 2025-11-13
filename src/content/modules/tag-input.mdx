@@ -1,0 +1,665 @@
+---
+title: タグ入力（Multi-select Input）
+description: カンマ/Enterでタグ追加。削除・オートコンプリート対応。
+tags: [tag-input, chips, multi-select, form]
+frameworks: [Vanilla, Any]
+level: intermediate
+prompt_template: |
+  目的: アクセシブルなタグ入力（Multi-select Input）の実装
+  前提: Vanilla JS（任意のフレームワークに移植可）
+  要件:
+  - 入力欄 + タグ表示エリア
+  - Enter/カンマ/Tabでタグ追加
+  - タグの×ボタンで削除
+  - Backspaceで最後のタグ削除
+  - 重複チェック機能
+  - 最大数制限
+  - オートコンプリート候補表示
+  - ドラッグで並べ替え（オプション）
+  - aria-label, role="listbox"対応
+  - コピー&ペースト対応
+  - アクセシビリティ対応
+  納品: コンポーネント+CSS+最小限のJS
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="タグ入力コンポーネント - オートコンプリート付き"
+  height="400px"
+  html={`
+<div class="tag-input-wrapper">
+  <label for="tag-input">タグを追加</label>
+  <div class="tag-input-container" role="listbox" aria-label="Selected tags">
+    <div class="tags-list" aria-live="polite"></div>
+    <input type="text" id="tag-input" class="tag-input" placeholder="入力してEnterキー..." autocomplete="off" aria-autocomplete="list" />
+  </div>
+  <div class="tag-info">
+    <span class="tag-count">0 タグ</span>
+    <span class="tag-limit">最大: 10</span>
+  </div>
+  <ul id="tag-suggestions" class="tag-suggestions" role="listbox" hidden></ul>
+</div>
+  `}
+  css={`
+.tag-input-wrapper { max-width: 600px; }
+.tag-input-wrapper label { display: block; margin-bottom: .5rem; font-weight: 600; font-size: .875rem; color: #e5edf4; }
+.tag-input-container { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .5rem; border: 2px solid #374151; border-radius: 8px; min-height: 48px; background: #1f2a37; cursor: text; transition: border-color .2s; }
+.tag-input-container:focus-within { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+.tags-list { display: flex; flex-wrap: wrap; gap: .5rem; flex: 0 0 auto; }
+.tag { display: inline-flex; align-items: center; gap: .375rem; padding: .375rem .75rem; background: #3b82f6; color: white; border-radius: 16px; font-size: .875rem; font-weight: 500; border: 1px solid #2563eb; transition: all .15s; }
+.tag:hover { background: #2563eb; }
+.tag-remove { background: none; border: none; color: white; font-size: 1.25rem; line-height: 1; cursor: pointer; padding: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background .15s; }
+.tag-remove:hover { background: rgba(255, 255, 255, 0.2); }
+.tag-input { flex: 1; min-width: 150px; border: none; outline: none; padding: .375rem; font-size: 1rem; background: transparent; color: #e5edf4; }
+.tag-input::placeholder { color: #6b7280; }
+.tag-info { display: flex; justify-content: space-between; margin-top: .5rem; font-size: .75rem; color: #9ca3af; }
+.tag-count { font-weight: 600; }
+.tag-limit { color: #6b7280; }
+
+.tag-suggestions { position: relative; margin-top: .5rem; background: #1f2a37; border: 1px solid #374151; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.3); max-height: 200px; overflow-y: auto; list-style: none; padding: 0; margin: .5rem 0 0; }
+.tag-suggestion { padding: .75rem 1rem; cursor: pointer; transition: background .15s; border-bottom: 1px solid #374151; color: #e5edf4; }
+.tag-suggestion:last-child { border-bottom: none; }
+.tag-suggestion:hover { background: #374151; }
+.tag-suggestion[aria-selected="true"] { background: #3b82f6; color: white; font-weight: 600; }
+.tag-suggestion mark { background: #fbbf24; color: #000; font-weight: 600; padding: 0; }
+.tag-input-wrapper.at-limit .tag-input { cursor: not-allowed; }
+.tag-input-wrapper.at-limit .tag-input-container { border-color: #f59e0b; background: #1f2a37; }
+  `}
+  js={`
+(() => {
+  const wrapper = document.querySelector('.tag-input-wrapper');
+  const container = document.querySelector('.tag-input-container');
+  const input = document.querySelector('.tag-input');
+  const tagsList = document.querySelector('.tags-list');
+  const tagCount = document.querySelector('.tag-count');
+  const suggestions = document.getElementById('tag-suggestions');
+
+  const MAX_TAGS = 10;
+  const tags = [];
+  let activeIndex = -1;
+
+  const availableTags = ['JavaScript', 'TypeScript', 'Python', 'Java', 'Ruby', 'Go', 'React', 'Vue', 'Angular', 'Svelte', 'Next.js', 'Nuxt', 'Node.js', 'Express', 'HTML', 'CSS', 'Tailwind', 'Bootstrap'];
+
+  function addTag(text) {
+    const trimmed = text.trim();
+    if (!trimmed) return false;
+    if (tags.length >= MAX_TAGS) {
+      return false;
+    }
+    if (tags.some(tag => tag.toLowerCase() === trimmed.toLowerCase())) {
+      return false;
+    }
+    tags.push(trimmed);
+    renderTags();
+    updateCount();
+    input.value = '';
+    closeSuggestions();
+    return true;
+  }
+
+  function removeTag(index) {
+    tags.splice(index, 1);
+    renderTags();
+    updateCount();
+    input.focus();
+  }
+
+  function renderTags() {
+    tagsList.innerHTML = '';
+    tags.forEach((tag, index) => {
+      const tagEl = document.createElement('div');
+      tagEl.className = 'tag';
+      tagEl.innerHTML = \`<span>\${tag}</span><button class="tag-remove" aria-label="Remove \${tag}">×</button>\`;
+      tagEl.querySelector('.tag-remove').addEventListener('click', () => removeTag(index));
+      tagsList.appendChild(tagEl);
+    });
+
+    if (tags.length >= MAX_TAGS) {
+      wrapper.classList.add('at-limit');
+      input.disabled = true;
+      input.placeholder = '最大数に達しました';
+    } else {
+      wrapper.classList.remove('at-limit');
+      input.disabled = false;
+      input.placeholder = '入力してEnterキー...';
+    }
+  }
+
+  function updateCount() {
+    tagCount.textContent = \`\${tags.length} タグ\`;
+  }
+
+  function showSuggestions(query) {
+    if (!query.trim()) {
+      closeSuggestions();
+      return;
+    }
+
+    const filtered = availableTags.filter(tag =>
+      tag.toLowerCase().includes(query.toLowerCase()) && !tags.some(t => t.toLowerCase() === tag.toLowerCase())
+    );
+
+    if (filtered.length === 0) {
+      closeSuggestions();
+      return;
+    }
+
+    suggestions.innerHTML = '';
+    activeIndex = -1;
+
+    filtered.slice(0, 5).forEach((tag, idx) => {
+      const li = document.createElement('li');
+      li.className = 'tag-suggestion';
+      li.setAttribute('role', 'option');
+      li.setAttribute('aria-selected', 'false');
+      const regex = new RegExp(\`(\${query})\`, 'gi');
+      li.innerHTML = tag.replace(regex, '<mark>$1</mark>');
+      li.addEventListener('click', () => {
+        addTag(tag);
+        input.focus();
+      });
+      suggestions.appendChild(li);
+    });
+
+    suggestions.hidden = false;
+  }
+
+  function closeSuggestions() {
+    suggestions.hidden = true;
+    activeIndex = -1;
+  }
+
+  function navigateSuggestions(direction) {
+    const items = suggestions.querySelectorAll('.tag-suggestion');
+    if (items.length === 0) return;
+
+    items[activeIndex]?.setAttribute('aria-selected', 'false');
+
+    if (direction === 'down') {
+      activeIndex = (activeIndex + 1) % items.length;
+    } else if (direction === 'up') {
+      activeIndex = activeIndex <= 0 ? items.length - 1 : activeIndex - 1;
+    }
+
+    items[activeIndex].setAttribute('aria-selected', 'true');
+    items[activeIndex].scrollIntoView({ block: 'nearest' });
+  }
+
+  input.addEventListener('input', (e) => showSuggestions(e.target.value));
+
+  input.addEventListener('keydown', (e) => {
+    const value = input.value.trim();
+
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const items = suggestions.querySelectorAll('.tag-suggestion');
+      if (activeIndex >= 0 && items[activeIndex]) {
+        addTag(items[activeIndex].textContent);
+      } else if (value) {
+        addTag(value);
+      }
+    } else if (e.key === 'Backspace' && !value && tags.length > 0) {
+      removeTag(tags.length - 1);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!suggestions.hidden) navigateSuggestions('down');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!suggestions.hidden) navigateSuggestions('up');
+    } else if (e.key === 'Escape') {
+      closeSuggestions();
+    }
+  });
+
+  container.addEventListener('click', (e) => {
+    if (e.target === container || e.target === tagsList) {
+      input.focus();
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.tag-input-wrapper')) {
+      closeSuggestions();
+    }
+  });
+
+  updateCount();
+})();
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<div class="tag-input-wrapper">
+  <label for="tag-input">Add Tags</label>
+  <div class="tag-input-container" role="listbox" aria-label="Selected tags">
+    <div class="tags-list" aria-live="polite"></div>
+    <input
+      type="text"
+      id="tag-input"
+      class="tag-input"
+      placeholder="Type and press Enter..."
+      autocomplete="off"
+      aria-autocomplete="list"
+      aria-controls="tag-suggestions"
+      aria-expanded="false"
+    />
+  </div>
+  <div class="tag-info">
+    <span class="tag-count">0 tags</span>
+    <span class="tag-limit">Max: 10</span>
+  </div>
+  <ul id="tag-suggestions" class="tag-suggestions" role="listbox" hidden></ul>
+</div>
+```
+
+**CSS**
+```css
+.tag-input-wrapper {
+  max-width: 600px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+.tag-input-wrapper label {
+  display: block;
+  margin-bottom: .5rem;
+  font-weight: 600;
+  font-size: .875rem;
+}
+.tag-input-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  min-height: 48px;
+  background: white;
+  cursor: text;
+  transition: border-color .2s;
+}
+.tag-input-container:focus-within {
+  border-color: #0066cc;
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  flex: 0 0 auto;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  padding: .375rem .75rem;
+  background: #e3f2fd;
+  color: #0066cc;
+  border-radius: 16px;
+  font-size: .875rem;
+  font-weight: 500;
+  border: 1px solid #90caf9;
+  transition: all .15s;
+  cursor: move;
+}
+.tag:hover {
+  background: #bbdefb;
+  border-color: #64b5f6;
+}
+.tag.dragging {
+  opacity: .5;
+  cursor: grabbing;
+}
+.tag-remove {
+  background: none;
+  border: none;
+  color: #0066cc;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background .15s;
+}
+.tag-remove:hover {
+  background: rgba(0, 102, 204, 0.2);
+}
+.tag-remove:focus {
+  outline: 2px solid #0066cc;
+  outline-offset: 2px;
+}
+.tag-input {
+  flex: 1;
+  min-width: 150px;
+  border: none;
+  outline: none;
+  padding: .375rem;
+  font-size: 1rem;
+  background: transparent;
+}
+.tag-input::placeholder {
+  color: #999;
+}
+.tag-info {
+  display: flex;
+  justify-content: space-between;
+  margin-top: .5rem;
+  font-size: .75rem;
+  color: #666;
+}
+.tag-count { font-weight: 600; }
+.tag-limit { color: #999; }
+
+.tag-suggestions {
+  position: relative;
+  margin-top: .5rem;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.1);
+  max-height: 200px;
+  overflow-y: auto;
+  list-style: none;
+  padding: 0;
+  margin: .5rem 0 0;
+}
+.tag-suggestion {
+  padding: .75rem 1rem;
+  cursor: pointer;
+  transition: background .15s;
+  border-bottom: 1px solid #f0f0f0;
+}
+.tag-suggestion:last-child { border-bottom: none; }
+.tag-suggestion:hover { background: #f0f0f0; }
+.tag-suggestion[aria-selected="true"] {
+  background: #e3f2fd;
+  color: #0066cc;
+  font-weight: 600;
+}
+.tag-suggestion mark {
+  background: #ffeb3b;
+  color: inherit;
+  font-weight: 600;
+  padding: 0;
+}
+.tag-input-wrapper.at-limit .tag-input {
+  cursor: not-allowed;
+}
+.tag-input-wrapper.at-limit .tag-input-container {
+  border-color: #ff9800;
+  background: #fff3e0;
+}
+```
+
+**JS**
+```js
+(() => {
+  const wrapper = document.querySelector('.tag-input-wrapper');
+  const container = document.querySelector('.tag-input-container');
+  const input = document.querySelector('.tag-input');
+  const tagsList = document.querySelector('.tags-list');
+  const tagCount = document.querySelector('.tag-count');
+  const suggestions = document.getElementById('tag-suggestions');
+
+  if (!input || !tagsList) return;
+
+  const MAX_TAGS = 10;
+  const tags = [];
+  let activeIndex = -1;
+
+  // Sample autocomplete data
+  const availableTags = [
+    'JavaScript', 'TypeScript', 'Python', 'Java', 'Ruby', 'Go',
+    'React', 'Vue', 'Angular', 'Svelte', 'Next.js', 'Nuxt',
+    'Node.js', 'Express', 'FastAPI', 'Django', 'Rails',
+    'HTML', 'CSS', 'Sass', 'Tailwind', 'Bootstrap',
+    'MongoDB', 'PostgreSQL', 'MySQL', 'Redis'
+  ];
+
+  // Add tag
+  function addTag(text) {
+    const trimmed = text.trim();
+
+    if (!trimmed) return false;
+    if (tags.length >= MAX_TAGS) {
+      alert(`Maximum ${MAX_TAGS} tags allowed`);
+      return false;
+    }
+    if (tags.some(tag => tag.toLowerCase() === trimmed.toLowerCase())) {
+      alert('Tag already exists');
+      return false;
+    }
+
+    tags.push(trimmed);
+    renderTags();
+    updateCount();
+    input.value = '';
+    closeSuggestions();
+    return true;
+  }
+
+  // Remove tag
+  function removeTag(index) {
+    tags.splice(index, 1);
+    renderTags();
+    updateCount();
+    input.focus();
+  }
+
+  // Render tags
+  function renderTags() {
+    tagsList.innerHTML = '';
+    tags.forEach((tag, index) => {
+      const tagEl = document.createElement('div');
+      tagEl.className = 'tag';
+      tagEl.draggable = true;
+      tagEl.dataset.index = index;
+      tagEl.setAttribute('role', 'option');
+      tagEl.setAttribute('aria-selected', 'true');
+
+      const textSpan = document.createElement('span');
+      textSpan.textContent = tag;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'tag-remove';
+      removeBtn.textContent = '×';
+      removeBtn.setAttribute('aria-label', `Remove ${tag}`);
+      removeBtn.addEventListener('click', () => removeTag(index));
+
+      tagEl.appendChild(textSpan);
+      tagEl.appendChild(removeBtn);
+
+      // Drag events
+      tagEl.addEventListener('dragstart', handleDragStart);
+      tagEl.addEventListener('dragover', handleDragOver);
+      tagEl.addEventListener('drop', handleDrop);
+      tagEl.addEventListener('dragend', handleDragEnd);
+
+      tagsList.appendChild(tagEl);
+    });
+
+    // Update limit indicator
+    if (tags.length >= MAX_TAGS) {
+      wrapper.classList.add('at-limit');
+      input.disabled = true;
+      input.placeholder = 'Maximum tags reached';
+    } else {
+      wrapper.classList.remove('at-limit');
+      input.disabled = false;
+      input.placeholder = 'Type and press Enter...';
+    }
+  }
+
+  // Update count
+  function updateCount() {
+    tagCount.textContent = `${tags.length} tag${tags.length !== 1 ? 's' : ''}`;
+  }
+
+  // Drag and drop
+  let draggedElement = null;
+
+  function handleDragStart(e) {
+    draggedElement = e.target;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleDragOver(e) {
+    if (e.preventDefault) e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+  }
+
+  function handleDrop(e) {
+    if (e.stopPropagation) e.stopPropagation();
+    if (!draggedElement || draggedElement === e.target) return false;
+
+    const fromIndex = parseInt(draggedElement.dataset.index);
+    const toIndex = parseInt(e.target.closest('.tag')?.dataset.index);
+
+    if (toIndex !== undefined && fromIndex !== toIndex) {
+      const item = tags.splice(fromIndex, 1)[0];
+      tags.splice(toIndex, 0, item);
+      renderTags();
+    }
+    return false;
+  }
+
+  function handleDragEnd(e) {
+    e.target.classList.remove('dragging');
+    draggedElement = null;
+  }
+
+  // Autocomplete
+  function showSuggestions(query) {
+    if (!query.trim()) {
+      closeSuggestions();
+      return;
+    }
+
+    const filtered = availableTags.filter(tag =>
+      tag.toLowerCase().includes(query.toLowerCase()) &&
+      !tags.some(t => t.toLowerCase() === tag.toLowerCase())
+    );
+
+    if (filtered.length === 0) {
+      closeSuggestions();
+      return;
+    }
+
+    suggestions.innerHTML = '';
+    activeIndex = -1;
+
+    filtered.slice(0, 5).forEach((tag, idx) => {
+      const li = document.createElement('li');
+      li.className = 'tag-suggestion';
+      li.setAttribute('role', 'option');
+      li.setAttribute('id', `tag-suggestion-${idx}`);
+      li.setAttribute('aria-selected', 'false');
+
+      // Highlight matching text
+      const regex = new RegExp(`(${query})`, 'gi');
+      li.innerHTML = tag.replace(regex, '<mark>$1</mark>');
+
+      li.addEventListener('click', () => {
+        addTag(tag);
+        input.focus();
+      });
+
+      suggestions.appendChild(li);
+    });
+
+    suggestions.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeSuggestions() {
+    suggestions.hidden = true;
+    input.setAttribute('aria-expanded', 'false');
+    activeIndex = -1;
+    input.removeAttribute('aria-activedescendant');
+  }
+
+  function navigateSuggestions(direction) {
+    const items = suggestions.querySelectorAll('.tag-suggestion');
+    if (items.length === 0) return;
+
+    items[activeIndex]?.setAttribute('aria-selected', 'false');
+
+    if (direction === 'down') {
+      activeIndex = (activeIndex + 1) % items.length;
+    } else if (direction === 'up') {
+      activeIndex = activeIndex <= 0 ? items.length - 1 : activeIndex - 1;
+    }
+
+    items[activeIndex].setAttribute('aria-selected', 'true');
+    items[activeIndex].scrollIntoView({ block: 'nearest' });
+    input.setAttribute('aria-activedescendant', items[activeIndex].id);
+  }
+
+  // Event listeners
+  input.addEventListener('input', (e) => {
+    showSuggestions(e.target.value);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const value = input.value.trim();
+
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const items = suggestions.querySelectorAll('.tag-suggestion');
+      if (activeIndex >= 0 && items[activeIndex]) {
+        addTag(items[activeIndex].textContent);
+      } else if (value) {
+        addTag(value);
+      }
+    } else if (e.key === 'Tab' && value) {
+      e.preventDefault();
+      addTag(value);
+    } else if (e.key === 'Backspace' && !value && tags.length > 0) {
+      removeTag(tags.length - 1);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!suggestions.hidden) navigateSuggestions('down');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!suggestions.hidden) navigateSuggestions('up');
+    } else if (e.key === 'Escape') {
+      closeSuggestions();
+    }
+  });
+
+  // Paste support
+  input.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const paste = (e.clipboardData || window.clipboardData).getData('text');
+    const items = paste.split(/[,\n]/).map(s => s.trim()).filter(s => s);
+    items.forEach(item => addTag(item));
+  });
+
+  // Click container to focus input
+  container.addEventListener('click', (e) => {
+    if (e.target === container || e.target === tagsList) {
+      input.focus();
+    }
+  });
+
+  // Close suggestions on outside click
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.tag-input-wrapper')) {
+      closeSuggestions();
+    }
+  });
+
+  // Initialize
+  updateCount();
+})();
+```

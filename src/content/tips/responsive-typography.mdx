@@ -1,0 +1,375 @@
+---
+title: レスポンシブタイポグラフィの実装
+description: clamp()、vw単位、Fluid Type Scaleを使った柔軟なフォントサイズ設計
+tags: [responsive, typography, css, design]
+category: responsive
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="Fluid Typography デモ"
+  height="500px"
+  html={`
+<div class="container">
+  <h1 class="title">レスポンシブタイポグラフィ</h1>
+  <p class="subtitle">画面幅に応じて滑らかにフォントサイズが変化</p>
+
+  <div class="content">
+    <h2>clamp()を使った実装</h2>
+    <p class="body-text">
+      このテキストは画面サイズに応じて自動的にサイズが調整されます。
+      ブラウザのウィンドウ幅を変更して、文字サイズの変化を確認してください。
+    </p>
+
+    <h3>従来の固定サイズとの比較</h3>
+    <p class="fixed-text">
+      こちらは固定サイズ（16px）のテキストです。
+      画面幅を変えても文字サイズは変わりません。
+    </p>
+
+    <div class="scale-demo">
+      <div class="scale-item">
+        <span class="size-xs">XS</span>
+        <code>clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem)</code>
+      </div>
+      <div class="scale-item">
+        <span class="size-sm">SM</span>
+        <code>clamp(0.875rem, 0.8rem + 0.375vw, 1rem)</code>
+      </div>
+      <div class="scale-item">
+        <span class="size-base">BASE</span>
+        <code>clamp(1rem, 0.9rem + 0.5vw, 1.25rem)</code>
+      </div>
+      <div class="scale-item">
+        <span class="size-lg">LG</span>
+        <code>clamp(1.25rem, 1.1rem + 0.75vw, 1.75rem)</code>
+      </div>
+      <div class="scale-item">
+        <span class="size-xl">XL</span>
+        <code>clamp(1.5rem, 1.2rem + 1.5vw, 2.5rem)</code>
+      </div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: clamp(1rem, 5vw, 3rem);
+    }
+
+    .title {
+      font-size: clamp(1.75rem, 1.5rem + 3vw, 3.5rem);
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: clamp(0.875rem, 0.8rem + 0.5vw, 1.25rem);
+      color: #9ca3af;
+      margin-bottom: 2rem;
+    }
+
+    .content h2 {
+      font-size: clamp(1.25rem, 1.1rem + 0.75vw, 1.875rem);
+      font-weight: 700;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      color: #e5edf4;
+    }
+
+    .content h3 {
+      font-size: clamp(1.125rem, 1rem + 0.625vw, 1.5rem);
+      font-weight: 600;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+      color: #d1d5db;
+    }
+
+    .body-text {
+      font-size: clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+      line-height: 1.75;
+      color: #9ca3af;
+      margin-bottom: 1rem;
+    }
+
+    .fixed-text {
+      font-size: 16px;
+      line-height: 1.75;
+      color: #9ca3af;
+      padding: 1rem;
+      background: #1f2a37;
+      border-left: 3px solid #ef4444;
+      border-radius: 4px;
+      margin-bottom: 2rem;
+    }
+
+    .scale-demo {
+      background: #1f2a37;
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-top: 1.5rem;
+    }
+
+    .scale-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: #0c1218;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      border: 1px solid #374151;
+    }
+
+    .scale-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .scale-item span {
+      font-weight: 700;
+      min-width: 60px;
+    }
+
+    .scale-item code {
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      color: #60a5fa;
+      background: #1f2a37;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    .size-xs { font-size: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem); }
+    .size-sm { font-size: clamp(0.875rem, 0.8rem + 0.375vw, 1rem); }
+    .size-base { font-size: clamp(1rem, 0.9rem + 0.5vw, 1.25rem); }
+    .size-lg { font-size: clamp(1.25rem, 1.1rem + 0.75vw, 1.75rem); }
+    .size-xl { font-size: clamp(1.5rem, 1.2rem + 1.5vw, 2.5rem); }
+  `}
+/>
+
+## レスポンシブタイポグラフィの重要性
+
+従来のレスポンシブデザインでは、メディアクエリを使ってブレークポイントごとにフォントサイズを切り替えていました。しかし、この方法では画面サイズの変化に対して段階的にしか対応できず、特定の画面幅で最適なサイズにならないことがありました。
+
+**Fluid Typography（流動的なタイポグラフィ）** は、画面幅に応じて連続的・滑らかにフォントサイズが変化する手法です。CSS の `clamp()` 関数とビューポート単位（vw）を組み合わせることで、メディアクエリなしで柔軟なタイポグラフィを実装できます。
+
+この手法により、あらゆる画面サイズで読みやすさを保ちながら、デザインの一貫性を維持できます。特にモバイルからデスクトップまで幅広いデバイスに対応する必要がある現代のWeb開発において、必須のテクニックとなっています。
+
+## clamp()関数の基本
+
+`clamp()` 関数は、最小値・推奨値・最大値の3つの引数を取り、画面幅に応じて柔軟にサイズを調整します。
+
+### 基本構文
+
+```css
+/* clamp(最小値, 推奨値, 最大値) */
+font-size: clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+```
+
+**動作の仕組み:**
+1. **推奨値**（中央の値）を計算
+2. 推奨値が**最小値**より小さい場合 → 最小値を使用
+3. 推奨値が**最大値**より大きい場合 → 最大値を使用
+4. それ以外 → 推奨値を使用
+
+### 実践例
+
+```css
+/* 見出し（大） */
+h1 {
+  font-size: clamp(1.75rem, 1.5rem + 3vw, 3.5rem);
+  /* モバイル: 28px → デスクトップ: 56px */
+}
+
+/* 見出し（中） */
+h2 {
+  font-size: clamp(1.25rem, 1.1rem + 0.75vw, 1.875rem);
+  /* モバイル: 20px → デスクトップ: 30px */
+}
+
+/* 本文テキスト */
+p {
+  font-size: clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+  /* モバイル: 16px → デスクトップ: 20px */
+  line-height: 1.75;
+}
+```
+
+## Fluid Type Scaleの設計
+
+統一感のあるタイポグラフィシステムを構築するには、計画的なスケール設計が重要です。
+
+### タイプスケールの例
+
+```css
+:root {
+  /* XS: 小さなラベル、キャプション */
+  --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+
+  /* SM: 補助テキスト、説明文 */
+  --text-sm: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
+
+  /* BASE: 本文テキスト */
+  --text-base: clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+
+  /* LG: 小見出し */
+  --text-lg: clamp(1.25rem, 1.1rem + 0.75vw, 1.75rem);
+
+  /* XL: 見出し */
+  --text-xl: clamp(1.5rem, 1.2rem + 1.5vw, 2.5rem);
+
+  /* 2XL: 大見出し */
+  --text-2xl: clamp(1.875rem, 1.5rem + 2vw, 3rem);
+
+  /* 3XL: ヒーロー見出し */
+  --text-3xl: clamp(2.25rem, 1.75rem + 2.5vw, 4rem);
+}
+
+/* 使用例 */
+.hero-title {
+  font-size: var(--text-3xl);
+}
+
+.section-heading {
+  font-size: var(--text-xl);
+}
+
+.body-text {
+  font-size: var(--text-base);
+}
+```
+
+### 計算ツール
+
+推奨値の計算式:
+
+```
+推奨値 = 最小値 + (最大値 - 最小値) × (ビューポート幅 / 基準幅)
+```
+
+実用的な計算例:
+
+```css
+/* 320px（モバイル）で16px、1920px（デスクトップ）で20px */
+font-size: clamp(
+  1rem,                    /* 最小: 16px */
+  1rem + 0.25vw,          /* 推奨: 16px + 画面幅の0.25% */
+  1.25rem                  /* 最大: 20px */
+);
+```
+
+## ベストプラクティス
+
+### 1. 行間（line-height）も調整
+
+```css
+.text {
+  font-size: clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+  /* フォントサイズが大きいほど行間を詰める */
+  line-height: calc(1.8 - 0.1 * ((100vw - 20rem) / 60));
+}
+```
+
+### 2. レターススペーシング
+
+```css
+h1 {
+  font-size: clamp(2rem, 1.5rem + 2.5vw, 4rem);
+  /* 大きな見出しは文字間を詰める */
+  letter-spacing: -0.02em;
+}
+
+.small-caps {
+  font-size: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+  /* 小さなテキストは文字間を広げる */
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+```
+
+### 3. コンテナクエリとの組み合わせ
+
+```css
+.card {
+  container-type: inline-size;
+}
+
+.card h2 {
+  /* コンテナの幅に基づいてサイズ変更 */
+  font-size: clamp(1rem, 5cqw, 2rem);
+}
+```
+
+### 4. アクセシビリティ配慮
+
+```css
+/* ユーザーのフォントサイズ設定を尊重 */
+html {
+  font-size: 100%; /* 16px相当だが、ユーザー設定を上書きしない */
+}
+
+body {
+  /* rem単位を使用してユーザー設定に対応 */
+  font-size: clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+}
+
+/* 最小サイズは読みやすさを確保 */
+.small-text {
+  /* 12px未満にならないようにする */
+  font-size: clamp(0.75rem, 0.7rem + 0.25vw, 1rem);
+}
+```
+
+## 実装ガイドライン
+
+### チェックリスト
+
+- [ ] すべてのフォントサイズで `clamp()` を使用
+- [ ] 最小サイズは読みやすさを確保（12px以上推奨）
+- [ ] 最大サイズは画面から溢れないように設定
+- [ ] CSS変数でタイプスケールを定義
+- [ ] 行間、文字間も画面サイズに応じて調整
+- [ ] rem単位を使用してユーザー設定に対応
+- [ ] 実機テストで可読性を確認
+- [ ] ブラウザの開発ツールで各画面サイズを確認
+
+### テストポイント
+
+```javascript
+// フォントサイズのテスト
+const testViewportSizes = [320, 375, 768, 1024, 1440, 1920];
+
+testViewportSizes.forEach(width => {
+  console.log(`${width}px:`,
+    window.getComputedStyle(document.querySelector('h1')).fontSize
+  );
+});
+```
+
+## まとめ
+
+レスポンシブタイポグラフィは、モダンなWebデザインの基礎です:
+
+1. **clamp()** でメディアクエリ不要の柔軟なサイズ調整
+2. **Fluid Type Scale** で統一感のあるデザインシステム
+3. **アクセシビリティ** を考慮した実装
+4. **パフォーマンス** - CSS のみで実装可能
+5. **保守性** - CSS変数で一元管理
+
+この手法をマスターすることで、あらゆるデバイスで美しく読みやすいタイポグラフィを実現できます。
+
+## 参考リンク
+
+- [CSS clamp() - MDN](https://developer.mozilla.org/ja/docs/Web/CSS/clamp)
+- [Fluid Typography - Modern CSS](https://moderncss.dev/generating-font-size-css-rules-and-creating-a-fluid-type-scale/)
+- [Utopia - Fluid Responsive Design](https://utopia.fyi/)

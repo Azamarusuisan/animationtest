@@ -1,0 +1,206 @@
+---
+title: スクロールリビール（モジュール）
+description: IntersectionObserverで一度だけ出現。パフォーマンス優先。
+tags: [animation, scroll, performance]
+frameworks: [Vanilla, Any]
+level: basic
+prompt_template: |
+  IntersectionObserverを使い、.reveal要素をviewport入りでフェードイン。
+  - threshold: 0.2
+  - 1回出現したら監視解除
+  - transform/opacityのみ
+  - reduced-motionではフェードのみ
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo title="Scroll Reveal Module Demo" height="600px">
+{`
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0c1218;
+      color: #e5edf4;
+      padding: 2rem;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .intro {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .intro h1 {
+      font-size: 2.5rem;
+      color: #60a5fa;
+      margin-bottom: 1rem;
+    }
+
+    .intro p {
+      font-size: 1.125rem;
+      opacity: 0.8;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+
+    .reveal-in {
+      opacity: 1;
+      transform: none;
+    }
+
+    .card {
+      background: #1f2a37;
+      border: 1px solid #374151;
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .card h2 {
+      font-size: 1.5rem;
+      color: #60a5fa;
+      margin-bottom: 1rem;
+    }
+
+    .card p {
+      line-height: 1.6;
+      opacity: 0.9;
+    }
+
+    .card-1 { transition-delay: 0s; }
+    .card-2 { transition-delay: 0.1s; }
+    .card-3 { transition-delay: 0.2s; }
+    .card-4 { transition-delay: 0.3s; }
+    .card-5 { transition-delay: 0.4s; }
+
+    .scroll-hint {
+      text-align: center;
+      margin: 2rem 0;
+      font-size: 0.875rem;
+      opacity: 0.6;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .reveal {
+        transition: opacity 0.3s ease;
+        transform: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="intro">
+      <h1>Scroll Reveal</h1>
+      <p>Elements fade in as you scroll down</p>
+    </div>
+
+    <div class="scroll-hint">↓ Scroll to reveal cards ↓</div>
+
+    <div class="reveal card card-1">
+      <h2>Card 1: Performance</h2>
+      <p>
+        Uses IntersectionObserver for optimal performance.
+        No scroll event listeners needed, browser handles detection efficiently.
+      </p>
+    </div>
+
+    <div class="reveal card card-2">
+      <h2>Card 2: Threshold</h2>
+      <p>
+        Triggers when 20% of the element is visible (threshold: 0.2).
+        Each element is observed independently.
+      </p>
+    </div>
+
+    <div class="reveal card card-3">
+      <h2>Card 3: One-time Animation</h2>
+      <p>
+        Once an element is revealed, the observer is disconnected.
+        This saves memory and improves performance.
+      </p>
+    </div>
+
+    <div class="reveal card card-4">
+      <h2>Card 4: GPU Acceleration</h2>
+      <p>
+        Uses transform and opacity for smooth animations.
+        These properties are GPU-accelerated for best performance.
+      </p>
+    </div>
+
+    <div class="reveal card card-5">
+      <h2>Card 5: Accessibility</h2>
+      <p>
+        Respects prefers-reduced-motion setting.
+        Reduces motion to fade-only for users who prefer less movement.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const io = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('reveal-in');
+            io.unobserve(entry.target);
+          }
+        }
+      }, { threshold: 0.2 });
+
+      document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+    })();
+  </script>
+</body>
+</html>
+`}
+</LiveDemo>
+
+**CSS**
+```css
+.reveal { opacity: 0; transform: translateY(8px); transition: opacity .2s ease, transform .2s ease; }
+.reveal-in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .reveal { transition: none; transform: none; } }
+```
+
+**JS**
+```js
+(() => {
+  const io = new IntersectionObserver((ents) => {
+    for (const e of ents) {
+      if (e.isIntersecting) {
+        e.target.classList.add('reveal-in');
+        io.unobserve(e.target);
+      }
+    }
+  }, { threshold: 0.2 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+})();
+```

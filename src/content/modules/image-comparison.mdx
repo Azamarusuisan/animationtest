@@ -1,0 +1,607 @@
+---
+title: 画像比較スライダー（Before/After）
+description: ドラッグで2枚の画像を比較。スワイプ・キーボード対応。
+tags: [image-comparison, slider, before-after, interactive]
+frameworks: [Vanilla, Any]
+level: intermediate
+prompt_template: |
+  目的: ドラッグ可能な画像比較スライダーの実装
+  前提: Vanilla JS（任意のフレームワークに移植可）
+  要件:
+  - 2枚の画像を重ねて表示
+  - スライダーをドラッグして比較
+  - マウス/タッチ/キーボード（←→）対応
+  - スライダーハンドル（◀▶）表示
+  - 初期位置50%
+  - Before/Afterラベル表示
+  - レスポンシブ対応
+  - prefers-reduced-motion対応
+  - アクセシビリティ（role="slider", aria-*)
+  納品: コンポーネント+CSS+最小限のJS
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="画像比較スライダーのデモ"
+  height="400px"
+  html={`
+<div class="image-comparison" role="group" aria-label="画像比較スライダー">
+  <div class="comparison-container">
+    <div class="comparison-image comparison-before">
+      <div class="gradient-before"></div>
+      <span class="comparison-label">Before</span>
+    </div>
+
+    <div class="comparison-image comparison-after">
+      <div class="gradient-after"></div>
+      <span class="comparison-label">After</span>
+    </div>
+
+    <div class="comparison-slider">
+      <button
+        class="comparison-handle"
+        role="slider"
+        aria-label="画像比較スライダー"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="50"
+        aria-valuetext="50パーセント"
+        tabindex="0"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="comparison-instructions">
+    ドラッグまたは矢印キー(←→)で比較できます
+  </div>
+</div>
+  `}
+  css={`
+.image-comparison {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.comparison-container {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  overflow: hidden;
+  border-radius: 8px;
+  user-select: none;
+  touch-action: pan-y;
+}
+
+.comparison-image {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.gradient-before,
+.gradient-after {
+  width: 100%;
+  height: 100%;
+}
+
+.gradient-before {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-after {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.comparison-before {
+  z-index: 1;
+}
+
+.comparison-after {
+  left: 0;
+  width: 50%;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.comparison-label {
+  position: absolute;
+  top: 1rem;
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.comparison-before .comparison-label {
+  right: 1rem;
+}
+
+.comparison-after .comparison-label {
+  left: 1rem;
+}
+
+.comparison-slider {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 4px;
+  height: 100%;
+  background: white;
+  transform: translateX(-50%);
+  z-index: 3;
+  cursor: ew-resize;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.comparison-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 50px;
+  height: 50px;
+  background: white;
+  border: 3px solid white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: grab;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease;
+  padding: 0;
+}
+
+.comparison-handle:active {
+  cursor: grabbing;
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+.comparison-handle:focus {
+  outline: 3px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.comparison-handle svg {
+  color: #333;
+  width: 14px;
+  height: 14px;
+}
+
+.comparison-instructions {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+  `}
+  js={`
+const container = document.querySelector('.comparison-container');
+const afterImage = document.querySelector('.comparison-after');
+const slider = document.querySelector('.comparison-slider');
+const handle = document.querySelector('.comparison-handle');
+
+let isDragging = false;
+let currentPosition = 50;
+
+function updatePosition(percentage) {
+  percentage = Math.max(0, Math.min(100, percentage));
+  currentPosition = percentage;
+
+  afterImage.style.width = percentage + '%';
+  slider.style.left = percentage + '%';
+
+  handle.setAttribute('aria-valuenow', Math.round(percentage));
+  handle.setAttribute('aria-valuetext', Math.round(percentage) + 'パーセント');
+}
+
+function getPercentage(clientX) {
+  const rect = container.getBoundingClientRect();
+  const x = clientX - rect.left;
+  return (x / rect.width) * 100;
+}
+
+function onMouseDown(e) {
+  if (e.button !== 0) return;
+  isDragging = true;
+  updatePosition(getPercentage(e.clientX));
+}
+
+function onMouseMove(e) {
+  if (!isDragging) return;
+  updatePosition(getPercentage(e.clientX));
+}
+
+function onMouseUp() {
+  isDragging = false;
+}
+
+function onTouchStart(e) {
+  isDragging = true;
+  updatePosition(getPercentage(e.touches[0].clientX));
+}
+
+function onTouchMove(e) {
+  if (!isDragging) return;
+  updatePosition(getPercentage(e.touches[0].clientX));
+}
+
+function onKeyDown(e) {
+  let newPos = currentPosition;
+
+  if (e.key === 'ArrowLeft') {
+    newPos = currentPosition - 5;
+    e.preventDefault();
+  } else if (e.key === 'ArrowRight') {
+    newPos = currentPosition + 5;
+    e.preventDefault();
+  } else if (e.key === 'Home') {
+    newPos = 0;
+    e.preventDefault();
+  } else if (e.key === 'End') {
+    newPos = 100;
+    e.preventDefault();
+  } else {
+    return;
+  }
+
+  updatePosition(newPos);
+}
+
+slider.addEventListener('mousedown', onMouseDown);
+document.addEventListener('mousemove', onMouseMove);
+document.addEventListener('mouseup', onMouseUp);
+
+slider.addEventListener('touchstart', onTouchStart);
+document.addEventListener('touchmove', onTouchMove);
+document.addEventListener('touchend', onMouseUp);
+
+handle.addEventListener('keydown', onKeyDown);
+
+updatePosition(50);
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<div class="image-comparison" role="group" aria-label="画像比較スライダー">
+  <div class="comparison-container">
+    <!-- Before Image -->
+    <div class="comparison-image comparison-before">
+      <img
+        src="https://images.unsplash.com/photo-1682687220742-aba13b6e50ba?w=800&h=600&fit=crop"
+        alt="Before image"
+      >
+      <span class="comparison-label" aria-hidden="true">Before</span>
+    </div>
+
+    <!-- After Image -->
+    <div class="comparison-image comparison-after">
+      <img
+        src="https://images.unsplash.com/photo-1682687221038-404cb8830901?w=800&h=600&fit=crop"
+        alt="After image"
+      >
+      <span class="comparison-label" aria-hidden="true">After</span>
+    </div>
+
+    <!-- Slider -->
+    <div class="comparison-slider">
+      <button
+        class="comparison-handle"
+        role="slider"
+        aria-label="画像比較スライダー"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="50"
+        aria-valuetext="50パーセント"
+        tabindex="0"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="comparison-instructions" aria-live="polite">
+    ドラッグまたは矢印キーで画像を比較できます
+  </div>
+</div>
+```
+
+**CSS**
+```css
+.image-comparison {
+  max-width: 800px;
+  margin: 2rem auto;
+}
+
+.comparison-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  user-select: none;
+  touch-action: pan-y;
+}
+
+/* Images */
+.comparison-image {
+  position: relative;
+  width: 100%;
+  line-height: 0;
+}
+
+.comparison-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.comparison-before {
+  position: relative;
+  z-index: 1;
+}
+
+.comparison-after {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  overflow: hidden;
+  z-index: 2;
+  transition: width .05s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .comparison-after {
+    transition: none;
+  }
+}
+
+/* Labels */
+.comparison-label {
+  position: absolute;
+  top: 1rem;
+  padding: .5rem 1rem;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-size: .875rem;
+  font-weight: 600;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.comparison-before .comparison-label {
+  right: 1rem;
+}
+
+.comparison-after .comparison-label {
+  left: 1rem;
+}
+
+/* Slider */
+.comparison-slider {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 4px;
+  height: 100%;
+  background: white;
+  transform: translateX(-50%);
+  z-index: 3;
+  cursor: ew-resize;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Handle */
+.comparison-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  background: white;
+  border: 3px solid white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: grab;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.comparison-handle:active {
+  cursor: grabbing;
+  transform: translate(-50%, -50%) scale(1.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.comparison-handle:focus {
+  outline: 3px solid #0066cc;
+  outline-offset: 2px;
+}
+
+.comparison-handle svg {
+  color: #333;
+  width: 16px;
+  height: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .comparison-handle {
+    transition: none;
+  }
+  .comparison-handle:active {
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* Instructions */
+.comparison-instructions {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: .875rem;
+  color: #666;
+}
+
+/* Mobile optimization */
+@media (max-width: 640px) {
+  .comparison-handle {
+    width: 50px;
+    height: 50px;
+  }
+
+  .comparison-label {
+    font-size: .75rem;
+    padding: .4rem .8rem;
+  }
+}
+```
+
+**JS**
+```js
+(() => {
+  const root = document.currentScript?.closest('.card')?.querySelector('.image-comparison') || document.querySelector('.image-comparison');
+  if (!root) return;
+
+  const container = root.querySelector('.comparison-container');
+  const afterImage = root.querySelector('.comparison-after');
+  const slider = root.querySelector('.comparison-slider');
+  const handle = root.querySelector('.comparison-handle');
+
+  let isDragging = false;
+  let currentPosition = 50; // percentage
+
+  // Update slider position
+  function updatePosition(percentage) {
+    percentage = Math.max(0, Math.min(100, percentage));
+    currentPosition = percentage;
+
+    afterImage.style.width = `${percentage}%`;
+    slider.style.left = `${percentage}%`;
+
+    // Update ARIA
+    handle.setAttribute('aria-valuenow', Math.round(percentage));
+    handle.setAttribute('aria-valuetext', `${Math.round(percentage)}パーセント`);
+  }
+
+  // Get percentage from mouse/touch position
+  function getPercentage(clientX) {
+    const rect = container.getBoundingClientRect();
+    const x = clientX - rect.left;
+    return (x / rect.width) * 100;
+  }
+
+  // Mouse events
+  function onMouseDown(e) {
+    if (e.button !== 0) return; // Only left click
+    isDragging = true;
+    updatePosition(getPercentage(e.clientX));
+  }
+
+  function onMouseMove(e) {
+    if (!isDragging) return;
+    updatePosition(getPercentage(e.clientX));
+  }
+
+  function onMouseUp() {
+    isDragging = false;
+  }
+
+  // Touch events
+  function onTouchStart(e) {
+    isDragging = true;
+    updatePosition(getPercentage(e.touches[0].clientX));
+  }
+
+  function onTouchMove(e) {
+    if (!isDragging) return;
+    updatePosition(getPercentage(e.touches[0].clientX));
+  }
+
+  function onTouchEnd() {
+    isDragging = false;
+  }
+
+  // Keyboard events
+  function onKeyDown(e) {
+    let newPos = currentPosition;
+
+    switch(e.key) {
+      case 'ArrowLeft':
+        newPos = currentPosition - 5;
+        e.preventDefault();
+        break;
+      case 'ArrowRight':
+        newPos = currentPosition + 5;
+        e.preventDefault();
+        break;
+      case 'Home':
+        newPos = 0;
+        e.preventDefault();
+        break;
+      case 'End':
+        newPos = 100;
+        e.preventDefault();
+        break;
+      default:
+        return;
+    }
+
+    updatePosition(newPos);
+  }
+
+  // Event listeners
+  slider.addEventListener('mousedown', onMouseDown);
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+
+  slider.addEventListener('touchstart', onTouchStart, { passive: true });
+  document.addEventListener('touchmove', onTouchMove, { passive: true });
+  document.addEventListener('touchend', onTouchEnd);
+
+  handle.addEventListener('keydown', onKeyDown);
+
+  // Cleanup on navigation
+  const cleanup = () => {
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend', onTouchEnd);
+  };
+
+  // Initialize
+  updatePosition(50);
+
+  // Store cleanup function
+  if (window.imageComparisonCleanup) {
+    window.imageComparisonCleanup();
+  }
+  window.imageComparisonCleanup = cleanup;
+})();
+```

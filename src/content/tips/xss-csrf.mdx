@@ -1,0 +1,994 @@
+---
+title: XSS/CSRF対策の実装例
+description: Cross-Site Scripting (XSS)とCross-Site Request Forgery (CSRF)攻撃を防ぐための実践的な実装ガイド
+tags: [security, xss, csrf, sanitization, tokens]
+category: security
+level: advanced
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## XSSとCSRFの違い
+
+**XSS (Cross-Site Scripting)**: 攻撃者が悪意のあるスクリプトをWebページに注入し、他のユーザーのブラウザで実行させる攻撃。
+
+**CSRF (Cross-Site Request Forgery)**: 認証済みユーザーが意図しない操作（送金、パスワード変更など）を攻撃者が仕組んだサイトから実行させる攻撃。
+
+<LiveDemo
+  title="XSS & CSRF 攻撃デモと防御"
+  height="700px"
+  html={`
+<div style="max-width: 900px; margin: 0 auto;">
+  <h3 style="margin-bottom: 1.5rem; color: #60a5fa;">セキュリティ攻撃シミュレーション</h3>
+
+  <!-- XSS Demo -->
+  <div style="padding: 1.5rem; background: #1f2a37; border-radius: 12px; margin-bottom: 2rem; border: 2px solid #374151;">
+    <h4 style="color: #ef4444; margin-bottom: 1rem;">XSS (Cross-Site Scripting) デモ</h4>
+
+    <div style="margin-bottom: 1.5rem;">
+      <label style="display: block; color: #9ca3af; font-size: 0.875rem; margin-bottom: 0.5rem;">
+        コメントを投稿（XSSペイロードを試してください）
+      </label>
+      <textarea
+        id="xss-comment"
+        placeholder='例: <img src=x onerror="alert(\\'XSS攻撃!\\')">&#10;または: <script>document.body.innerHTML="ハッキング成功"</script>'
+        style="width: 100%; min-height: 80px; padding: 0.75rem; background: #374151; border: 1px solid #4b5563; border-radius: 8px; color: #e5edf4; font-size: 0.875rem; font-family: monospace; resize: vertical;"
+      ></textarea>
+    </div>
+
+    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+      <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+        <input type="checkbox" id="xss-sanitize" checked style="width: 18px; height: 18px; cursor: pointer;">
+        <span style="color: #e5edf4; font-size: 0.875rem;">サニタイゼーションを有効化</span>
+      </label>
+    </div>
+
+    <button id="xss-post" style="padding: 0.75rem 1.5rem; background: #ef4444; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold;">
+      コメントを投稿
+    </button>
+
+    <div style="margin-top: 1.5rem; padding: 1rem; background: #0c1218; border-radius: 8px;">
+      <h5 style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1rem;">投稿されたコメント:</h5>
+      <div id="xss-output" style="padding: 1rem; background: #1f2a37; border-radius: 8px; border: 1px solid #374151; min-height: 60px; color: #e5edf4;"></div>
+    </div>
+
+    <div id="xss-result" style="margin-top: 1rem; padding: 1rem; background: #374151; border-radius: 8px; font-size: 0.875rem;"></div>
+  </div>
+
+  <!-- CSRF Demo -->
+  <div style="padding: 1.5rem; background: #1f2a37; border-radius: 12px; margin-bottom: 2rem; border: 2px solid #374151;">
+    <h4 style="color: #f59e0b; margin-bottom: 1rem;">CSRF (Cross-Site Request Forgery) デモ</h4>
+
+    <div style="padding: 1rem; background: #0c1218; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid #60a5fa;">
+      <div style="font-size: 0.875rem; color: #9ca3af;">模擬ユーザーセッション</div>
+      <div style="color: #e5edf4; margin-top: 0.5rem;">
+        ユーザー: <strong>user@example.com</strong><br>
+        残高: <strong id="user-balance">$1,000</strong>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+      <label style="display: block; color: #9ca3af; font-size: 0.875rem; margin-bottom: 0.5rem;">
+        送金先
+      </label>
+      <input
+        id="csrf-recipient"
+        type="text"
+        value="attacker@evil.com"
+        style="width: 100%; padding: 0.75rem; background: #374151; border: 1px solid #4b5563; border-radius: 8px; color: #e5edf4; font-size: 0.875rem;"
+      >
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+      <label style="display: block; color: #9ca3af; font-size: 0.875rem; margin-bottom: 0.5rem;">
+        金額
+      </label>
+      <input
+        id="csrf-amount"
+        type="number"
+        value="100"
+        style="width: 100%; padding: 0.75rem; background: #374151; border: 1px solid #4b5563; border-radius: 8px; color: #e5edf4; font-size: 0.875rem;"
+      >
+    </div>
+
+    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+      <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+        <input type="checkbox" id="csrf-token" checked style="width: 18px; height: 18px; cursor: pointer;">
+        <span style="color: #e5edf4; font-size: 0.875rem;">CSRFトークン検証を有効化</span>
+      </label>
+    </div>
+
+    <div style="display: flex; gap: 1rem;">
+      <button id="csrf-submit" style="padding: 0.75rem 1.5rem; background: #10b981; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold;">
+        正規の送金リクエスト
+      </button>
+      <button id="csrf-attack" style="padding: 0.75rem 1.5rem; background: #ef4444; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold;">
+        CSRF攻撃を実行
+      </button>
+    </div>
+
+    <div id="csrf-result" style="margin-top: 1.5rem; padding: 1rem; background: #374151; border-radius: 8px; font-size: 0.875rem;"></div>
+
+    <div style="margin-top: 1rem; padding: 1rem; background: #0c1218; border-radius: 8px;">
+      <h5 style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 0.5rem;">現在のCSRFトークン:</h5>
+      <code id="csrf-token-display" style="color: #10b981; font-size: 0.75rem; word-break: break-all;"></code>
+    </div>
+  </div>
+
+  <!-- Attack Log -->
+  <div style="padding: 1.5rem; background: #1f2a37; border-radius: 12px; border: 2px solid #374151;">
+    <h4 style="color: #60a5fa; margin-bottom: 1rem;">セキュリティイベントログ</h4>
+    <div id="security-log" style="max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.75rem; color: #9ca3af; line-height: 1.8;">
+      イベントなし...
+    </div>
+  </div>
+
+  <div style="margin-top: 1rem; padding: 1rem; background: #374151; border-radius: 8px; font-size: 0.875rem; color: #9ca3af;">
+    ⚠️ このデモは教育目的です。実際の本番環境では複数の防御層を組み合わせてください。
+  </div>
+</div>
+  `}
+  css={`
+    button:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      transition: all 0.2s;
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #60a5fa;
+    }
+  `}
+  js={`
+    let userBalance = 1000;
+    let currentCsrfToken = generateCSRFToken();
+    const securityLog = [];
+
+    // CSRFトークン生成
+    function generateCSRFToken() {
+      return 'csrf_' + Math.random().toString(36).substring(2, 15) +
+             Math.random().toString(36).substring(2, 15);
+    }
+
+    // ログ追加
+    function addLog(message, type) {
+      const timestamp = new Date().toLocaleTimeString('ja-JP');
+      securityLog.push({ timestamp, message, type });
+
+      const logEl = document.getElementById('security-log');
+      const entry = document.createElement('div');
+      entry.style.marginBottom = '0.5rem';
+
+      const colors = {
+        success: '#10b981',
+        blocked: '#ef4444',
+        warning: '#f59e0b',
+        info: '#60a5fa'
+      };
+      entry.style.color = colors[type] || '#9ca3af';
+
+      entry.innerHTML = \`[\${timestamp}] <strong>\${type.toUpperCase()}:</strong> \${message}\`;
+
+      if (securityLog.length === 1) {
+        logEl.innerHTML = '';
+      }
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // 簡易的なHTMLサニタイゼーション
+    function sanitizeHTML(input) {
+      const div = document.createElement('div');
+      div.textContent = input;
+      return div.innerHTML;
+    }
+
+    // より高度なサニタイゼーション（DOMPurifyの簡易版）
+    function advancedSanitize(input) {
+      return input
+        .replace(/<script[^>]*>.*?<\\/script>/gi, '[SCRIPT REMOVED]')
+        .replace(/<iframe[^>]*>.*?<\\/iframe>/gi, '[IFRAME REMOVED]')
+        .replace(/on\\w+\\s*=\\s*["'][^"']*["']/gi, '[EVENT HANDLER REMOVED]')
+        .replace(/on\\w+\\s*=\\s*[^\\s>]*/gi, '[EVENT HANDLER REMOVED]')
+        .replace(/javascript:/gi, '[JAVASCRIPT: REMOVED]')
+        .replace(/<img/gi, '[IMG')
+        .replace(/<embed/gi, '[EMBED');
+    }
+
+    // XSS Demo
+    document.getElementById('xss-post').addEventListener('click', () => {
+      const comment = document.getElementById('xss-comment').value;
+      const sanitizeEnabled = document.getElementById('xss-sanitize').checked;
+      const outputEl = document.getElementById('xss-output');
+      const resultEl = document.getElementById('xss-result');
+
+      if (!comment) {
+        resultEl.innerHTML = '⚠️ コメントを入力してください';
+        resultEl.style.color = '#f59e0b';
+        return;
+      }
+
+      if (sanitizeEnabled) {
+        // サニタイズして表示
+        const sanitized = advancedSanitize(comment);
+        outputEl.innerHTML = '<div style="padding: 0.5rem; border-left: 3px solid #10b981;">' +
+          sanitized + '</div>';
+        resultEl.innerHTML = \`
+          ✅ <strong style="color: #10b981;">XSS攻撃をブロックしました!</strong><br>
+          <span style="color: #9ca3af;">元の入力: <code style="color: #ef4444;">\${sanitizeHTML(comment).substring(0, 100)}</code></span><br>
+          <span style="color: #9ca3af;">サニタイズ後: <code style="color: #10b981;">\${sanitized.substring(0, 100)}</code></span>
+        \`;
+        addLog('XSS攻撃を検出してサニタイズ: ' + comment.substring(0, 50) + '...', 'blocked');
+      } else {
+        // サニタイズせずに表示（危険）
+        outputEl.innerHTML = '<div style="padding: 0.5rem; border-left: 3px solid #ef4444;">' +
+          comment + '</div>';
+        resultEl.innerHTML = \`
+          ❌ <strong style="color: #ef4444;">危険: XSS攻撃が通過しました!</strong><br>
+          <span style="color: #9ca3af;">サニタイゼーションが無効なため、悪意のあるスクリプトが実行される可能性があります。</span>
+        \`;
+        addLog('XSS攻撃が通過（サニタイゼーション無効）: ' + comment.substring(0, 50) + '...', 'warning');
+      }
+    });
+
+    // CSRF Demo
+    document.getElementById('csrf-submit').addEventListener('click', () => {
+      handleTransfer(true);
+    });
+
+    document.getElementById('csrf-attack').addEventListener('click', () => {
+      handleTransfer(false);
+    });
+
+    function handleTransfer(hasToken) {
+      const recipient = document.getElementById('csrf-recipient').value;
+      const amount = parseInt(document.getElementById('csrf-amount').value);
+      const csrfEnabled = document.getElementById('csrf-token').checked;
+      const resultEl = document.getElementById('csrf-result');
+
+      if (csrfEnabled && !hasToken) {
+        // CSRFトークンがない攻撃をブロック
+        resultEl.innerHTML = \`
+          ❌ <strong style="color: #ef4444;">CSRF攻撃をブロックしました!</strong><br>
+          <span style="color: #9ca3af;">理由: CSRFトークンが存在しないか無効です</span><br>
+          <span style="color: #9ca3af;">試行内容: \${recipient}へ$\${amount}を送金</span>
+        \`;
+        addLog(\`CSRF攻撃をブロック: \${recipient}への$\${amount}送金試行\`, 'blocked');
+        return;
+      }
+
+      if (!csrfEnabled && !hasToken) {
+        // CSRF保護なしで攻撃が成功
+        userBalance -= amount;
+        document.getElementById('user-balance').textContent = '$' + userBalance;
+        resultEl.innerHTML = \`
+          ⚠️ <strong style="color: #f59e0b;">CSRF攻撃が成功しました!</strong><br>
+          <span style="color: #9ca3af;">$\${amount}が\${recipient}に送金されました</span><br>
+          <span style="color: #ef4444;">CSRF保護が無効なため、攻撃を防げませんでした</span>
+        \`;
+        addLog(\`CSRF攻撃成功（保護無効）: \${recipient}へ$\${amount}送金\`, 'warning');
+        return;
+      }
+
+      // 正規のリクエスト
+      if (userBalance < amount) {
+        resultEl.innerHTML = \`
+          ❌ <strong style="color: #ef4444;">残高不足</strong><br>
+          <span style="color: #9ca3af;">現在の残高: $\${userBalance}</span>
+        \`;
+        return;
+      }
+
+      userBalance -= amount;
+      document.getElementById('user-balance').textContent = '$' + userBalance;
+      resultEl.innerHTML = \`
+        ✅ <strong style="color: #10b981;">送金が完了しました</strong><br>
+        <span style="color: #9ca3af;">$\${amount}を\${recipient}に送金</span><br>
+        <span style="color: #9ca3af;">CSRFトークン検証: 成功</span>
+      \`;
+      addLog(\`正規の送金: \${recipient}へ$\${amount}\`, 'success');
+
+      // 新しいトークンを発行
+      currentCsrfToken = generateCSRFToken();
+      updateCSRFDisplay();
+    }
+
+    function updateCSRFDisplay() {
+      document.getElementById('csrf-token-display').textContent = currentCsrfToken;
+    }
+
+    // 初期化
+    updateCSRFDisplay();
+    addLog('セキュリティデモを初期化しました', 'info');
+  `}
+/>
+
+## XSS (Cross-Site Scripting) 対策
+
+### XSSの種類
+
+1. **Stored XSS（格納型）**: データベースに保存された悪意のあるスクリプトが、他のユーザーに表示される
+2. **Reflected XSS（反射型）**: URLパラメータなどからの入力がそのままページに反映される
+3. **DOM-based XSS**: JavaScriptがユーザー入力を不適切にDOMに挿入する
+
+### 防御策1: 入力サニタイゼーション
+
+```javascript
+// DOMPurifyを使用した高度なサニタイゼーション
+import DOMPurify from 'dompurify';
+
+function sanitizeUserInput(input) {
+  return DOMPurify.sanitize(input, {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li'],
+    ALLOWED_ATTR: ['href', 'title'],
+    ALLOW_DATA_ATTR: false
+  });
+}
+
+// 使用例: ユーザーコメントの表示
+function displayComment(rawComment) {
+  const commentElement = document.getElementById('comment');
+  const sanitized = sanitizeUserInput(rawComment);
+  commentElement.innerHTML = sanitized;
+}
+
+// テスト
+const maliciousComment = \`
+  <p>正常なコメント</p>
+  <script>alert('XSS')</script>
+  <img src=x onerror="alert('XSS')">
+  <a href="javascript:alert('XSS')">リンク</a>
+\`;
+
+displayComment(maliciousComment);
+// 結果: <p>正常なコメント</p> のみが表示される
+```
+
+### 防御策2: 出力エンコーディング
+
+```javascript
+// コンテキスト別のエスケープ関数
+
+// HTML コンテキスト
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// JavaScript コンテキスト
+function escapeJS(str) {
+  return str
+    .replace(/\\\\/g, '\\\\\\\\')
+    .replace(/'/g, "\\\\'")
+    .replace(/"/g, '\\\\"')
+    .replace(/\\n/g, '\\\\n')
+    .replace(/\\r/g, '\\\\r')
+    .replace(/\\t/g, '\\\\t');
+}
+
+// URL コンテキスト
+function escapeURL(str) {
+  return encodeURIComponent(str);
+}
+
+// 使用例
+const userName = '<script>alert("XSS")</script>';
+
+// HTML内で表示
+element.textContent = userName; // ✅ 安全
+// または
+element.innerHTML = escapeHTML(userName); // ✅ 安全
+
+// JavaScript内で使用
+const js = \`const name = '\${escapeJS(userName)}';\`; // ✅ 安全
+
+// URL内で使用
+const url = \`/user?name=\${escapeURL(userName)}\`; // ✅ 安全
+```
+
+### 防御策3: Content Security Policy
+
+```javascript
+// Express.js でCSPを設定
+app.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'nonce-{random}'; object-src 'none';"
+  );
+  next();
+});
+```
+
+### 防御策4: HTTPOnly Cookies
+
+```javascript
+// セッションCookieにHTTPOnlyフラグを設定
+// Express.js
+app.use(session({
+  secret: 'your-secret-key',
+  cookie: {
+    httpOnly: true,    // JavaScriptからアクセス不可
+    secure: true,      // HTTPS通信のみ
+    sameSite: 'strict' // CSRF対策
+  }
+}));
+
+// ❌ 危険: JavaScriptから読み取り可能
+document.cookie = 'sessionId=abc123';
+
+// ✅ 安全: サーバーサイドで設定
+res.cookie('sessionId', 'abc123', {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'strict'
+});
+```
+
+### React での XSS 対策
+
+```jsx
+// ✅ Reactはデフォルトで安全（自動エスケープ）
+function Comment({ text }) {
+  return <div>{text}</div>; // 自動的にエスケープされる
+}
+
+// ❌ 危険: dangerouslySetInnerHTML
+function Comment({ html }) {
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+// ✅ 安全: DOMPurifyと組み合わせる
+import DOMPurify from 'dompurify';
+
+function Comment({ html }) {
+  const sanitized = DOMPurify.sanitize(html);
+  return <div dangerouslySetInnerHTML={{ __html: sanitized }} />;
+}
+```
+
+## CSRF (Cross-Site Request Forgery) 対策
+
+### CSRFの仕組み
+
+```html
+<!-- 攻撃者のサイト (evil.com) -->
+<html>
+<body>
+  <!-- ユーザーが気づかないうちに送金リクエストを送信 -->
+  <form action="https://bank.com/transfer" method="POST" id="attack">
+    <input type="hidden" name="to" value="attacker@evil.com">
+    <input type="hidden" name="amount" value="10000">
+  </form>
+  <script>
+    document.getElementById('attack').submit();
+  </script>
+</body>
+</html>
+```
+
+### 防御策1: CSRF Token (Synchronizer Token Pattern)
+
+```javascript
+// バックエンド: Express.js
+const crypto = require('crypto');
+
+// CSRFトークン生成
+function generateCSRFToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// ミドルウェア: セッションにトークンを保存
+app.use((req, res, next) => {
+  if (!req.session.csrfToken) {
+    req.session.csrfToken = generateCSRFToken();
+  }
+  res.locals.csrfToken = req.session.csrfToken;
+  next();
+});
+
+// フォームにトークンを埋め込む
+app.get('/transfer', (req, res) => {
+  res.send(\`
+    <form method="POST" action="/transfer">
+      <input type="hidden" name="_csrf" value="\${res.locals.csrfToken}">
+      <input name="to" placeholder="送金先">
+      <input name="amount" placeholder="金額">
+      <button type="submit">送金</button>
+    </form>
+  \`);
+});
+
+// トークン検証
+function validateCSRFToken(req, res, next) {
+  const token = req.body._csrf || req.headers['x-csrf-token'];
+
+  if (!token || token !== req.session.csrfToken) {
+    return res.status(403).json({ error: 'Invalid CSRF token' });
+  }
+
+  next();
+}
+
+// 保護されたエンドポイント
+app.post('/transfer', validateCSRFToken, (req, res) => {
+  const { to, amount } = req.body;
+  // 送金処理
+  res.json({ success: true });
+});
+```
+
+### 防御策2: Double Submit Cookie
+
+```javascript
+// バックエンド: Express.js
+const cookieParser = require('cookie-parser');
+
+app.use(cookieParser());
+
+// CSRFトークンをCookieとして設定
+app.use((req, res, next) => {
+  if (!req.cookies.csrfToken) {
+    const token = generateCSRFToken();
+    res.cookie('csrfToken', token, {
+      httpOnly: false, // JavaScriptから読み取り可能にする
+      secure: true,
+      sameSite: 'strict'
+    });
+  }
+  next();
+});
+
+// フロントエンド: トークンをヘッダーに含める
+async function makeRequest(url, data) {
+  const csrfToken = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('csrfToken='))
+    ?.split('=')[1];
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': csrfToken
+    },
+    body: JSON.stringify(data)
+  });
+
+  return response.json();
+}
+
+// バックエンド: トークン検証
+app.post('/transfer', (req, res) => {
+  const cookieToken = req.cookies.csrfToken;
+  const headerToken = req.headers['x-csrf-token'];
+
+  if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+    return res.status(403).json({ error: 'Invalid CSRF token' });
+  }
+
+  // 送金処理
+  res.json({ success: true });
+});
+```
+
+### 防御策3: SameSite Cookie
+
+```javascript
+// Express.js
+app.use(session({
+  secret: 'your-secret-key',
+  cookie: {
+    sameSite: 'strict', // または 'lax'
+    secure: true,
+    httpOnly: true
+  }
+}));
+
+// SameSite属性の違い:
+// - strict: クロスサイトからのリクエストでは一切Cookieを送信しない
+// - lax: 安全なHTTPメソッド(GET)でのトップレベルナビゲーションのみ許可
+// - none: すべてのクロスサイトリクエストでCookieを送信（secure必須）
+```
+
+### 防御策4: Custom Request Headers
+
+```javascript
+// フロントエンド: カスタムヘッダーを追加
+async function apiRequest(url, data) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest' // カスタムヘッダー
+    },
+    body: JSON.stringify(data),
+    credentials: 'same-origin' // 同一オリジンのみCookieを送信
+  });
+
+  return response.json();
+}
+
+// バックエンド: カスタムヘッダーの検証
+app.post('/api/*', (req, res, next) => {
+  if (req.headers['x-requested-with'] !== 'XMLHttpRequest') {
+    return res.status(403).json({ error: 'Invalid request' });
+  }
+  next();
+});
+```
+
+### 防御策5: Origin/Referer 検証
+
+```javascript
+// バックエンド: Originヘッダーの検証
+function validateOrigin(req, res, next) {
+  const origin = req.headers.origin || req.headers.referer;
+
+  if (!origin) {
+    return res.status(403).json({ error: 'Missing origin' });
+  }
+
+  const allowedOrigins = [
+    'https://example.com',
+    'https://www.example.com'
+  ];
+
+  const originURL = new URL(origin);
+
+  if (!allowedOrigins.includes(originURL.origin)) {
+    return res.status(403).json({ error: 'Invalid origin' });
+  }
+
+  next();
+}
+
+app.post('/api/*', validateOrigin, (req, res) => {
+  // API処理
+});
+```
+
+## 完全な実装例
+
+### フロントエンド (React)
+
+```jsx
+import React, { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
+
+function CommentForm() {
+  const [comment, setComment] = useState('');
+  const [csrfToken, setCsrfToken] = useState('');
+
+  useEffect(() => {
+    // CSRFトークンを取得
+    fetch('/api/csrf-token')
+      .then(res => res.json())
+      .then(data => setCsrfToken(data.token));
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // XSS対策: サニタイズ
+    const sanitizedComment = DOMPurify.sanitize(comment, {
+      ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p'],
+      ALLOWED_ATTR: ['href']
+    });
+
+    try {
+      // CSRF対策: トークンを含める
+      const response = await fetch('/api/comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          comment: sanitizedComment,
+          _csrf: csrfToken
+        })
+      });
+
+      if (response.ok) {
+        alert('コメントが投稿されました');
+        setComment('');
+      } else {
+        alert('エラーが発生しました');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="コメントを入力"
+        required
+      />
+      <button type="submit">投稿</button>
+    </form>
+  );
+}
+```
+
+### バックエンド (Express.js)
+
+```javascript
+const express = require('express');
+const session = require('express-session');
+const crypto = require('crypto');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+
+const app = express();
+
+// セキュリティヘッダー
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'nonce-{random}'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    }
+  }
+}));
+
+// セッション設定
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 3600000 // 1時間
+  }
+}));
+
+app.use(express.json());
+
+// レート制限
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15分
+  max: 100 // 100リクエスト/15分
+});
+app.use('/api/', limiter);
+
+// CSRFトークン生成
+function generateCSRFToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// CSRFトークン取得エンドポイント
+app.get('/api/csrf-token', (req, res) => {
+  if (!req.session.csrfToken) {
+    req.session.csrfToken = generateCSRFToken();
+  }
+  res.json({ token: req.session.csrfToken });
+});
+
+// CSRF検証ミドルウェア
+function validateCSRF(req, res, next) {
+  const token = req.body._csrf || req.headers['x-csrf-token'];
+
+  if (!token || token !== req.session.csrfToken) {
+    return res.status(403).json({ error: 'Invalid CSRF token' });
+  }
+
+  next();
+}
+
+// Origin検証ミドルウェア
+function validateOrigin(req, res, next) {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://example.com',
+    'http://localhost:3000' // 開発環境
+  ];
+
+  if (origin && !allowedOrigins.includes(origin)) {
+    return res.status(403).json({ error: 'Invalid origin' });
+  }
+
+  next();
+}
+
+// コメント投稿エンドポイント
+app.post('/api/comments', validateCSRF, validateOrigin, async (req, res) => {
+  const { comment } = req.body;
+
+  // バリデーション
+  if (!comment || typeof comment !== 'string') {
+    return res.status(400).json({ error: 'Invalid comment' });
+  }
+
+  // 長さ制限
+  if (comment.length > 1000) {
+    return res.status(400).json({ error: 'Comment too long' });
+  }
+
+  // サーバー側でもサニタイズ（多層防御）
+  const sanitized = sanitizeHTML(comment);
+
+  // データベースに保存（例）
+  // await db.comments.insert({ text: sanitized, userId: req.session.userId });
+
+  // 新しいCSRFトークンを発行
+  req.session.csrfToken = generateCSRFToken();
+
+  res.json({
+    success: true,
+    newCsrfToken: req.session.csrfToken
+  });
+});
+
+function sanitizeHTML(html) {
+  // サーバー側のサニタイゼーション
+  // 本番環境では isomorphic-dompurify などを使用
+  return html
+    .replace(/<script[^>]*>.*?<\\/script>/gi, '')
+    .replace(/on\\w+\\s*=\\s*["'][^"']*["']/gi, '')
+    .replace(/javascript:/gi, '');
+}
+
+app.listen(3000, () => {
+  console.log('Server running on port 3000');
+});
+```
+
+## リッチテキストエディタのセキュリティ
+
+```javascript
+// Quill.js などのリッチテキストエディタを使用する場合
+import Quill from 'quill';
+import DOMPurify from 'dompurify';
+
+const quill = new Quill('#editor', {
+  theme: 'snow',
+  modules: {
+    toolbar: [
+      ['bold', 'italic', 'underline'],
+      ['link'],
+      [{ 'list': 'ordered'}, { 'list': 'bullet' }]
+    ]
+  }
+});
+
+// 送信時にサニタイズ
+function submitContent() {
+  const content = quill.root.innerHTML;
+
+  // DOMPurifyでサニタイズ
+  const sanitized = DOMPurify.sanitize(content, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ol', 'ul', 'li'],
+    ALLOWED_ATTR: ['href', 'target'],
+    ALLOW_DATA_ATTR: false
+  });
+
+  // サーバーに送信
+  fetch('/api/content', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': getCsrfToken()
+    },
+    body: JSON.stringify({ content: sanitized })
+  });
+}
+```
+
+## ファイルアップロードのセキュリティ
+
+```javascript
+// バックエンド: ファイルアップロード検証
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+  destination: './uploads/',
+  filename: (req, file, cb) => {
+    // ランダムなファイル名を生成
+    const randomName = crypto.randomBytes(16).toString('hex');
+    const ext = path.extname(file.originalname);
+    cb(null, randomName + ext);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB制限
+  },
+  fileFilter: (req, file, cb) => {
+    // MIMEタイプ検証
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error('Invalid file type'));
+    }
+
+    // 拡張子検証
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.gif'];
+    const ext = path.extname(file.originalname).toLowerCase();
+
+    if (!allowedExts.includes(ext)) {
+      return cb(new Error('Invalid file extension'));
+    }
+
+    cb(null, true);
+  }
+});
+
+app.post('/api/upload', validateCSRF, upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  // ファイル内容の検証（画像の場合）
+  const sharp = require('sharp');
+  sharp(req.file.path)
+    .metadata()
+    .then(metadata => {
+      // 実際に画像ファイルか確認
+      if (!metadata.format) {
+        throw new Error('Not a valid image');
+      }
+
+      res.json({
+        success: true,
+        filename: req.file.filename
+      });
+    })
+    .catch(err => {
+      // 不正なファイルを削除
+      fs.unlinkSync(req.file.path);
+      res.status(400).json({ error: 'Invalid file' });
+    });
+});
+```
+
+## 本番環境チェックリスト
+
+### XSS対策
+- [ ] すべてのユーザー入力をサニタイズ（DOMPurify使用）
+- [ ] 出力時にコンテキストに応じたエスケープ
+- [ ] Content Security Policyを設定
+- [ ] HTTPOnly、Secure、SameSite属性をCookieに設定
+- [ ] innerHTML使用時はTrusted Typesを適用
+- [ ] リッチテキストエディタの出力をサニタイズ
+- [ ] サーバー側でも入力検証とサニタイズ
+
+### CSRF対策
+- [ ] CSRFトークンをすべてのフォームに実装
+- [ ] SameSite=strict/lax をCookieに設定
+- [ ] Originヘッダーの検証
+- [ ] カスタムリクエストヘッダーの使用
+- [ ] 重要な操作には再認証を要求
+- [ ] レート制限の実装
+
+### 一般
+- [ ] HTTPS通信の強制
+- [ ] セキュリティヘッダーの設定（Helmet.js等）
+- [ ] 入力バリデーション（長さ、形式、型）
+- [ ] エラーメッセージに機密情報を含めない
+- [ ] ログに機密情報を記録しない
+- [ ] 定期的なセキュリティ監査
+
+## 参考リンク
+
+- [OWASP XSS Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html)
+- [OWASP CSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)
+- [DOMPurify Documentation](https://github.com/cure53/DOMPurify)
+- [MDN: CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
+- [OWASP Top 10](https://owasp.org/www-project-top-ten/)

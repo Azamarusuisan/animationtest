@@ -1,0 +1,613 @@
+---
+title: async/awaitの実践パターン
+description: エラーハンドリング、並列処理、タイムアウト処理など本番で使える実践テクニック
+tags: [javascript, async, promises, error-handling, patterns]
+category: javascript
+level: advanced
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## async/awaitの基本から実践まで
+
+async/awaitはPromiseをより読みやすく書くための構文です。適切に使うことで、非同期処理のエラーハンドリングやパフォーマンスを大幅に改善できます。
+
+<LiveDemo
+  title="async/await 並列 vs 直列処理の比較"
+  height="550px"
+  html={`
+<div style="max-width: 700px; margin: 0 auto;">
+  <h3 style="margin-bottom: 1.5rem; color: #60a5fa;">API呼び出しのパフォーマンス比較</h3>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
+    <!-- 直列処理 -->
+    <div>
+      <button id="serial-btn" style="width: 100%; padding: 0.75rem; background: #ef4444; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold; font-size: 1rem;">
+        ❌ 直列処理を実行
+      </button>
+      <div style="margin-top: 1rem; padding: 1rem; background: #1f2a37; border-radius: 8px; border-left: 4px solid #ef4444;">
+        <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">実行時間</div>
+        <div id="serial-time" style="font-size: 1.5rem; font-weight: bold; color: #ef4444;">-</div>
+        <div id="serial-status" style="margin-top: 0.5rem; font-size: 0.875rem; color: #9ca3af;">待機中...</div>
+      </div>
+    </div>
+
+    <!-- 並列処理 -->
+    <div>
+      <button id="parallel-btn" style="width: 100%; padding: 0.75rem; background: #10b981; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold; font-size: 1rem;">
+        ✅ 並列処理を実行
+      </button>
+      <div style="margin-top: 1rem; padding: 1rem; background: #1f2a37; border-radius: 8px; border-left: 4px solid #10b981;">
+        <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">実行時間</div>
+        <div id="parallel-time" style="font-size: 1.5rem; font-weight: bold; color: #10b981;">-</div>
+        <div id="parallel-status" style="margin-top: 0.5rem; font-size: 0.875rem; color: #9ca3af;">待機中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 結果表示 -->
+  <div style="padding: 1.5rem; background: #1f2a37; border-radius: 8px; border: 2px solid #374151;">
+    <h4 style="margin-bottom: 1rem; color: #60a5fa;">取得したデータ</h4>
+    <div id="results" style="font-size: 0.875rem; color: #e5edf4; line-height: 1.6;">
+      ボタンをクリックしてAPIを呼び出してください
+    </div>
+  </div>
+
+  <div style="margin-top: 1rem; padding: 1rem; background: #374151; border-radius: 8px; font-size: 0.875rem; color: #9ca3af;">
+    💡 各API呼び出しは500msかかります。3つのAPIを呼び出すので、直列なら1500ms、並列なら500msで完了します。
+  </div>
+</div>
+  `}
+  css={`
+    button:hover {
+      opacity: 0.9;
+      transform: translateY(-2px);
+      transition: all 0.2s;
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+  `}
+  js={`
+    // API呼び出しをシミュレート
+    function fetchUser() {
+      return new Promise(resolve => {
+        setTimeout(() => resolve({ name: 'Taro Yamada' }), 500);
+      });
+    }
+
+    function fetchPosts() {
+      return new Promise(resolve => {
+        setTimeout(() => resolve(['投稿1', '投稿2', '投稿3']), 500);
+      });
+    }
+
+    function fetchComments() {
+      return new Promise(resolve => {
+        setTimeout(() => resolve(['コメント1', 'コメント2']), 500);
+      });
+    }
+
+    // 直列処理
+    async function fetchDataSerial() {
+      const start = performance.now();
+
+      document.getElementById('serial-status').textContent = 'ユーザー情報を取得中...';
+      const user = await fetchUser();
+
+      document.getElementById('serial-status').textContent = '投稿を取得中...';
+      const posts = await fetchPosts();
+
+      document.getElementById('serial-status').textContent = 'コメントを取得中...';
+      const comments = await fetchComments();
+
+      const end = performance.now();
+      const time = Math.round(end - start);
+
+      return { user, posts, comments, time };
+    }
+
+    // 並列処理
+    async function fetchDataParallel() {
+      const start = performance.now();
+
+      document.getElementById('parallel-status').textContent = '全データを並列取得中...';
+
+      const [user, posts, comments] = await Promise.all([
+        fetchUser(),
+        fetchPosts(),
+        fetchComments()
+      ]);
+
+      const end = performance.now();
+      const time = Math.round(end - start);
+
+      return { user, posts, comments, time };
+    }
+
+    // イベントハンドラ
+    const serialBtn = document.getElementById('serial-btn');
+    const parallelBtn = document.getElementById('parallel-btn');
+    const resultsEl = document.getElementById('results');
+
+    serialBtn.addEventListener('click', async () => {
+      serialBtn.disabled = true;
+      document.getElementById('serial-time').textContent = '実行中...';
+      document.getElementById('serial-status').textContent = '開始...';
+
+      const result = await fetchDataSerial();
+
+      document.getElementById('serial-time').textContent = result.time + 'ms';
+      document.getElementById('serial-status').textContent = '完了！';
+
+      resultsEl.innerHTML = \`
+        <div><strong>ユーザー:</strong> \${result.user.name}</div>
+        <div><strong>投稿:</strong> \${result.posts.length}件</div>
+        <div><strong>コメント:</strong> \${result.comments.length}件</div>
+        <div style="margin-top: 0.5rem; color: #ef4444;"><strong>所要時間:</strong> \${result.time}ms</div>
+      \`;
+
+      serialBtn.disabled = false;
+    });
+
+    parallelBtn.addEventListener('click', async () => {
+      parallelBtn.disabled = true;
+      document.getElementById('parallel-time').textContent = '実行中...';
+      document.getElementById('parallel-status').textContent = '開始...';
+
+      const result = await fetchDataParallel();
+
+      document.getElementById('parallel-time').textContent = result.time + 'ms';
+      document.getElementById('parallel-status').textContent = '完了！';
+
+      resultsEl.innerHTML = \`
+        <div><strong>ユーザー:</strong> \${result.user.name}</div>
+        <div><strong>投稿:</strong> \${result.posts.length}件</div>
+        <div><strong>コメント:</strong> \${result.comments.length}件</div>
+        <div style="margin-top: 0.5rem; color: #10b981;"><strong>所要時間:</strong> \${result.time}ms (3倍高速！)</div>
+      \`;
+
+      parallelBtn.disabled = false;
+    });
+  `}
+/>
+
+## エラーハンドリングのパターン
+
+### 1. 基本的なtry-catch
+
+```javascript
+// ❌ 悪い例: エラーを無視
+async function fetchUser(id) {
+  const response = await fetch(\`/api/users/\${id}\`);
+  return response.json();
+  // エラーが起きたら未処理のPromise拒否が発生
+}
+
+// ✅ 良い例: 適切なエラーハンドリング
+async function fetchUser(id) {
+  try {
+    const response = await fetch(\`/api/users/\${id}\`);
+
+    if (!response.ok) {
+      throw new Error(\`HTTP error! status: \${response.status}\`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch user:', error);
+    throw error; // 上位に伝播
+  }
+}
+```
+
+### 2. カスタムエラークラス
+
+```javascript
+class APIError extends Error {
+  constructor(message, status, data) {
+    super(message);
+    this.name = 'APIError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
+async function fetchAPI(url) {
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new APIError(
+        data.message || 'API request failed',
+        response.status,
+        data
+      );
+    }
+
+    return data;
+  } catch (error) {
+    if (error instanceof APIError) {
+      // API固有のエラー処理
+      if (error.status === 401) {
+        redirectToLogin();
+      } else if (error.status === 404) {
+        showNotFoundMessage();
+      }
+    } else {
+      // ネットワークエラーなど
+      showErrorMessage('接続エラーが発生しました');
+    }
+    throw error;
+  }
+}
+```
+
+### 3. エラーのラッピング
+
+```javascript
+// エラーを安全にラップするヘルパー
+async function safeAsync(promise) {
+  try {
+    const data = await promise;
+    return [null, data]; // [error, data]
+  } catch (error) {
+    return [error, null];
+  }
+}
+
+// 使用例
+const [error, user] = await safeAsync(fetchUser(123));
+
+if (error) {
+  console.error('Failed to fetch user:', error);
+  return;
+}
+
+console.log('User:', user);
+```
+
+## 並列処理のパターン
+
+### 1. Promise.all - 全て成功が必要
+
+```javascript
+// ❌ 悪い例: 直列処理（遅い）
+async function loadDashboard() {
+  const user = await fetchUser();        // 500ms
+  const stats = await fetchStats();      // 500ms
+  const notifications = await fetchNotifications(); // 500ms
+  // 合計: 1500ms
+}
+
+// ✅ 良い例: 並列処理（速い）
+async function loadDashboard() {
+  const [user, stats, notifications] = await Promise.all([
+    fetchUser(),
+    fetchStats(),
+    fetchNotifications()
+  ]);
+  // 合計: 500ms（最も遅いものに依存）
+}
+```
+
+### 2. Promise.allSettled - 全ての結果が必要
+
+```javascript
+// 一部失敗しても他の結果を取得したい場合
+async function loadPageData() {
+  const results = await Promise.allSettled([
+    fetchUser(),
+    fetchPosts(),
+    fetchComments()
+  ]);
+
+  const data = {};
+
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      const keys = ['user', 'posts', 'comments'];
+      data[keys[index]] = result.value;
+    } else {
+      console.error(\`Failed to load \${index}:\`, result.reason);
+    }
+  });
+
+  return data;
+}
+```
+
+### 3. Promise.race - 最速の結果を使用
+
+```javascript
+// タイムアウト付きfetch
+async function fetchWithTimeout(url, timeout = 5000) {
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Timeout')), timeout);
+  });
+
+  const fetchPromise = fetch(url).then(r => r.json());
+
+  return Promise.race([fetchPromise, timeoutPromise]);
+}
+
+// 複数のAPIから最速のレスポンスを使用
+async function fetchFastest() {
+  return Promise.race([
+    fetch('https://api1.example.com/data'),
+    fetch('https://api2.example.com/data'),
+    fetch('https://api3.example.com/data')
+  ]);
+}
+```
+
+## 高度なパターン
+
+### 1. リトライ機能
+
+```javascript
+async function fetchWithRetry(url, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(\`HTTP \${response.status}\`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      const isLastAttempt = i === maxRetries - 1;
+
+      if (isLastAttempt) {
+        throw error;
+      }
+
+      // 指数バックオフ: 1s, 2s, 4s...
+      const delay = Math.pow(2, i) * 1000;
+      console.log(\`Retry \${i + 1}/\${maxRetries} after \${delay}ms\`);
+
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+```
+
+### 2. 並行実行数の制限
+
+```javascript
+async function processWithLimit(items, limit, processor) {
+  const results = [];
+  const executing = [];
+
+  for (const item of items) {
+    const promise = processor(item).then(result => {
+      // 完了したらexecutingから削除
+      executing.splice(executing.indexOf(promise), 1);
+      return result;
+    });
+
+    results.push(promise);
+    executing.push(promise);
+
+    // 並行実行数が制限に達したら待機
+    if (executing.length >= limit) {
+      await Promise.race(executing);
+    }
+  }
+
+  return Promise.all(results);
+}
+
+// 使用例: 100枚の画像を5枚ずつ並列でアップロード
+const images = [...Array(100)].map((_, i) => \`image\${i}.jpg\`);
+const results = await processWithLimit(images, 5, uploadImage);
+```
+
+### 3. キャッシュ機能
+
+```javascript
+class APICache {
+  constructor(ttl = 60000) {
+    this.cache = new Map();
+    this.ttl = ttl; // Time to live in milliseconds
+  }
+
+  async fetch(key, fetcher) {
+    // キャッシュチェック
+    if (this.cache.has(key)) {
+      const { data, timestamp } = this.cache.get(key);
+
+      // 有効期限チェック
+      if (Date.now() - timestamp < this.ttl) {
+        console.log('Cache hit:', key);
+        return data;
+      }
+    }
+
+    // キャッシュミス - データ取得
+    console.log('Cache miss:', key);
+    const data = await fetcher();
+
+    // キャッシュに保存
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now()
+    });
+
+    return data;
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+}
+
+// 使用例
+const cache = new APICache(60000); // 60秒キャッシュ
+
+async function getUser(id) {
+  return cache.fetch(\`user:\${id}\`, () =>
+    fetch(\`/api/users/\${id}\`).then(r => r.json())
+  );
+}
+```
+
+## async/awaitのよくある間違い
+
+### 1. ループ内での直列実行
+
+```javascript
+// ❌ 悪い例: 直列実行（遅い）
+async function processUsers(userIds) {
+  const users = [];
+
+  for (const id of userIds) {
+    const user = await fetchUser(id); // 1つずつ待機
+    users.push(user);
+  }
+
+  return users;
+}
+
+// ✅ 良い例: 並列実行（速い）
+async function processUsers(userIds) {
+  const promises = userIds.map(id => fetchUser(id));
+  return Promise.all(promises);
+}
+
+// または
+async function processUsers(userIds) {
+  return Promise.all(
+    userIds.map(id => fetchUser(id))
+  );
+}
+```
+
+### 2. エラーハンドリングの忘れ
+
+```javascript
+// ❌ 悪い例: エラーが伝播しない
+async function getData() {
+  const data = await fetch('/api/data').then(r => r.json());
+  return data;
+  // fetchがエラーの場合、未処理の拒否が発生
+}
+
+// ✅ 良い例: 適切なエラーハンドリング
+async function getData() {
+  try {
+    const response = await fetch('/api/data');
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error:', error);
+    throw error;
+  }
+}
+```
+
+### 3. Promiseの返し忘れ
+
+```javascript
+// ❌ 悪い例: Promiseが返されない
+async function processData() {
+  const data = await fetchData();
+
+  // この処理は完了を待たない
+  saveToDatabase(data); // Promiseを返さない
+
+  return data;
+}
+
+// ✅ 良い例: awaitを使う
+async function processData() {
+  const data = await fetchData();
+  await saveToDatabase(data); // 完了を待つ
+  return data;
+}
+```
+
+## 実践的な使用例
+
+### リアルタイム検索
+
+```javascript
+class SearchManager {
+  constructor() {
+    this.abortController = null;
+    this.cache = new Map();
+  }
+
+  async search(query) {
+    // 前回のリクエストをキャンセル
+    if (this.abortController) {
+      this.abortController.abort();
+    }
+
+    // キャッシュチェック
+    if (this.cache.has(query)) {
+      return this.cache.get(query);
+    }
+
+    // 新しいリクエスト
+    this.abortController = new AbortController();
+
+    try {
+      const response = await fetch(\`/api/search?q=\${query}\`, {
+        signal: this.abortController.signal
+      });
+
+      const results = await response.json();
+
+      // キャッシュに保存
+      this.cache.set(query, results);
+
+      return results;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log('Search cancelled');
+        return null;
+      }
+      throw error;
+    }
+  }
+}
+```
+
+## まとめ
+
+### エラーハンドリング
+
+- 必ずtry-catchを使用
+- カスタムエラークラスで詳細な情報を保持
+- エラーを適切に伝播させる
+
+### 並列処理
+
+- 独立した処理は`Promise.all`で並列化
+- 一部失敗しても続行したい場合は`Promise.allSettled`
+- タイムアウトには`Promise.race`を使用
+
+### パフォーマンス
+
+- ループ内での直列awaitを避ける
+- 並行実行数を制限して過負荷を防ぐ
+- キャッシュで不要なリクエストを削減
+
+### ベストプラクティス
+
+- async関数は常にPromiseを返す
+- awaitは本当に必要な時だけ使う
+- AbortControllerでリクエストのキャンセルを実装

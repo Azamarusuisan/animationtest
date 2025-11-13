@@ -1,0 +1,297 @@
+---
+title: バッジ/チップ（ステータス表示）
+description: 小さなラベル。カラーバリエーション・削除ボタン付きチップ。
+tags: [badge, chip, label, status, ui]
+frameworks: [Vanilla, Any]
+level: basic
+prompt_template: |
+  バッジ/チップを実装：
+  - バッジ：数値カウント、ドット表示
+  - チップ：テキスト + アイコン、削除ボタン（×）
+  - カラーバリエーション（success/warning/error/info）
+  - サイズバリエーション（small/medium/large）
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="バッジのデモ"
+  height="400px"
+  html={`
+<div style="display: flex; flex-direction: column; gap: 2rem; padding: 1rem;">
+  <div>
+    <div style="margin-bottom: 0.75rem; color: #e5edf4; font-size: 14px; font-weight: 600;">数値バッジ</div>
+    <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+      <button style="background: #1f2a37; border: 1px solid #374151; color: #e5edf4; padding: 0.5rem 1rem; border-radius: 6px; position: relative; cursor: pointer;">
+        通知
+        <span class="badge badge-error" style="position: absolute; top: -8px; right: -8px;">5</span>
+      </button>
+      <button style="background: #1f2a37; border: 1px solid #374151; color: #e5edf4; padding: 0.5rem 1rem; border-radius: 6px; position: relative; cursor: pointer;">
+        メッセージ
+        <span class="badge badge-success" style="position: absolute; top: -8px; right: -8px;">12</span>
+      </button>
+      <button style="background: #1f2a37; border: 1px solid #374151; color: #e5edf4; padding: 0.5rem 1rem; border-radius: 6px; position: relative; cursor: pointer;">
+        アラート
+        <span class="badge badge-pulse badge-warning" style="position: absolute; top: -8px; right: -8px;">3</span>
+      </button>
+    </div>
+  </div>
+
+  <div>
+    <div style="margin-bottom: 0.75rem; color: #e5edf4; font-size: 14px; font-weight: 600;">ステータスバッジ</div>
+    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+      <span class="badge badge-success">成功</span>
+      <span class="badge badge-warning">警告</span>
+      <span class="badge badge-error">エラー</span>
+      <span class="badge badge-info">情報</span>
+      <span class="badge badge-dot badge-error"></span>
+      <span style="color: #9ca3af; font-size: 14px;">オンライン</span>
+    </div>
+  </div>
+
+  <div>
+    <div style="margin-bottom: 0.75rem; color: #e5edf4; font-size: 14px; font-weight: 600;">削除可能なチップ</div>
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+      <div class="chip chip-info">
+        <span>React</span>
+        <button class="chip-remove" aria-label="削除">×</button>
+      </div>
+      <div class="chip chip-success">
+        <span>JavaScript</span>
+        <button class="chip-remove" aria-label="削除">×</button>
+      </div>
+      <div class="chip chip-warning">
+        <span>CSS</span>
+        <button class="chip-remove" aria-label="削除">×</button>
+      </div>
+      <div class="chip chip-error">
+        <span>HTML</span>
+        <button class="chip-remove" aria-label="削除">×</button>
+      </div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  transition: transform 0.15s ease;
+}
+
+.badge:hover {
+  transform: scale(1.05);
+}
+
+.badge-success {
+  background: #10b981;
+  color: #fff;
+}
+
+.badge-warning {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.badge-error {
+  background: #ef4444;
+  color: #fff;
+}
+
+.badge-info {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.badge-dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.badge-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.chip:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.chip-info {
+  background: #1e3a8a;
+  color: #93c5fd;
+  border-color: #1e40af;
+}
+
+.chip-success {
+  background: #065f46;
+  color: #6ee7b7;
+  border-color: #059669;
+}
+
+.chip-warning {
+  background: #78350f;
+  color: #fcd34d;
+  border-color: #92400e;
+}
+
+.chip-error {
+  background: #7f1d1d;
+  color: #fca5a5;
+  border-color: #991b1b;
+}
+
+.chip-remove {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+  color: inherit;
+}
+
+.chip-remove:hover {
+  opacity: 1;
+}
+  `}
+  js={`
+document.querySelectorAll('.chip-remove').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (chip) {
+      chip.style.transition = 'all 0.2s ease';
+      chip.style.opacity = '0';
+      chip.style.transform = 'scale(0.8)';
+      setTimeout(() => chip.remove(), 200);
+    }
+  });
+});
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<!-- バッジ（カウント表示） -->
+<span class="badge badge-error">5</span>
+<span class="badge badge-success">New</span>
+<span class="badge badge-dot"></span>
+
+<!-- チップ（削除可能） -->
+<div class="chip chip-info chip-medium">
+  <span>🏷️ タグ1</span>
+  <button class="chip-remove" aria-label="削除">×</button>
+</div>
+
+<div class="chip chip-warning chip-small">
+  <span>⚠️ 警告</span>
+  <button class="chip-remove" aria-label="削除">×</button>
+</div>
+
+<!-- パルスアニメーション付き -->
+<span class="badge badge-error badge-pulse">3</span>
+```
+
+**CSS**
+```css
+.badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 2px 8px; border-radius: 12px; font-size: 12px;
+  font-weight: 600; line-height: 1.4;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.badge:hover { transform: scale(1.05); }
+
+/* カラーバリエーション */
+.badge-success { background: #10b981; color: #fff; }
+.badge-warning { background: #f59e0b; color: #fff; }
+.badge-error { background: #ef4444; color: #fff; }
+.badge-info { background: #3b82f6; color: #fff; }
+
+/* ドットバッジ */
+.badge-dot {
+  width: 8px; height: 8px; padding: 0;
+  border-radius: 50%; background: #ef4444;
+}
+
+/* パルスアニメーション */
+.badge-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* チップ */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 16px;
+  border: 1px solid transparent; font-size: 14px;
+  transition: all .2s ease;
+}
+.chip:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+.chip-small { padding: 4px 8px; font-size: 12px; }
+.chip-medium { padding: 6px 12px; font-size: 14px; }
+.chip-large { padding: 8px 16px; font-size: 16px; }
+
+.chip-info { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+.chip-success { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+.chip-warning { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.chip-error { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+
+.chip-remove {
+  background: transparent; border: none; cursor: pointer;
+  font-size: 18px; line-height: 1; padding: 0;
+  width: 16px; height: 16px; opacity: 0.6;
+  transition: opacity .15s ease;
+}
+.chip-remove:hover { opacity: 1; }
+```
+
+**JS**
+```js
+(() => {
+  document.querySelectorAll('.chip-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip');
+      if (chip) {
+        chip.style.transition = 'all 0.2s ease';
+        chip.style.opacity = '0';
+        chip.style.transform = 'scale(0.8)';
+        setTimeout(() => chip.remove(), 200);
+      }
+    });
+  });
+})();
+```

@@ -1,0 +1,1013 @@
+---
+title: Web Animations APIで高度なアニメーション制御
+description: JavaScriptでCSSアニメーションを完全にコントロールする最新のAPI活用法
+tags: [javascript, animation, web-animations-api, waapi]
+category: animation
+level: advanced
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## Web Animations API とは
+
+Web Animations API (WAAPI) は、CSS アニメーションと同等のパフォーマンスを持ちながら、JavaScript で完全に制御できる強力な API です。CSS では難しい動的なアニメーションや、細かい制御が必要な場面で活躍します。
+
+### CSS Animation vs Web Animations API
+
+<LiveDemo
+  title="CSS vs WAAPI の比較"
+  height="550px"
+  html={`
+<div class="waapi-comparison">
+  <div class="comparison-card">
+    <h3>CSS Animation</h3>
+    <div class="demo-box">
+      <div class="box css-box">CSS</div>
+    </div>
+    <div class="info-section">
+      <p class="pros">✓ シンプルで書きやすい</p>
+      <p class="cons">✗ 動的な制御が難しい</p>
+      <p class="cons">✗ イベント処理が複雑</p>
+    </div>
+  </div>
+
+  <div class="comparison-card">
+    <h3>Web Animations API</h3>
+    <div class="demo-box">
+      <div class="box waapi-box" id="waapiBox">WAAPI</div>
+    </div>
+    <div class="info-section">
+      <p class="pros">✓ 完全なJavaScript制御</p>
+      <p class="pros">✓ 再生/一時停止/逆再生</p>
+      <p class="pros">✓ Promise でイベント処理</p>
+    </div>
+    <div class="controls">
+      <button class="ctrl-btn" id="playBtn">再生</button>
+      <button class="ctrl-btn" id="pauseBtn">一時停止</button>
+      <button class="ctrl-btn" id="reverseBtn">逆再生</button>
+      <button class="ctrl-btn" id="cancelBtn">キャンセル</button>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.waapi-comparison {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.comparison-card {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.comparison-card h3 {
+  font-size: 1rem;
+  color: #e5edf4;
+  margin: 0 0 1rem 0;
+}
+
+.demo-box {
+  background: #0c1218;
+  border-radius: 6px;
+  padding: 2rem;
+  margin-bottom: 1rem;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.box {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.css-box {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  animation: float 2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+.waapi-box {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.info-section {
+  margin-bottom: 1rem;
+}
+
+.pros,
+.cons {
+  font-size: 0.875rem;
+  margin: 0.25rem 0;
+}
+
+.pros {
+  color: #10b981;
+}
+
+.cons {
+  color: #9ca3af;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.ctrl-btn {
+  padding: 0.5rem;
+  background: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 6px;
+  color: #e5edf4;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.ctrl-btn:hover {
+  background: #4b5563;
+}
+
+@media (max-width: 640px) {
+  .waapi-comparison {
+    grid-template-columns: 1fr;
+  }
+}
+  `}
+  js={`
+const waapiBox = document.getElementById('waapiBox');
+const playBtn = document.getElementById('playBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const reverseBtn = document.getElementById('reverseBtn');
+const cancelBtn = document.getElementById('cancelBtn');
+
+const animation = waapiBox.animate(
+  [
+    { transform: 'translateY(0)' },
+    { transform: 'translateY(-20px)' },
+    { transform: 'translateY(0)' }
+  ],
+  {
+    duration: 2000,
+    iterations: Infinity,
+    easing: 'ease-in-out'
+  }
+);
+
+playBtn.addEventListener('click', () => animation.play());
+pauseBtn.addEventListener('click', () => animation.pause());
+reverseBtn.addEventListener('click', () => animation.reverse());
+cancelBtn.addEventListener('click', () => animation.cancel());
+  `}
+/>
+
+## 基本的な使い方
+
+### シンプルなアニメーション
+
+```javascript
+const element = document.querySelector('.box');
+
+// アニメーションを作成
+const animation = element.animate(
+  // キーフレーム
+  [
+    { transform: 'translateX(0)', opacity: 1 },
+    { transform: 'translateX(100px)', opacity: 0.5 }
+  ],
+  // オプション
+  {
+    duration: 500,
+    easing: 'ease-out',
+    fill: 'forwards' // 終了状態を維持
+  }
+);
+```
+
+### キーフレームの書き方
+
+```javascript
+// 方法1: 配列形式
+const keyframes = [
+  { opacity: 0, transform: 'scale(0.5)' },
+  { opacity: 1, transform: 'scale(1)' }
+];
+
+// 方法2: オブジェクト形式
+const keyframes = {
+  opacity: [0, 1],
+  transform: ['scale(0.5)', 'scale(1)']
+};
+
+// 方法3: オフセット指定
+const keyframes = [
+  { opacity: 0, offset: 0 },      // 0%
+  { opacity: 1, offset: 0.3 },    // 30%
+  { opacity: 0.5, offset: 1 }     // 100%
+];
+```
+
+## 高度な制御
+
+<LiveDemo
+  title="アニメーションの完全制御"
+  height="650px"
+  html={`
+<div class="advanced-control-demo">
+  <div class="animation-area">
+    <div class="animated-element" id="animatedElement">
+      🚀
+    </div>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-section">
+      <h4>基本操作</h4>
+      <div class="btn-grid">
+        <button class="action-btn" id="startBtn">開始</button>
+        <button class="action-btn" id="pauseAnimBtn">一時停止</button>
+        <button class="action-btn" id="resumeBtn">再開</button>
+        <button class="action-btn" id="reverseAnimBtn">逆再生</button>
+        <button class="action-btn" id="finishBtn">完了</button>
+        <button class="action-btn" id="cancelAnimBtn">キャンセル</button>
+      </div>
+    </div>
+
+    <div class="control-section">
+      <h4>再生速度</h4>
+      <div class="speed-controls">
+        <button class="speed-btn" data-speed="0.5">0.5x</button>
+        <button class="speed-btn" data-speed="1">1x</button>
+        <button class="speed-btn" data-speed="2">2x</button>
+        <button class="speed-btn" data-speed="4">4x</button>
+      </div>
+    </div>
+
+    <div class="control-section">
+      <h4>状態表示</h4>
+      <div class="status-display">
+        <div class="status-item">
+          <span>状態:</span>
+          <span id="statusText" class="status-value">idle</span>
+        </div>
+        <div class="status-item">
+          <span>進行度:</span>
+          <span id="progressText" class="status-value">0%</span>
+        </div>
+        <div class="status-item">
+          <span>速度:</span>
+          <span id="speedText" class="status-value">1x</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.advanced-control-demo {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.animation-area {
+  background: linear-gradient(135deg, #0c1218 0%, #1f2a37 100%);
+  border-radius: 8px;
+  height: 200px;
+  position: relative;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.animated-element {
+  position: absolute;
+  font-size: 3rem;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  user-select: none;
+}
+
+.control-panel {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.control-section {
+  margin-bottom: 1.5rem;
+}
+
+.control-section:last-child {
+  margin-bottom: 0;
+}
+
+.control-section h4 {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin: 0 0 0.75rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.btn-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.action-btn {
+  padding: 0.5rem;
+  background: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 6px;
+  color: #e5edf4;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: #4b5563;
+  transform: translateY(-1px);
+}
+
+.speed-controls {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+.speed-btn {
+  padding: 0.5rem;
+  background: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 6px;
+  color: #e5edf4;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.speed-btn:hover,
+.speed-btn.active {
+  background: #10b981;
+  border-color: #10b981;
+  color: white;
+}
+
+.status-display {
+  background: #0c1218;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #374151;
+  font-size: 0.875rem;
+}
+
+.status-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.status-item span:first-child {
+  color: #9ca3af;
+}
+
+.status-value {
+  color: #10b981;
+  font-weight: 600;
+}
+  `}
+  js={`
+const animatedElement = document.getElementById('animatedElement');
+const statusText = document.getElementById('statusText');
+const progressText = document.getElementById('progressText');
+const speedText = document.getElementById('speedText');
+
+let animation = null;
+
+function createAnimation() {
+  return animatedElement.animate(
+    [
+      { transform: 'translateY(-50%) translateX(0) rotate(0deg)' },
+      { transform: 'translateY(-50%) translateX(250px) rotate(180deg)' },
+      { transform: 'translateY(-50%) translateX(500px) rotate(360deg)' }
+    ],
+    {
+      duration: 3000,
+      easing: 'ease-in-out',
+      fill: 'both'
+    }
+  );
+}
+
+function updateStatus() {
+  if (!animation) return;
+  statusText.textContent = animation.playState;
+  const progress = animation.currentTime / animation.effect.getTiming().duration * 100;
+  progressText.textContent = Math.round(progress) + '%';
+}
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  if (animation) animation.cancel();
+  animation = createAnimation();
+  setInterval(updateStatus, 50);
+});
+
+document.getElementById('pauseAnimBtn').addEventListener('click', () => {
+  if (animation) animation.pause();
+});
+
+document.getElementById('resumeBtn').addEventListener('click', () => {
+  if (animation) animation.play();
+});
+
+document.getElementById('reverseAnimBtn').addEventListener('click', () => {
+  if (animation) animation.reverse();
+});
+
+document.getElementById('finishBtn').addEventListener('click', () => {
+  if (animation) animation.finish();
+});
+
+document.getElementById('cancelAnimBtn').addEventListener('click', () => {
+  if (animation) animation.cancel();
+});
+
+document.querySelectorAll('.speed-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const speed = parseFloat(btn.dataset.speed);
+    if (animation) {
+      animation.playbackRate = speed;
+      speedText.textContent = speed + 'x';
+    }
+    document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+// 初期アニメーション
+setTimeout(() => {
+  document.getElementById('startBtn').click();
+}, 500);
+  `}
+/>
+
+### Animation オブジェクトのメソッド
+
+```javascript
+const animation = element.animate(keyframes, options);
+
+// 再生制御
+animation.play();           // 再生
+animation.pause();          // 一時停止
+animation.reverse();        // 逆再生
+animation.cancel();         // キャンセル（初期状態に戻る）
+animation.finish();         // 即座に完了状態へ
+
+// プロパティ
+animation.playState;        // 'idle', 'running', 'paused', 'finished'
+animation.playbackRate;     // 再生速度（1 = 通常速度）
+animation.currentTime;      // 現在の時刻（ミリ秒）
+animation.startTime;        // 開始時刻
+```
+
+## Promise を使ったイベント処理
+
+<LiveDemo
+  title="Promise ベースのアニメーション連鎖"
+  height="500px"
+  html={`
+<div class="promise-demo">
+  <div class="sequence-area">
+    <div class="sequence-box" id="box1">1</div>
+    <div class="sequence-box" id="box2">2</div>
+    <div class="sequence-box" id="box3">3</div>
+  </div>
+
+  <div class="promise-controls">
+    <button class="promise-btn" id="sequenceBtn">順次アニメーション</button>
+    <button class="promise-btn" id="parallelBtn">並列アニメーション</button>
+  </div>
+
+  <div class="log-display" id="logDisplay">
+    ログが表示されます...
+  </div>
+</div>
+  `}
+  css={`
+.promise-demo {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.sequence-area {
+  background: #0c1218;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  min-height: 150px;
+}
+
+.sequence-box {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 1.5rem;
+  opacity: 0.3;
+}
+
+.promise-controls {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.promise-btn {
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.promise-btn:hover {
+  transform: translateY(-2px);
+}
+
+.log-display {
+  background: #1f2a37;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  padding: 1rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: #10b981;
+  min-height: 80px;
+  line-height: 1.6;
+}
+  `}
+  js={`
+const box1 = document.getElementById('box1');
+const box2 = document.getElementById('box2');
+const box3 = document.getElementById('box3');
+const logDisplay = document.getElementById('logDisplay');
+const sequenceBtn = document.getElementById('sequenceBtn');
+const parallelBtn = document.getElementById('parallelBtn');
+
+function log(message) {
+  logDisplay.textContent += message + '\\n';
+}
+
+function clearLog() {
+  logDisplay.textContent = '';
+}
+
+function animateBox(box, name) {
+  const animation = box.animate(
+    [
+      { opacity: 0.3, transform: 'scale(1)' },
+      { opacity: 1, transform: 'scale(1.2)' },
+      { opacity: 0.3, transform: 'scale(1)' }
+    ],
+    {
+      duration: 500,
+      easing: 'ease-in-out'
+    }
+  );
+
+  log(name + ' 開始');
+
+  return animation.finished.then(() => {
+    log(name + ' 完了');
+  });
+}
+
+sequenceBtn.addEventListener('click', async () => {
+  clearLog();
+  log('=== 順次実行開始 ===');
+
+  await animateBox(box1, 'ボックス1');
+  await animateBox(box2, 'ボックス2');
+  await animateBox(box3, 'ボックス3');
+
+  log('=== すべて完了 ===');
+});
+
+parallelBtn.addEventListener('click', async () => {
+  clearLog();
+  log('=== 並列実行開始 ===');
+
+  await Promise.all([
+    animateBox(box1, 'ボックス1'),
+    animateBox(box2, 'ボックス2'),
+    animateBox(box3, 'ボックス3')
+  ]);
+
+  log('=== すべて完了 ===');
+});
+  `}
+/>
+
+### Promise を使った連鎖アニメーション
+
+```javascript
+const element = document.querySelector('.box');
+
+// 順次実行
+async function sequentialAnimation() {
+  const anim1 = element.animate(
+    [{ opacity: 0 }, { opacity: 1 }],
+    { duration: 500 }
+  );
+
+  await anim1.finished; // アニメーション完了を待つ
+
+  const anim2 = element.animate(
+    [{ transform: 'scale(1)' }, { transform: 'scale(1.2)' }],
+    { duration: 300 }
+  );
+
+  await anim2.finished;
+
+  console.log('すべてのアニメーション完了');
+}
+
+// 並列実行
+async function parallelAnimation() {
+  const anim1 = element.animate(
+    [{ opacity: 0 }, { opacity: 1 }],
+    { duration: 500 }
+  );
+
+  const anim2 = element.animate(
+    [{ transform: 'scale(1)' }, { transform: 'scale(1.2)' }],
+    { duration: 500 }
+  );
+
+  await Promise.all([anim1.finished, anim2.finished]);
+
+  console.log('すべてのアニメーション完了');
+}
+```
+
+## 動的なキーフレーム生成
+
+<LiveDemo
+  title="動的アニメーション生成"
+  height="500px"
+  html={`
+<div class="dynamic-demo">
+  <div class="dynamic-area" id="dynamicArea">
+    <div class="particle-container" id="particleContainer"></div>
+  </div>
+
+  <div class="dynamic-controls">
+    <button class="dynamic-btn" id="explodeBtn">爆発エフェクト</button>
+    <button class="dynamic-btn" id="waveBtn">波紋エフェクト</button>
+    <button class="dynamic-btn" id="clearBtn">クリア</button>
+  </div>
+</div>
+  `}
+  css={`
+.dynamic-demo {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.dynamic-area {
+  background: radial-gradient(circle at center, #1f2a37 0%, #0c1218 100%);
+  border-radius: 8px;
+  height: 300px;
+  position: relative;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.particle-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.dynamic-controls {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.dynamic-btn {
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.dynamic-btn:hover {
+  transform: translateY(-2px);
+}
+  `}
+  js={`
+const dynamicArea = document.getElementById('dynamicArea');
+const particleContainer = document.getElementById('particleContainer');
+const explodeBtn = document.getElementById('explodeBtn');
+const waveBtn = document.getElementById('waveBtn');
+const clearBtn = document.getElementById('clearBtn');
+
+function createParticle(x, y) {
+  const particle = document.createElement('div');
+  particle.className = 'particle';
+  particle.style.left = x + 'px';
+  particle.style.top = y + 'px';
+  particleContainer.appendChild(particle);
+  return particle;
+}
+
+function explode(x, y) {
+  const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#10b981'];
+  const particleCount = 20;
+
+  for (let i = 0; i < particleCount; i++) {
+    const particle = createParticle(x, y);
+    const angle = (Math.PI * 2 * i) / particleCount;
+    const distance = 100 + Math.random() * 50;
+    const dx = Math.cos(angle) * distance;
+    const dy = Math.sin(angle) * distance;
+
+    particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+
+    const animation = particle.animate(
+      [
+        { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+        { transform: 'translate(' + dx + 'px, ' + dy + 'px) scale(0)', opacity: 0 }
+      ],
+      {
+        duration: 1000 + Math.random() * 500,
+        easing: 'cubic-bezier(0.4, 0.0, 0.2, 1)'
+      }
+    );
+
+    animation.finished.then(() => particle.remove());
+  }
+}
+
+function wave(x, y) {
+  const rippleCount = 3;
+
+  for (let i = 0; i < rippleCount; i++) {
+    const ripple = createParticle(x, y);
+    ripple.style.background = 'transparent';
+    ripple.style.border = '2px solid #10b981';
+    ripple.style.width = '20px';
+    ripple.style.height = '20px';
+    ripple.style.marginLeft = '-10px';
+    ripple.style.marginTop = '-10px';
+
+    const animation = ripple.animate(
+      [
+        { transform: 'scale(0)', opacity: 1 },
+        { transform: 'scale(15)', opacity: 0 }
+      ],
+      {
+        duration: 1500,
+        delay: i * 200,
+        easing: 'ease-out'
+      }
+    );
+
+    animation.finished.then(() => ripple.remove());
+  }
+}
+
+dynamicArea.addEventListener('click', (e) => {
+  const rect = dynamicArea.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  explode(x, y);
+});
+
+explodeBtn.addEventListener('click', () => {
+  explode(300, 150);
+});
+
+waveBtn.addEventListener('click', () => {
+  wave(300, 150);
+});
+
+clearBtn.addEventListener('click', () => {
+  particleContainer.innerHTML = '';
+});
+  `}
+/>
+
+### 動的キーフレーム生成のコード
+
+```javascript
+function createDynamicAnimation(element, targetX, targetY) {
+  // マウス位置などから動的にキーフレームを生成
+  const keyframes = [
+    {
+      transform: `translate(0, 0)`,
+      opacity: 1
+    },
+    {
+      transform: `translate(${targetX}px, ${targetY}px)`,
+      opacity: 0
+    }
+  ];
+
+  return element.animate(keyframes, {
+    duration: 1000,
+    easing: 'ease-out'
+  });
+}
+
+// 使用例: クリック位置に向かってアニメーション
+document.addEventListener('click', (e) => {
+  const element = document.querySelector('.particle');
+  const rect = element.getBoundingClientRect();
+  const targetX = e.clientX - rect.left;
+  const targetY = e.clientY - rect.top;
+
+  createDynamicAnimation(element, targetX, targetY);
+});
+```
+
+## パフォーマンスのベストプラクティス
+
+### 1. GPU アクセラレーションを活用
+
+```javascript
+// ✅ 高速: transform と opacity のみ
+element.animate(
+  [
+    { transform: 'translateX(0)', opacity: 1 },
+    { transform: 'translateX(100px)', opacity: 0.5 }
+  ],
+  { duration: 500 }
+);
+
+// ❌ 低速: layout に影響
+element.animate(
+  [
+    { left: '0px', width: '100px' },
+    { left: '100px', width: '200px' }
+  ],
+  { duration: 500 }
+);
+```
+
+### 2. アニメーションの管理
+
+```javascript
+// アニメーションを保持して後で制御
+const animations = new Map();
+
+function startAnimation(id, element, keyframes, options) {
+  // 既存のアニメーションをキャンセル
+  if (animations.has(id)) {
+    animations.get(id).cancel();
+  }
+
+  const animation = element.animate(keyframes, options);
+  animations.set(id, animation);
+
+  // 完了後に削除
+  animation.finished.then(() => {
+    animations.delete(id);
+  });
+
+  return animation;
+}
+```
+
+### 3. メモリリークの防止
+
+```javascript
+const animation = element.animate(keyframes, options);
+
+// アニメーション完了後にクリーンアップ
+animation.finished
+  .then(() => {
+    console.log('完了');
+  })
+  .catch(() => {
+    console.log('キャンセルされた');
+  })
+  .finally(() => {
+    // リソースのクリーンアップ
+    animation.cancel();
+  });
+```
+
+## ブラウザサポート
+
+Web Animations API は主要ブラウザでサポートされていますが、古いブラウザではポリフィルが必要です：
+
+```javascript
+// ポリフィルのチェック
+if (!Element.prototype.animate) {
+  // ポリフィルを読み込む
+  import('web-animations-js');
+}
+```
+
+## CSS Animation との使い分け
+
+### CSS Animation を使うべき場合
+
+- シンプルなアニメーション
+- 静的なキーフレーム
+- パフォーマンスが最優先
+
+### WAAPI を使うべき場合
+
+- 動的なキーフレーム生成
+- JavaScript での制御が必要
+- Promise ベースの処理
+- 再生/一時停止/逆再生などの制御
+
+## まとめ
+
+### Web Animations API の利点
+
+1. **完全な JavaScript 制御** - play/pause/reverse などの操作が可能
+2. **Promise ベース** - async/await で直感的なコード
+3. **動的生成** - ユーザー操作に応じたアニメーション
+4. **高パフォーマンス** - CSS Animation と同等の速度
+5. **細かい制御** - 再生速度、進行度などを自由に操作
+
+### ベストプラクティス
+
+- [ ] transform と opacity のみでアニメーション
+- [ ] Promise を活用して連鎖アニメーションを実装
+- [ ] 不要なアニメーションは cancel() で解放
+- [ ] playbackRate で再生速度を調整
+- [ ] finished Promise でクリーンアップ処理
+
+## 参考リンク
+
+- [Web Animations API - MDN](https://developer.mozilla.org/ja/docs/Web/API/Web_Animations_API)
+- [web-animations-js (polyfill)](https://github.com/web-animations/web-animations-js)
+- [Using the Web Animations API - web.dev](https://web.dev/web-animations/)

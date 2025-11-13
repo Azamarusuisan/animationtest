@@ -1,0 +1,835 @@
+---
+title: ARIA属性のベストプラクティス
+description: role、aria-label、aria-liveを使ったアクセシブルなWeb開発
+tags: [accessibility, aria, a11y, best-practices]
+category: accessibility
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="ARIA属性の実践デモ"
+  height="700px"
+  html={`
+<div class="demo-wrapper">
+  <section class="section">
+    <h2>1. role属性の使用例</h2>
+    <div class="button-group" role="group" aria-label="テキスト編集ツール">
+      <button role="button" aria-label="太字">
+        <strong>B</strong>
+      </button>
+      <button role="button" aria-label="斜体">
+        <em>I</em>
+      </button>
+      <button role="button" aria-label="下線">
+        <u>U</u>
+      </button>
+    </div>
+    <div class="code-snippet">role="group" + aria-label</div>
+  </section>
+
+  <section class="section">
+    <h2>2. aria-label vs aria-labelledby</h2>
+    <div class="form-group">
+      <label id="username-label">ユーザー名</label>
+      <input
+        type="text"
+        aria-labelledby="username-label"
+        aria-describedby="username-hint"
+        placeholder="yamada_taro"
+      >
+      <small id="username-hint">半角英数字のみ使用可能</small>
+    </div>
+    <div class="code-snippet">aria-labelledby + aria-describedby</div>
+
+    <button class="icon-button" aria-label="検索">
+      🔍
+    </button>
+    <div class="code-snippet">aria-label（アイコンのみ）</div>
+  </section>
+
+  <section class="section">
+    <h2>3. aria-live デモ</h2>
+    <div class="live-demo-box">
+      <button id="addNotification" class="action-button">
+        通知を追加
+      </button>
+      <div
+        id="notifications"
+        class="notification-area"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        ここに通知が表示されます
+      </div>
+    </div>
+    <div class="code-snippet">role="status" + aria-live="polite"</div>
+  </section>
+
+  <section class="section">
+    <h2>4. aria-expanded の活用</h2>
+    <div class="accordion">
+      <button
+        class="accordion-button"
+        id="accordion1"
+        aria-expanded="false"
+        aria-controls="accordion1-content"
+      >
+        アコーディオン項目 1
+        <span class="accordion-icon">▼</span>
+      </button>
+      <div
+        id="accordion1-content"
+        class="accordion-content"
+        role="region"
+        aria-labelledby="accordion1"
+        hidden
+      >
+        <p>
+          これはアコーディオンのコンテンツです。
+          aria-expanded属性により、スクリーンリーダーが
+          開閉状態を正確に伝えられます。
+        </p>
+      </div>
+    </div>
+    <div class="code-snippet">aria-expanded + aria-controls</div>
+  </section>
+
+  <section class="section">
+    <h2>5. aria-hidden の使用</h2>
+    <div class="icon-with-text">
+      <span class="decorative-icon" aria-hidden="true">✨</span>
+      <span>装飾的アイコン（スクリーンリーダーで無視）</span>
+    </div>
+    <div class="code-snippet">aria-hidden="true"（装飾要素）</div>
+  </section>
+
+  <section class="section">
+    <h2>6. aria-invalid のバリデーション</h2>
+    <div class="form-group">
+      <label for="email">メールアドレス</label>
+      <input
+        type="email"
+        id="email"
+        aria-invalid="false"
+        aria-describedby="email-error"
+      >
+      <span id="email-error" class="error-message" role="alert"></span>
+    </div>
+    <button id="validateEmail" class="action-button">
+      バリデーション実行
+    </button>
+    <div class="code-snippet">aria-invalid + role="alert"</div>
+  </section>
+</div>
+  `}
+  css={`
+    .demo-wrapper {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .section {
+      background: #1f2a37;
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      border: 1px solid #374151;
+    }
+
+    .section h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      color: #60a5fa;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .button-group button {
+      padding: 0.75rem 1rem;
+      background: #374151;
+      border: 1px solid #4b5563;
+      border-radius: 6px;
+      color: #e5edf4;
+      cursor: pointer;
+      font-size: 1rem;
+      min-width: 44px;
+      min-height: 44px;
+      transition: all 0.2s;
+    }
+
+    .button-group button:hover {
+      background: #4b5563;
+      transform: translateY(-2px);
+    }
+
+    .button-group button:focus {
+      outline: 2px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    .code-snippet {
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      color: #10b981;
+      background: #0c1218;
+      padding: 0.5rem;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.75rem;
+      background: #0c1218;
+      border: 2px solid #374151;
+      border-radius: 6px;
+      color: #e5edf4;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #60a5fa;
+    }
+
+    .form-group input[aria-invalid="true"] {
+      border-color: #ef4444;
+    }
+
+    .form-group small {
+      display: block;
+      margin-top: 0.25rem;
+      color: #9ca3af;
+      font-size: 0.875rem;
+    }
+
+    .icon-button {
+      padding: 0.75rem;
+      background: #374151;
+      border: 1px solid #4b5563;
+      border-radius: 50%;
+      font-size: 1.5rem;
+      cursor: pointer;
+      min-width: 44px;
+      min-height: 44px;
+      transition: all 0.2s;
+      margin: 0.5rem 0;
+    }
+
+    .icon-button:hover {
+      background: #4b5563;
+      transform: scale(1.1);
+    }
+
+    .icon-button:focus {
+      outline: 2px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    .live-demo-box {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .action-button {
+      padding: 0.75rem 1.5rem;
+      background: #3b82f6;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      min-height: 44px;
+    }
+
+    .action-button:hover {
+      background: #2563eb;
+    }
+
+    .action-button:focus {
+      outline: 2px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    .notification-area {
+      min-height: 60px;
+      padding: 1rem;
+      background: #0c1218;
+      border: 2px solid #374151;
+      border-radius: 6px;
+      color: #e5edf4;
+    }
+
+    .notification-area.has-message {
+      border-color: #10b981;
+      animation: pulse 0.5s;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .accordion {
+      margin-bottom: 1rem;
+    }
+
+    .accordion-button {
+      width: 100%;
+      padding: 1rem;
+      background: #374151;
+      border: 1px solid #4b5563;
+      border-radius: 6px;
+      color: #e5edf4;
+      font-size: 1rem;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s;
+      min-height: 44px;
+    }
+
+    .accordion-button:hover {
+      background: #4b5563;
+    }
+
+    .accordion-button:focus {
+      outline: 2px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    .accordion-icon {
+      transition: transform 0.3s;
+    }
+
+    .accordion-button[aria-expanded="true"] .accordion-icon {
+      transform: rotate(180deg);
+    }
+
+    .accordion-content {
+      padding: 1rem;
+      background: #0c1218;
+      border: 1px solid #374151;
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+      margin-top: -6px;
+    }
+
+    .accordion-content[hidden] {
+      display: none;
+    }
+
+    .icon-with-text {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1rem;
+      background: #0c1218;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+
+    .decorative-icon {
+      font-size: 1.5rem;
+    }
+
+    .error-message {
+      display: block;
+      margin-top: 0.5rem;
+      color: #ef4444;
+      font-size: 0.875rem;
+      min-height: 1.25rem;
+    }
+  `}
+  js={`
+    // 通知の追加
+    let notificationCount = 0;
+    document.getElementById('addNotification').addEventListener('click', () => {
+      notificationCount++;
+      const notifications = document.getElementById('notifications');
+      notifications.textContent = \`通知 \${notificationCount}: メッセージが更新されました\`;
+      notifications.classList.add('has-message');
+      setTimeout(() => {
+        notifications.classList.remove('has-message');
+      }, 500);
+    });
+
+    // アコーディオン
+    document.getElementById('accordion1').addEventListener('click', function() {
+      const expanded = this.getAttribute('aria-expanded') === 'true';
+      this.setAttribute('aria-expanded', !expanded);
+      const content = document.getElementById('accordion1-content');
+      content.hidden = expanded;
+    });
+
+    // バリデーション
+    document.getElementById('validateEmail').addEventListener('click', () => {
+      const emailInput = document.getElementById('email');
+      const errorMsg = document.getElementById('email-error');
+      const email = emailInput.value;
+
+      const isValid = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);
+
+      emailInput.setAttribute('aria-invalid', !isValid);
+
+      if (!isValid) {
+        errorMsg.textContent = '有効なメールアドレスを入力してください';
+      } else {
+        errorMsg.textContent = '有効なメールアドレスです';
+        setTimeout(() => {
+          errorMsg.textContent = '';
+        }, 2000);
+      }
+    });
+  `}
+/>
+
+## ARIA（Accessible Rich Internet Applications）とは
+
+ARIAは、Webコンテンツやアプリケーションをより支援技術（スクリーンリーダーなど）で利用しやすくするための仕様です。HTML要素に追加の意味情報を付与し、動的なコンテンツやカスタムUIコンポーネントのアクセシビリティを向上させます。
+
+### ARIA使用の基本原則
+
+**最初のルール: ARIAを使わない**
+
+ネイティブなHTML要素で実現できる場合は、ARIAを使わずにHTMLの機能を使用します。
+
+```html
+<!-- ❌ 悪い例: ARIAで無理にボタンを作る -->
+<div role="button" tabindex="0" aria-label="送信">送信</div>
+
+<!-- ✅ 良い例: ネイティブなbutton要素 -->
+<button>送信</button>
+```
+
+**第二のルール: ネイティブな意味を変更しない**
+
+```html
+<!-- ❌ 悪い例: 見出しをボタンに変更 -->
+<h1 role="button">これはボタンではない</h1>
+
+<!-- ✅ 良い例: 適切な要素を使用 -->
+<h1>見出し</h1>
+<button>ボタン</button>
+```
+
+## 主要なARIA属性
+
+### 1. role属性
+
+要素の役割を定義します。
+
+```html
+<!-- ナビゲーション -->
+<nav role="navigation">
+  <ul role="list">
+    <li role="listitem"><a href="/">ホーム</a></li>
+  </ul>
+</nav>
+
+<!-- アラート -->
+<div role="alert" aria-live="assertive">
+  エラーが発生しました
+</div>
+
+<!-- タブインターフェース -->
+<div role="tablist">
+  <button role="tab" aria-selected="true">タブ1</button>
+  <button role="tab" aria-selected="false">タブ2</button>
+</div>
+<div role="tabpanel">コンテンツ</div>
+
+<!-- ダイアログ -->
+<div role="dialog" aria-labelledby="dialog-title" aria-modal="true">
+  <h2 id="dialog-title">確認</h2>
+  <p>本当に削除しますか?</p>
+  <button>キャンセル</button>
+  <button>削除</button>
+</div>
+```
+
+### 2. aria-label と aria-labelledby
+
+要素にアクセシブルな名前を提供します。
+
+```html
+<!-- aria-label: 直接ラベルを指定 -->
+<button aria-label="閉じる">
+  <span aria-hidden="true">×</span>
+</button>
+
+<input type="search" aria-label="サイト内検索" placeholder="検索...">
+
+<!-- aria-labelledby: 既存の要素を参照 -->
+<h2 id="section-title">ユーザー設定</h2>
+<form aria-labelledby="section-title">
+  <!-- フォームの内容 -->
+</form>
+
+<!-- 複数の要素を組み合わせ -->
+<div id="billing">請求先</div>
+<div id="name">山田太郎</div>
+<input aria-labelledby="billing name" type="text">
+<!-- "請求先 山田太郎" として読み上げ -->
+```
+
+**使い分け:**
+- **aria-label**: 視覚的なラベルがない場合
+- **aria-labelledby**: 既存のテキストをラベルとして使う場合
+
+### 3. aria-describedby
+
+要素の補足説明を提供します。
+
+```html
+<label for="password">パスワード</label>
+<input
+  id="password"
+  type="password"
+  aria-describedby="password-requirements"
+>
+<p id="password-requirements">
+  8文字以上、大文字・小文字・数字を含む
+</p>
+
+<!-- フォーム全体の説明 -->
+<form aria-describedby="form-instructions">
+  <p id="form-instructions">
+    * 印の項目は必須入力です
+  </p>
+  <!-- フォームフィールド -->
+</form>
+```
+
+### 4. aria-live
+
+動的に更新されるコンテンツをスクリーンリーダーに通知します。
+
+```html
+<!-- polite: 現在の読み上げが終わってから通知 -->
+<div aria-live="polite" role="status">
+  メッセージを送信しました
+</div>
+
+<!-- assertive: すぐに割り込んで通知 -->
+<div aria-live="assertive" role="alert">
+  エラー: 接続が切断されました
+</div>
+
+<!-- off: 更新を通知しない（デフォルト） -->
+<div aria-live="off">
+  通常のコンテンツ
+</div>
+```
+
+**aria-atomic 属性:**
+
+```html
+<!-- aria-atomic="false": 変更部分のみ読み上げ -->
+<div aria-live="polite" aria-atomic="false">
+  <span>商品数: </span>
+  <span id="count">3</span>
+</div>
+
+<!-- aria-atomic="true": 全体を読み上げ -->
+<div aria-live="polite" aria-atomic="true">
+  <span>商品数: </span>
+  <span id="count">3</span>
+</div>
+```
+
+### 5. aria-expanded
+
+展開/折りたたみ可能な要素の状態を示します。
+
+```html
+<!-- アコーディオン -->
+<button
+  aria-expanded="false"
+  aria-controls="content1"
+>
+  詳細を表示
+</button>
+<div id="content1" hidden>
+  詳細コンテンツ
+</div>
+
+<script>
+  button.addEventListener('click', () => {
+    const expanded = button.getAttribute('aria-expanded') === 'true';
+    button.setAttribute('aria-expanded', !expanded);
+    content.hidden = expanded;
+  });
+</script>
+
+<!-- ドロップダウンメニュー -->
+<button
+  aria-expanded="false"
+  aria-controls="menu"
+  aria-haspopup="true"
+>
+  メニュー
+</button>
+<ul id="menu" hidden>
+  <li><a href="#">項目1</a></li>
+  <li><a href="#">項目2</a></li>
+</ul>
+```
+
+### 6. aria-hidden
+
+支援技術から要素を隠します。
+
+```html
+<!-- 装飾的なアイコン -->
+<button>
+  <span aria-hidden="true">🔍</span>
+  検索
+</button>
+
+<!-- フォント アイコン -->
+<button>
+  <i class="icon-search" aria-hidden="true"></i>
+  <span>検索</span>
+</button>
+
+<!-- SVGアイコン -->
+<button aria-label="プロフィール">
+  <svg aria-hidden="true">
+    <use xlink:href="#icon-user"></use>
+  </svg>
+</button>
+```
+
+**注意:** `aria-hidden="true"` は視覚的に表示されますが、スクリーンリーダーでは無視されます。
+
+### 7. aria-invalid
+
+フォームフィールドのバリデーション状態を示します。
+
+```html
+<label for="email">メールアドレス</label>
+<input
+  id="email"
+  type="email"
+  aria-invalid="false"
+  aria-describedby="email-error"
+>
+<span id="email-error" role="alert"></span>
+
+<script>
+  function validateEmail(input) {
+    const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.value);
+    input.setAttribute('aria-invalid', !isValid);
+
+    const error = document.getElementById('email-error');
+    if (!isValid) {
+      error.textContent = '有効なメールアドレスを入力してください';
+    } else {
+      error.textContent = '';
+    }
+  }
+</script>
+```
+
+## 実践的なARIAパターン
+
+### モーダルダイアログ
+
+```html
+<div
+  role="dialog"
+  aria-labelledby="modal-title"
+  aria-describedby="modal-description"
+  aria-modal="true"
+>
+  <h2 id="modal-title">確認</h2>
+  <p id="modal-description">
+    この操作は取り消せません。続けますか?
+  </p>
+  <button>キャンセル</button>
+  <button>続ける</button>
+</div>
+
+<script>
+  // モーダルを開く際にフォーカスをトラップ
+  function openModal(modal) {
+    modal.style.display = 'block';
+    const firstFocusable = modal.querySelector('button');
+    firstFocusable?.focus();
+
+    // ESCキーで閉じる
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal(modal);
+    });
+
+    // フォーカスをモーダル内に制限
+    trapFocus(modal);
+  }
+</script>
+```
+
+### カスタムセレクトボックス
+
+```html
+<div class="select-wrapper">
+  <button
+    aria-haspopup="listbox"
+    aria-expanded="false"
+    aria-labelledby="select-label"
+    id="select-button"
+  >
+    <span id="select-value">選択してください</span>
+  </button>
+
+  <ul
+    role="listbox"
+    aria-labelledby="select-label"
+    id="select-listbox"
+    hidden
+  >
+    <li role="option" aria-selected="false">オプション1</li>
+    <li role="option" aria-selected="false">オプション2</li>
+    <li role="option" aria-selected="false">オプション3</li>
+  </ul>
+</div>
+```
+
+### ローディングインジケーター
+
+```html
+<div
+  role="status"
+  aria-live="polite"
+  aria-label="読み込み中"
+>
+  <div class="spinner" aria-hidden="true"></div>
+  <span class="sr-only">コンテンツを読み込んでいます...</span>
+</div>
+
+<style>
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+</style>
+```
+
+## テストとデバッグ
+
+### スクリーンリーダーでテスト
+
+**macOS: VoiceOver**
+```
+有効化: Cmd + F5
+基本操作:
+- Ctrl + Option + →: 次の項目
+- Ctrl + Option + ←: 前の項目
+- Ctrl + Option + Space: クリック
+```
+
+**Windows: NVDA（無料）**
+```
+基本操作:
+- ↓: 次の項目
+- ↑: 前の項目
+- Enter: クリック
+- Insert + F7: 要素リスト
+```
+
+### アクセシビリティツール
+
+**Chrome DevTools**
+```javascript
+// アクセシビリティツリーを確認
+// DevTools > Elements > Accessibility
+
+// Lighthouse でテスト
+// DevTools > Lighthouse > Accessibility
+```
+
+**axe DevTools（拡張機能）**
+```
+自動でARIAエラーを検出
+- 不適切なrole
+- 足りないラベル
+- 無効なARIA属性
+```
+
+### プログラムでテスト
+
+```javascript
+// ARIA属性の確認
+const button = document.querySelector('button');
+console.log({
+  role: button.getAttribute('role'),
+  ariaLabel: button.getAttribute('aria-label'),
+  ariaExpanded: button.getAttribute('aria-expanded'),
+  ariaHidden: button.getAttribute('aria-hidden')
+});
+
+// アクセシブルな名前を取得
+console.log(button.getAttribute('aria-label') || button.textContent);
+```
+
+## チェックリスト
+
+ARIAを正しく実装するために:
+
+- [ ] ネイティブHTML要素を優先
+- [ ] role属性は必要な場合のみ使用
+- [ ] すべてのインタラクティブ要素にラベル
+- [ ] aria-liveで動的コンテンツを通知
+- [ ] aria-expandedで展開状態を管理
+- [ ] aria-hiddenで装飾要素を隠す
+- [ ] aria-invalidでバリデーション状態を表示
+- [ ] スクリーンリーダーでテスト
+- [ ] 自動テストツールで検証
+
+## まとめ
+
+ARIA属性は、Webアクセシビリティの強力なツールです:
+
+1. **ネイティブHTML優先** - 可能な限りHTML要素を使用
+2. **適切なrole** - 要素の意味を正確に伝える
+3. **明確なラベル** - すべての要素に理解しやすい名前
+4. **状態の管理** - 動的な変更を支援技術に通知
+5. **実機テスト** - スクリーンリーダーで動作確認
+
+ARIAを正しく使うことで、すべてのユーザーに快適な体験を提供できます。
+
+## 参考リンク
+
+- [ARIA Authoring Practices Guide (APG)](https://www.w3.org/WAI/ARIA/apg/)
+- [Using ARIA - MDN](https://developer.mozilla.org/ja/docs/Web/Accessibility/ARIA)
+- [A11y Style Guide](https://a11y-style-guide.com/style-guide/)

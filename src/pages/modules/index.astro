@@ -1,0 +1,641 @@
+---
+import Base from '../../layouts/Base.astro';
+import Search from '../../components/Search.astro';
+import { getCollection } from 'astro:content';
+
+const modules = await getCollection('modules');
+const sortedModules = modules.sort((a, b) => a.data.title.localeCompare(b.data.title));
+---
+
+<Base title="Modules" description="UI/機能モジュール（実装部品）の一覧">
+  <h1 style="margin-bottom: 2rem;">🧩 Modules</h1>
+
+  <Search />
+
+  <div class="grid" style="margin-top: 2rem;">
+    {sortedModules.map(module => {
+      // タイトルからコンポーネントタイプを判定
+      const title = module.data.title.toLowerCase();
+      const tags = module.data.tags.join(' ').toLowerCase();
+      let previewType = '';
+
+      if (title.includes('アコーディオン') || tags.includes('accordion')) previewType = 'accordion';
+      else if (title.includes('モーダル') || title.includes('ダイアログ') || tags.includes('modal')) previewType = 'modal';
+      else if (title.includes('トースト') || tags.includes('toast')) previewType = 'toast';
+      else if (title.includes('カルーセル') || tags.includes('carousel')) previewType = 'carousel';
+      else if (title.includes('ツールチップ') || tags.includes('tooltip')) previewType = 'tooltip';
+      else if (title.includes('タブ') || tags.includes('tabs')) previewType = 'tabs';
+      else if (title.includes('プログレス') || tags.includes('progress')) previewType = 'progress';
+      else if (title.includes('トグル') || title.includes('スイッチ')) previewType = 'toggle';
+      else if (title.includes('ドロップダウン') || tags.includes('dropdown')) previewType = 'dropdown';
+      else if (title.includes('バッジ') || tags.includes('badge')) previewType = 'badge';
+      else if (title.includes('ローディング') || title.includes('スケルトン')) previewType = 'loading';
+      else if (title.includes('ハンバーガー')) previewType = 'hamburger';
+      else previewType = 'default';
+
+      return (
+        <div class={`card preview-${previewType}`}>
+          <div class="card-preview-area">
+            {/* アコーディオン */}
+            {previewType === 'accordion' && (
+              <div class="mini-accordion">
+                <div class="mini-accordion-item active">
+                  <div class="mini-accordion-header">▼ パネル1</div>
+                  <div class="mini-accordion-content">内容</div>
+                </div>
+                <div class="mini-accordion-item">
+                  <div class="mini-accordion-header">▶ パネル2</div>
+                </div>
+              </div>
+            )}
+
+            {/* モーダル */}
+            {previewType === 'modal' && (
+              <div class="mini-modal">
+                <div class="mini-modal-backdrop"></div>
+                <div class="mini-modal-box">
+                  <div class="mini-modal-header">モーダル</div>
+                  <div class="mini-modal-body">内容</div>
+                  <div class="mini-modal-btn">OK</div>
+                </div>
+              </div>
+            )}
+
+            {/* トースト */}
+            {previewType === 'toast' && (
+              <div class="mini-toast-container">
+                <div class="mini-toast">✓ 成功</div>
+              </div>
+            )}
+
+            {/* カルーセル */}
+            {previewType === 'carousel' && (
+              <div class="mini-carousel">
+                <div class="mini-carousel-track">
+                  <div class="mini-carousel-slide">1</div>
+                  <div class="mini-carousel-slide">2</div>
+                  <div class="mini-carousel-slide">3</div>
+                </div>
+                <div class="mini-carousel-dots">
+                  <div class="dot active"></div>
+                  <div class="dot"></div>
+                  <div class="dot"></div>
+                </div>
+              </div>
+            )}
+
+            {/* ツールチップ */}
+            {previewType === 'tooltip' && (
+              <div class="mini-tooltip-wrapper">
+                <div class="mini-tooltip-trigger">?</div>
+                <div class="mini-tooltip">ヒント</div>
+              </div>
+            )}
+
+            {/* タブ */}
+            {previewType === 'tabs' && (
+              <div class="mini-tabs">
+                <div class="mini-tabs-header">
+                  <div class="mini-tab active">タブ1</div>
+                  <div class="mini-tab">タブ2</div>
+                </div>
+                <div class="mini-tabs-content">内容</div>
+              </div>
+            )}
+
+            {/* プログレスバー */}
+            {previewType === 'progress' && (
+              <div class="mini-progress">
+                <div class="mini-progress-bar"></div>
+              </div>
+            )}
+
+            {/* トグルスイッチ */}
+            {previewType === 'toggle' && (
+              <div class="mini-toggle">
+                <div class="mini-toggle-track">
+                  <div class="mini-toggle-thumb"></div>
+                </div>
+              </div>
+            )}
+
+            {/* ドロップダウン */}
+            {previewType === 'dropdown' && (
+              <div class="mini-dropdown">
+                <div class="mini-dropdown-btn">メニュー ▼</div>
+                <div class="mini-dropdown-menu">
+                  <div class="mini-dropdown-item">項目1</div>
+                  <div class="mini-dropdown-item">項目2</div>
+                </div>
+              </div>
+            )}
+
+            {/* バッジ */}
+            {previewType === 'badge' && (
+              <div class="mini-badge-group">
+                <div class="mini-badge">New</div>
+                <div class="mini-badge secondary">5</div>
+              </div>
+            )}
+
+            {/* ローディング */}
+            {previewType === 'loading' && (
+              <div class="mini-loading">
+                <div class="mini-spinner"></div>
+              </div>
+            )}
+
+            {/* ハンバーガー */}
+            {previewType === 'hamburger' && (
+              <div class="mini-hamburger">
+                <div class="mini-hamburger-line"></div>
+                <div class="mini-hamburger-line"></div>
+                <div class="mini-hamburger-line"></div>
+              </div>
+            )}
+          </div>
+
+          <div class="card-content">
+            <h3 style="margin-bottom: 0.5rem;">
+              <a href={`/modules/${module.slug}`}>{module.data.title}</a>
+            </h3>
+            <p style="color: var(--color-text-light); margin-bottom: 1rem; font-size: 0.875rem;">
+              {module.data.description}
+            </p>
+            <div style="margin-bottom: 1rem;">
+              {module.data.tags.map((tag: string) => (
+                <span class="tag">{tag}</span>
+              ))}
+            </div>
+            {module.data.level && (
+              <div style="margin-bottom: 0.5rem;">
+                <span style="font-size: 0.875rem; color: var(--color-text-light);">
+                  Level: <strong>{module.data.level}</strong>
+                </span>
+              </div>
+            )}
+            {module.data.frameworks && module.data.frameworks.length > 0 && (
+              <div style="font-size: 0.875rem; color: var(--color-text-light);">
+                {module.data.frameworks.join(', ')}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+
+  <style>
+    .card {
+      position: relative;
+      overflow: hidden;
+      min-height: 200px;
+    }
+
+    .card-preview-area {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 120px;
+      height: 120px;
+      opacity: 0.15;
+      pointer-events: none;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card:hover .card-preview-area {
+      opacity: 0.4;
+      transform: scale(1.05);
+    }
+
+    .card-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* アコーディオン */
+    .mini-accordion {
+      width: 100%;
+      font-size: 8px;
+    }
+    .mini-accordion-item {
+      background: var(--color-bg-alt);
+      margin-bottom: 3px;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .mini-accordion-header {
+      padding: 6px;
+      background: var(--color-primary);
+      color: white;
+      font-weight: bold;
+    }
+    .mini-accordion-content {
+      padding: 6px;
+      height: 0;
+      overflow: hidden;
+    }
+    .preview-accordion:hover .mini-accordion-item.active .mini-accordion-content {
+      animation: accordionOpen 2s ease-in-out infinite;
+    }
+    @keyframes accordionOpen {
+      0%, 100% { height: 0; }
+      50% { height: 20px; }
+    }
+
+    /* モーダル */
+    .mini-modal {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    .mini-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      opacity: 0;
+    }
+    .mini-modal-box {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      background: white;
+      border-radius: 6px;
+      padding: 8px;
+      width: 80%;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .mini-modal-header {
+      font-size: 10px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .mini-modal-body {
+      font-size: 8px;
+      margin-bottom: 4px;
+    }
+    .mini-modal-btn {
+      background: var(--color-primary);
+      color: white;
+      padding: 3px 6px;
+      border-radius: 3px;
+      font-size: 8px;
+      text-align: center;
+    }
+    .preview-modal:hover .mini-modal-backdrop {
+      animation: fadeInBackdrop 2s ease-in-out infinite;
+    }
+    .preview-modal:hover .mini-modal-box {
+      animation: modalScale 2s ease-in-out infinite;
+    }
+    @keyframes fadeInBackdrop {
+      0%, 100% { opacity: 0; }
+      50% { opacity: 1; }
+    }
+    @keyframes modalScale {
+      0%, 100% { transform: translate(-50%, -50%) scale(0); }
+      50% { transform: translate(-50%, -50%) scale(1); }
+    }
+
+    /* トースト */
+    .mini-toast-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    .mini-toast {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--color-primary);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 8px;
+      transform: translateX(150%);
+    }
+    .preview-toast:hover .mini-toast {
+      animation: toastSlideIn 2s ease-in-out infinite;
+    }
+    @keyframes toastSlideIn {
+      0%, 100% { transform: translateX(150%); }
+      20%, 80% { transform: translateX(0); }
+    }
+
+    /* カルーセル */
+    .mini-carousel {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+    .mini-carousel-track {
+      display: flex;
+      width: 300%;
+      height: 80%;
+    }
+    .mini-carousel-slide {
+      flex: 0 0 33.33%;
+      background: var(--color-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+      font-weight: bold;
+      border-radius: 6px;
+      margin: 0 2px;
+    }
+    .mini-carousel-dots {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+    }
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.3);
+    }
+    .dot.active {
+      background: var(--color-primary);
+    }
+    .preview-carousel:hover .mini-carousel-track {
+      animation: carouselSlide 3s ease-in-out infinite;
+    }
+    @keyframes carouselSlide {
+      0%, 100% { transform: translateX(0); }
+      33% { transform: translateX(-33.33%); }
+      66% { transform: translateX(-66.66%); }
+    }
+
+    /* ツールチップ */
+    .mini-tooltip-wrapper {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mini-tooltip-trigger {
+      width: 24px;
+      height: 24px;
+      background: var(--color-primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    .mini-tooltip {
+      position: absolute;
+      top: -8px;
+      background: #333;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 8px;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    .preview-tooltip:hover .mini-tooltip {
+      animation: tooltipShow 2s ease-in-out infinite;
+    }
+    @keyframes tooltipShow {
+      0%, 100% { opacity: 0; transform: translateY(10px); }
+      20%, 80% { opacity: 1; transform: translateY(0); }
+    }
+
+    /* タブ */
+    .mini-tabs {
+      width: 100%;
+      font-size: 8px;
+    }
+    .mini-tabs-header {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 4px;
+    }
+    .mini-tab {
+      flex: 1;
+      padding: 4px;
+      background: var(--color-bg-alt);
+      text-align: center;
+      border-radius: 3px 3px 0 0;
+    }
+    .mini-tab.active {
+      background: var(--color-primary);
+      color: white;
+    }
+    .mini-tabs-content {
+      background: var(--color-bg-alt);
+      padding: 8px;
+      border-radius: 0 0 3px 3px;
+      min-height: 30px;
+    }
+
+    /* プログレスバー */
+    .mini-progress {
+      width: 100%;
+      height: 12px;
+      background: var(--color-bg-alt);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .mini-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+      width: 0;
+    }
+    .preview-progress:hover .mini-progress-bar {
+      animation: progressFill 2s ease-in-out infinite;
+    }
+    @keyframes progressFill {
+      0%, 100% { width: 0; }
+      50% { width: 100%; }
+    }
+
+    /* トグルスイッチ */
+    .mini-toggle {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mini-toggle-track {
+      width: 40px;
+      height: 20px;
+      background: #ccc;
+      border-radius: 10px;
+      position: relative;
+      transition: background 0.3s;
+    }
+    .mini-toggle-thumb {
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .preview-toggle:hover .mini-toggle-track {
+      animation: toggleSwitch 2s ease-in-out infinite;
+    }
+    .preview-toggle:hover .mini-toggle-thumb {
+      animation: thumbSlide 2s ease-in-out infinite;
+    }
+    @keyframes toggleSwitch {
+      0%, 100% { background: #ccc; }
+      50% { background: var(--color-primary); }
+    }
+    @keyframes thumbSlide {
+      0%, 100% { left: 2px; }
+      50% { left: 22px; }
+    }
+
+    /* ドロップダウン */
+    .mini-dropdown {
+      width: 100%;
+      font-size: 8px;
+    }
+    .mini-dropdown-btn {
+      background: var(--color-primary);
+      color: white;
+      padding: 6px;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .mini-dropdown-menu {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-top: 4px;
+      overflow: hidden;
+      max-height: 0;
+    }
+    .mini-dropdown-item {
+      padding: 4px 6px;
+      border-bottom: 1px solid #eee;
+    }
+    .mini-dropdown-item:last-child {
+      border-bottom: none;
+    }
+    .preview-dropdown:hover .mini-dropdown-menu {
+      animation: dropdownOpen 2s ease-in-out infinite;
+    }
+    @keyframes dropdownOpen {
+      0%, 100% { max-height: 0; }
+      50% { max-height: 50px; }
+    }
+
+    /* バッジ */
+    .mini-badge-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+    .mini-badge {
+      background: var(--color-primary);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 9px;
+      font-weight: bold;
+    }
+    .mini-badge.secondary {
+      background: var(--color-secondary);
+    }
+    .preview-badge:hover .mini-badge {
+      animation: badgePulse 1.5s ease-in-out infinite;
+    }
+    @keyframes badgePulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+    }
+
+    /* ローディング */
+    .mini-loading {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mini-spinner {
+      width: 30px;
+      height: 30px;
+      border: 3px solid rgba(99, 102, 241, 0.2);
+      border-top-color: var(--color-primary);
+      border-radius: 50%;
+    }
+    .preview-loading:hover .mini-spinner {
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ハンバーガー */
+    .mini-hamburger {
+      width: 30px;
+      height: 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      padding: 6px 0;
+    }
+    .mini-hamburger-line {
+      width: 100%;
+      height: 3px;
+      background: var(--color-primary);
+      border-radius: 2px;
+      transition: all 0.3s;
+    }
+    .preview-hamburger:hover .mini-hamburger-line:nth-child(1) {
+      animation: topLine 2s ease-in-out infinite;
+    }
+    .preview-hamburger:hover .mini-hamburger-line:nth-child(2) {
+      animation: middleLine 2s ease-in-out infinite;
+    }
+    .preview-hamburger:hover .mini-hamburger-line:nth-child(3) {
+      animation: bottomLine 2s ease-in-out infinite;
+    }
+    @keyframes topLine {
+      0%, 100% { transform: translateY(0) rotate(0); }
+      50% { transform: translateY(9px) rotate(45deg); }
+    }
+    @keyframes middleLine {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    @keyframes bottomLine {
+      0%, 100% { transform: translateY(0) rotate(0); }
+      50% { transform: translateY(-9px) rotate(-45deg); }
+    }
+  </style>
+
+  {modules.length === 0 && (
+    <div class="card" style="text-align: center; padding: 3rem;">
+      <p style="color: var(--color-text-light); font-size: 1.125rem;">
+        まだモジュールがありません。<br />
+        <code>src/content/modules/</code> にMDXファイルを追加してください。
+      </p>
+    </div>
+  )}
+</Base>

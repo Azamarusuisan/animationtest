@@ -1,0 +1,316 @@
+---
+title: フォーム検証（HTML5 + カスタムメッセージ）
+description: ブラウザ標準のConstraint Validation API + カスタムエラー表示。
+tags: [form, validation, ux, accessibility]
+frameworks: [Vanilla, Any]
+level: intermediate
+prompt_template: |
+  目的: HTML5標準検証とカスタムエラー表示の実装
+  前提: Vanilla JS（任意のフレームワークに移植可）
+  要件:
+  - HTML5標準の検証（required, pattern, min/max, email等）
+  - カスタムエラーメッセージ表示
+  - リアルタイム検証（入力中/blur時）
+  - aria-invalid, aria-describedby対応
+  - エラー箇所へのフォーカス移動
+  - アクセシビリティ対応
+  - パフォーマンス考慮
+  納品: コンポーネント+CSS+最小限のJS
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo height="450px">
+{`<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0c1218; color: #e5edf4; padding: 2rem; }
+
+    h2 { margin-bottom: 0.5rem; }
+    .instructions { color: #9ca3af; margin-bottom: 1.5rem; line-height: 1.6; }
+
+    .validated-form { max-width: 400px; }
+    .field { margin-bottom: 1.5rem; }
+    .field label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #e5edf4; }
+    .field input {
+      width: 100%;
+      padding: 0.75rem;
+      background: #1f2a37;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      color: #e5edf4;
+      font-size: 1rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .field input:focus {
+      outline: none;
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+    }
+    .field input[aria-invalid="true"] {
+      border-color: #ef4444;
+    }
+    .field input[aria-invalid="true"]:focus {
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+
+    .error {
+      display: block;
+      color: #ef4444;
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+      min-height: 1.25rem;
+    }
+    .error:empty { visibility: hidden; }
+
+    .submit-btn {
+      background: #1f2a37;
+      border: 1px solid #374151;
+      color: #e5edf4;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.2s;
+      width: 100%;
+    }
+    .submit-btn:hover { background: #374151; }
+    .submit-btn:active { transform: scale(0.98); }
+
+    .success-message {
+      display: none;
+      margin-top: 1rem;
+      padding: 1rem;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid #10b981;
+      border-radius: 8px;
+      color: #10b981;
+    }
+    .success-message.show { display: block; }
+  </style>
+</head>
+<body>
+  <h2>フォーム検証</h2>
+  <p class="instructions">
+    リアルタイムでバリデーションが行われます。入力してみてください。
+  </p>
+
+  <form class="validated-form" novalidate>
+    <div class="field">
+      <label for="email">メールアドレス</label>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        required
+        aria-describedby="email-error"
+        placeholder="example@email.com"
+      >
+      <span class="error" id="email-error" role="alert"></span>
+    </div>
+
+    <div class="field">
+      <label for="username">ユーザー名 (3文字以上)</label>
+      <input
+        type="text"
+        id="username"
+        name="username"
+        required
+        minlength="3"
+        aria-describedby="username-error"
+        placeholder="username"
+      >
+      <span class="error" id="username-error" role="alert"></span>
+    </div>
+
+    <div class="field">
+      <label for="password">パスワード (8文字以上)</label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        required
+        minlength="8"
+        aria-describedby="password-error"
+        placeholder="••••••••"
+      >
+      <span class="error" id="password-error" role="alert"></span>
+    </div>
+
+    <button type="submit" class="submit-btn">送信</button>
+
+    <div class="success-message" id="success">
+      フォームが正常に送信されました！
+    </div>
+  </form>
+
+  <script>
+    const form = document.querySelector('.validated-form');
+    const successMsg = document.getElementById('success');
+
+    const msgs = {
+      valueMissing: '入力必須です',
+      typeMismatch: '正しい形式で入力してください',
+      tooShort: '最低{min}文字必要です',
+      tooLong: '最大{max}文字までです',
+      patternMismatch: '無効な形式です'
+    };
+
+    function validate(input) {
+      const error = input.parentElement.querySelector('.error');
+
+      if (input.validity.valid) {
+        input.setAttribute('aria-invalid', 'false');
+        error.textContent = '';
+        return true;
+      }
+
+      input.setAttribute('aria-invalid', 'true');
+
+      for (let key in msgs) {
+        if (input.validity[key]) {
+          error.textContent = msgs[key]
+            .replace('{min}', input.minLength || input.min)
+            .replace('{max}', input.maxLength || input.max);
+          return false;
+        }
+      }
+
+      error.textContent = input.validationMessage;
+      return false;
+    }
+
+    const inputs = form.querySelectorAll('input');
+    inputs.forEach(input => {
+      input.addEventListener('blur', () => validate(input));
+      input.addEventListener('input', () => {
+        if (input.getAttribute('aria-invalid') === 'true') {
+          validate(input);
+        }
+      });
+    });
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      let firstInvalid = null;
+      inputs.forEach(input => {
+        if (!validate(input) && !firstInvalid) {
+          firstInvalid = input;
+        }
+      });
+
+      if (firstInvalid) {
+        firstInvalid.focus();
+        successMsg.classList.remove('show');
+      } else {
+        successMsg.classList.add('show');
+        setTimeout(() => {
+          form.reset();
+          successMsg.classList.remove('show');
+          inputs.forEach(input => {
+            input.setAttribute('aria-invalid', 'false');
+            const error = input.parentElement.querySelector('.error');
+            error.textContent = '';
+          });
+        }, 3000);
+      }
+    });
+  </script>
+</body>
+</html>`}
+</LiveDemo>
+
+**HTML**
+```html
+<form class="validated-form" novalidate>
+  <div class="field">
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" required
+           aria-describedby="email-error">
+    <span class="error" id="email-error" role="alert"></span>
+  </div>
+
+  <div class="field">
+    <label for="password">Password (8+ chars)</label>
+    <input type="password" id="password" name="password"
+           required minlength="8"
+           aria-describedby="password-error">
+    <span class="error" id="password-error" role="alert"></span>
+  </div>
+
+  <button type="submit">Submit</button>
+</form>
+```
+
+**CSS**
+```css
+.field { margin-bottom: 1rem; }
+.field label { display: block; margin-bottom: .25rem; font-weight: 600; }
+.field input { width: 100%; padding: .5rem; border: 1px solid #ccc; border-radius: 4px; }
+.field input:focus { outline: 2px solid #0066cc; outline-offset: 2px; }
+.field input[aria-invalid="true"] { border-color: #d32f2f; }
+.error { display: block; color: #d32f2f; font-size: .875rem; margin-top: .25rem; min-height: 1.25rem; }
+.error:empty { visibility: hidden; }
+```
+
+**JS**
+```js
+(() => {
+  const forms = document.querySelectorAll('.validated-form');
+  const msgs = {
+    valueMissing: 'This field is required',
+    typeMismatch: 'Please enter a valid format',
+    tooShort: 'Too short (min {min} chars)',
+    tooLong: 'Too long (max {max} chars)',
+    patternMismatch: 'Invalid format'
+  };
+
+  function validate(input) {
+    const error = input.parentElement.querySelector('.error');
+    if (input.validity.valid) {
+      input.setAttribute('aria-invalid', 'false');
+      error.textContent = '';
+      return true;
+    }
+    input.setAttribute('aria-invalid', 'true');
+    for (let key in msgs) {
+      if (input.validity[key]) {
+        error.textContent = msgs[key]
+          .replace('{min}', input.minLength || input.min)
+          .replace('{max}', input.maxLength || input.max);
+        return false;
+      }
+    }
+    error.textContent = input.validationMessage;
+    return false;
+  }
+
+  forms.forEach(form => {
+    const inputs = form.querySelectorAll('input, textarea, select');
+    inputs.forEach(input => {
+      input.addEventListener('blur', () => validate(input));
+      input.addEventListener('input', () => {
+        if (input.getAttribute('aria-invalid') === 'true') validate(input);
+      });
+    });
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      let first = null;
+      inputs.forEach(input => {
+        if (!validate(input) && !first) first = input;
+      });
+      if (first) {
+        first.focus();
+      } else {
+        console.log('Form valid!', Object.fromEntries(new FormData(form)));
+      }
+    });
+  });
+})();
+```

@@ -1,0 +1,834 @@
+---
+title: Intersection Observerの実践活用
+description: 遅延ロード、スクロールアニメーション、無限スクロールをパフォーマンス良く実装する方法
+tags: [javascript, performance, intersection-observer, lazy-loading]
+category: performance
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## Intersection Observer とは
+
+Intersection Observer API は、要素がビューポート（画面）に入ったかどうかを効率的に検出できる強力なAPIです。従来の `scroll` イベントと比べて、パフォーマンスが圧倒的に優れています。
+
+### なぜ Intersection Observer を使うべきか
+
+<LiveDemo
+  title="scroll イベント vs Intersection Observer"
+  height="500px"
+  html={`
+<div class="comparison-demo">
+  <div class="method-section">
+    <h3>❌ 従来の方法: scroll イベント</h3>
+    <div class="metrics" id="scrollMetrics">
+      <div class="metric">
+        <span>イベント発火回数:</span>
+        <span id="scrollCount" class="count">0</span>
+      </div>
+    </div>
+    <p class="description">スクロールごとに大量のイベントが発火</p>
+  </div>
+
+  <div class="method-section">
+    <h3>✅ 推奨: Intersection Observer</h3>
+    <div class="metrics" id="observerMetrics">
+      <div class="metric">
+        <span>コールバック実行回数:</span>
+        <span id="observerCount" class="count">0</span>
+      </div>
+    </div>
+    <p class="description">必要な時だけコールバックが実行される</p>
+  </div>
+
+  <div class="scroll-area" id="scrollArea">
+    <div class="scroll-content">
+      <div class="target-box" id="target1">監視対象 1</div>
+      <div class="spacer"></div>
+      <div class="target-box" id="target2">監視対象 2</div>
+      <div class="spacer"></div>
+      <div class="target-box" id="target3">監視対象 3</div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <button id="resetBtn" class="reset-btn">カウンターをリセット</button>
+</div>
+  `}
+  css={`
+.comparison-demo {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.method-section {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.method-section h3 {
+  font-size: 1rem;
+  color: #e5edf4;
+  margin: 0 0 1rem 0;
+}
+
+.metrics {
+  background: #0c1218;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.count {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #10b981;
+}
+
+.description {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.scroll-area {
+  background: #0c1218;
+  border: 2px solid #374151;
+  border-radius: 8px;
+  height: 200px;
+  overflow-y: scroll;
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.scroll-content {
+  padding-bottom: 1rem;
+}
+
+.target-box {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem;
+  border-radius: 8px;
+  text-align: center;
+  color: white;
+  font-weight: 600;
+  font-size: 1.125rem;
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+  opacity: 0.5;
+}
+
+.target-box.visible {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.spacer {
+  height: 150px;
+}
+
+.reset-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 6px;
+  color: #e5edf4;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.reset-btn:hover {
+  background: #4b5563;
+}
+  `}
+  js={`
+let scrollEventCount = 0;
+let observerCallbackCount = 0;
+
+const scrollCount = document.getElementById('scrollCount');
+const observerCount = document.getElementById('observerCount');
+const scrollArea = document.getElementById('scrollArea');
+const targets = document.querySelectorAll('.target-box');
+const resetBtn = document.getElementById('resetBtn');
+
+// scroll イベント（悪い例）
+scrollArea.addEventListener('scroll', () => {
+  scrollEventCount++;
+  scrollCount.textContent = scrollEventCount;
+});
+
+// Intersection Observer（良い例）
+const observer = new IntersectionObserver((entries) => {
+  observerCallbackCount++;
+  observerCount.textContent = observerCallbackCount;
+
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    } else {
+      entry.target.classList.remove('visible');
+    }
+  });
+}, {
+  root: scrollArea,
+  threshold: 0.5
+});
+
+targets.forEach(target => observer.observe(target));
+
+resetBtn.addEventListener('click', () => {
+  scrollEventCount = 0;
+  observerCallbackCount = 0;
+  scrollCount.textContent = '0';
+  observerCount.textContent = '0';
+});
+  `}
+/>
+
+## 基本的な使い方
+
+### シンプルな実装例
+
+```javascript
+// オブザーバーを作成
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      // 要素が画面に入った時の処理
+      entry.target.classList.add('visible');
+
+      // 一度だけ実行したい場合は監視を解除
+      observer.unobserve(entry.target);
+    }
+  });
+});
+
+// 要素を監視
+const element = document.querySelector('.animate-on-scroll');
+observer.observe(element);
+```
+
+### オプション設定
+
+```javascript
+const observer = new IntersectionObserver(callback, {
+  // root: 交差を判定する基準となる要素（null でビューポート）
+  root: null,
+
+  // rootMargin: root の周囲にマージンを設定（CSS の margin と同じ構文）
+  rootMargin: '0px 0px -100px 0px',
+
+  // threshold: どれだけ見えたらコールバックを実行するか（0.0 〜 1.0）
+  threshold: 0.5 // 50% 見えたら実行
+});
+```
+
+## 実践例1: 画像の遅延ロード
+
+<LiveDemo
+  title="画像の遅延ロード（Lazy Loading）"
+  height="600px"
+  html={`
+<div class="lazy-loading-demo">
+  <div class="info-panel">
+    <h3>スクロールして画像を読み込む</h3>
+    <div class="stats">
+      <div class="stat">
+        <span>読み込み済み:</span>
+        <span id="loadedCount">0 / 6</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="image-scroll-area" id="imageScrollArea">
+    <div class="image-item">
+      <div class="lazy-image" data-src="https://picsum.photos/300/200?random=1">
+        <div class="loading-placeholder">読み込み中...</div>
+      </div>
+    </div>
+    <div class="image-item">
+      <div class="lazy-image" data-src="https://picsum.photos/300/200?random=2">
+        <div class="loading-placeholder">読み込み中...</div>
+      </div>
+    </div>
+    <div class="image-item">
+      <div class="lazy-image" data-src="https://picsum.photos/300/200?random=3">
+        <div class="loading-placeholder">読み込み中...</div>
+      </div>
+    </div>
+    <div class="image-item">
+      <div class="lazy-image" data-src="https://picsum.photos/300/200?random=4">
+        <div class="loading-placeholder">読み込み中...</div>
+      </div>
+    </div>
+    <div class="image-item">
+      <div class="lazy-image" data-src="https://picsum.photos/300/200?random=5">
+        <div class="loading-placeholder">読み込み中...</div>
+      </div>
+    </div>
+    <div class="image-item">
+      <div class="lazy-image" data-src="https://picsum.photos/300/200?random=6">
+        <div class="loading-placeholder">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.lazy-loading-demo {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.info-panel {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.info-panel h3 {
+  font-size: 1rem;
+  color: #e5edf4;
+  margin: 0 0 1rem 0;
+}
+
+.stats {
+  background: #0c1218;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.stat span:last-child {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #10b981;
+}
+
+.image-scroll-area {
+  background: #0c1218;
+  border: 2px solid #374151;
+  border-radius: 8px;
+  height: 350px;
+  overflow-y: scroll;
+  padding: 1rem;
+}
+
+.image-item {
+  margin-bottom: 1rem;
+}
+
+.lazy-image {
+  width: 100%;
+  height: 200px;
+  background: #1f2a37;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.loading-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  background: linear-gradient(
+    90deg,
+    #1f2a37 0%,
+    #374151 50%,
+    #1f2a37 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.lazy-image.loaded {
+  background-size: cover;
+  background-position: center;
+}
+
+.lazy-image.loaded .loading-placeholder {
+  display: none;
+}
+  `}
+  js={`
+let loadedCount = 0;
+const totalImages = 6;
+const loadedCountEl = document.getElementById('loadedCount');
+const lazyImages = document.querySelectorAll('.lazy-image');
+const scrollArea = document.getElementById('imageScrollArea');
+
+const imageObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const img = entry.target;
+      const src = img.dataset.src;
+
+      // 画像を読み込む
+      const image = new Image();
+      image.onload = () => {
+        img.style.backgroundImage = 'url(' + src + ')';
+        img.classList.add('loaded');
+        loadedCount++;
+        loadedCountEl.textContent = loadedCount + ' / ' + totalImages;
+      };
+      image.src = src;
+
+      // 監視を解除（一度だけ読み込む）
+      imageObserver.unobserve(img);
+    }
+  });
+}, {
+  root: scrollArea,
+  rootMargin: '50px', // 50px 前から読み込み開始
+  threshold: 0.1
+});
+
+lazyImages.forEach(img => imageObserver.observe(img));
+  `}
+/>
+
+### 画像遅延ロードのコード
+
+```javascript
+// 画像の遅延ロード
+const lazyImageObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const img = entry.target;
+      const src = img.dataset.src;
+
+      // 画像を読み込む
+      img.src = src;
+      img.classList.add('loaded');
+
+      // 監視を解除
+      lazyImageObserver.unobserve(img);
+    }
+  });
+}, {
+  rootMargin: '50px' // 画面に入る50px前から読み込み
+});
+
+// data-src 属性を持つ画像を監視
+document.querySelectorAll('img[data-src]').forEach(img => {
+  lazyImageObserver.observe(img);
+});
+```
+
+```html
+<!-- HTML -->
+<img data-src="image.jpg" alt="説明" class="lazy">
+```
+
+## 実践例2: スクロールアニメーション
+
+<LiveDemo
+  title="スクロールで要素をアニメーション"
+  height="550px"
+  html={`
+<div class="scroll-animation-demo">
+  <div class="instructions">
+    <p>⬇️ スクロールして要素をアニメーション</p>
+  </div>
+
+  <div class="animation-scroll-area" id="animationScrollArea">
+    <div class="reveal-item fade-in">
+      <h4>フェードイン</h4>
+      <p>画面に入ると opacity が 1 になります</p>
+    </div>
+
+    <div class="reveal-item slide-in-left">
+      <h4>左からスライド</h4>
+      <p>左から右にスライドして表示されます</p>
+    </div>
+
+    <div class="reveal-item slide-in-right">
+      <h4>右からスライド</h4>
+      <p>右から左にスライドして表示されます</p>
+    </div>
+
+    <div class="reveal-item scale-in">
+      <h4>スケールイン</h4>
+      <p>小さい状態から拡大して表示されます</p>
+    </div>
+
+    <div class="reveal-item rotate-in">
+      <h4>回転しながら表示</h4>
+      <p>回転とフェードインを組み合わせた効果</p>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.scroll-animation-demo {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.instructions {
+  background: #374151;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #e5edf4;
+  font-weight: 600;
+}
+
+.instructions p {
+  margin: 0;
+}
+
+.animation-scroll-area {
+  background: #0c1218;
+  border: 2px solid #374151;
+  border-radius: 8px;
+  height: 400px;
+  overflow-y: scroll;
+  padding: 1rem;
+}
+
+.reveal-item {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 8rem;
+  color: white;
+  opacity: 0;
+  transition: all 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.reveal-item:last-child {
+  margin-bottom: 1rem;
+}
+
+.reveal-item h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+}
+
+.reveal-item p {
+  margin: 0;
+  font-size: 0.875rem;
+  opacity: 0.9;
+}
+
+/* フェードイン */
+.fade-in.visible {
+  opacity: 1;
+}
+
+/* 左からスライド */
+.slide-in-left {
+  transform: translateX(-50px);
+}
+
+.slide-in-left.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* 右からスライド */
+.slide-in-right {
+  transform: translateX(50px);
+}
+
+.slide-in-right.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* スケールイン */
+.scale-in {
+  transform: scale(0.8);
+}
+
+.scale-in.visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 回転 */
+.rotate-in {
+  transform: rotate(-5deg) scale(0.9);
+}
+
+.rotate-in.visible {
+  opacity: 1;
+  transform: rotate(0) scale(1);
+}
+  `}
+  js={`
+const animationScrollArea = document.getElementById('animationScrollArea');
+const revealItems = document.querySelectorAll('.reveal-item');
+
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      // 一度表示したら監視解除（パフォーマンス向上）
+      revealObserver.unobserve(entry.target);
+    }
+  });
+}, {
+  root: animationScrollArea,
+  threshold: 0.3 // 30% 見えたら表示
+});
+
+revealItems.forEach(item => revealObserver.observe(item));
+  `}
+/>
+
+### スクロールアニメーションのコード
+
+```javascript
+// スクロールアニメーション
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+
+      // 一度表示したら監視解除（パフォーマンス向上）
+      revealObserver.unobserve(entry.target);
+    }
+  });
+}, {
+  threshold: 0.3 // 30% 見えたら実行
+});
+
+// アニメーションさせる要素を監視
+document.querySelectorAll('.reveal').forEach(el => {
+  revealObserver.observe(el);
+});
+```
+
+```css
+/* CSS */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+```
+
+## 実践例3: 無限スクロール
+
+```javascript
+// 無限スクロール
+let page = 1;
+const sentinel = document.querySelector('.sentinel');
+
+const infiniteScrollObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      // データを読み込む
+      loadMoreData(page);
+      page++;
+    }
+  });
+}, {
+  rootMargin: '100px' // 底から100px前にデータ読み込み開始
+});
+
+infiniteScrollObserver.observe(sentinel);
+
+async function loadMoreData(page) {
+  const response = await fetch(`/api/items?page=${page}`);
+  const data = await response.json();
+
+  // データを DOM に追加
+  data.items.forEach(item => {
+    const element = createItemElement(item);
+    container.appendChild(element);
+  });
+}
+```
+
+## パフォーマンスの最適化
+
+### 1. 監視解除
+
+一度だけ実行したい場合は、必ず監視を解除してメモリを節約：
+
+```javascript
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      // 処理を実行
+      doSomething(entry.target);
+
+      // 監視解除
+      observer.unobserve(entry.target);
+    }
+  });
+});
+```
+
+### 2. rootMargin の活用
+
+画面に入る前から処理を開始して、スムーズな UX を実現：
+
+```javascript
+const observer = new IntersectionObserver(callback, {
+  rootMargin: '100px 0px' // 上下 100px 前から検出
+});
+```
+
+### 3. threshold の調整
+
+```javascript
+// 複数の threshold を指定
+const observer = new IntersectionObserver(callback, {
+  threshold: [0, 0.25, 0.5, 0.75, 1] // 0%, 25%, 50%, 75%, 100% で実行
+});
+```
+
+## よくあるユースケース
+
+### 1. 動画の自動再生/停止
+
+```javascript
+const videoObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    const video = entry.target;
+    if (entry.isIntersecting) {
+      video.play();
+    } else {
+      video.pause();
+    }
+  });
+}, {
+  threshold: 0.5 // 50% 見えたら再生
+});
+
+document.querySelectorAll('video').forEach(video => {
+  videoObserver.observe(video);
+});
+```
+
+### 2. アナリティクスのトラッキング
+
+```javascript
+const trackingObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      // 要素が表示されたことを記録
+      analytics.track('element_viewed', {
+        element: entry.target.id,
+        timestamp: Date.now()
+      });
+
+      trackingObserver.unobserve(entry.target);
+    }
+  });
+}, {
+  threshold: 0.8 // 80% 見えたら記録
+});
+```
+
+### 3. スティッキーヘッダーのスタイル変更
+
+```javascript
+const headerObserver = new IntersectionObserver((entries) => {
+  const header = document.querySelector('header');
+
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) {
+      header.classList.add('scrolled');
+    } else {
+      header.classList.remove('scrolled');
+    }
+  });
+});
+
+const sentinel = document.querySelector('.header-sentinel');
+headerObserver.observe(sentinel);
+```
+
+## ブラウザ対応
+
+Intersection Observer は主要ブラウザで広くサポートされていますが、古いブラウザ向けにポリフィルを使用できます：
+
+```javascript
+// ポリフィルのチェック
+if (!('IntersectionObserver' in window)) {
+  // ポリフィルを読み込む
+  import('intersection-observer');
+}
+```
+
+## ベストプラクティス
+
+### チェックリスト
+
+- [ ] `scroll` イベントの代わりに Intersection Observer を使用
+- [ ] 一度だけ実行する処理は `unobserve()` で監視解除
+- [ ] `rootMargin` で事前読み込みを実装
+- [ ] `threshold` を適切に設定
+- [ ] 大量の要素を監視する場合は1つの Observer を再利用
+- [ ] 古いブラウザ向けにポリフィルを検討
+
+### アンチパターン
+
+```javascript
+// ❌ 悪い例: 要素ごとに Observer を作成
+elements.forEach(el => {
+  const observer = new IntersectionObserver(callback);
+  observer.observe(el);
+});
+
+// ✅ 良い例: 1つの Observer を再利用
+const observer = new IntersectionObserver(callback);
+elements.forEach(el => observer.observe(el));
+```
+
+## まとめ
+
+1. **Intersection Observer を優先** - scroll イベントより高パフォーマンス
+2. **監視解除を忘れずに** - 不要になったら unobserve() でメモリ節約
+3. **rootMargin で UX 向上** - 事前読み込みでスムーズな体験を
+4. **用途に応じた threshold** - 適切なタイミングで処理を実行
+5. **1つの Observer を再利用** - 複数の要素を効率的に監視
+
+## 参考リンク
+
+- [Intersection Observer API - MDN](https://developer.mozilla.org/ja/docs/Web/API/Intersection_Observer_API)
+- [IntersectionObserver polyfill](https://github.com/w3c/IntersectionObserver/tree/main/polyfill)
+- [web.dev: Trust is Good, Observation is Better](https://web.dev/intersectionobserver/)

@@ -1,0 +1,1173 @@
+---
+title: コンポーネントA11yチェックリスト
+description: UIコンポーネントのアクセシビリティを確保するための包括的なチェックリスト
+tags: [documentation, accessibility, quality, standards, checklist]
+category: accessibility
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="アクセシビリティチェックリストデモ"
+  height="900px"
+  html={`
+<div class="demo-container">
+  <div class="header">
+    <h2>インタラクティブA11yチェックリスト</h2>
+    <div class="toggle-buttons">
+      <button id="showAccessible" class="toggle-btn active">
+        アクセシブル版
+      </button>
+      <button id="showInaccessible" class="toggle-btn">
+        問題あり版
+      </button>
+    </div>
+  </div>
+
+  <div class="demo-section" id="accessible-version">
+    <div class="component-wrapper">
+      <h3>サンプルモーダルダイアログ</h3>
+      <button
+        id="openModalGood"
+        class="primary-button"
+        aria-label="お知らせモーダルを開く"
+      >
+        モーダルを開く
+      </button>
+
+      <div
+        id="modalGood"
+        class="modal"
+        role="dialog"
+        aria-labelledby="modal-title-good"
+        aria-describedby="modal-desc-good"
+        aria-modal="true"
+        hidden
+      >
+        <div class="modal-backdrop" aria-hidden="true"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 id="modal-title-good">お知らせ</h3>
+            <button
+              id="closeModalGood"
+              class="close-button"
+              aria-label="モーダルを閉じる"
+            >
+              ×
+            </button>
+          </div>
+          <div class="modal-body">
+            <p id="modal-desc-good">
+              このモーダルはアクセシビリティに対応しています。
+              Escキーで閉じることができ、フォーカスがトラップされます。
+            </p>
+            <button class="primary-button">確認</button>
+            <button class="secondary-button">キャンセル</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="checklist-overlay">
+      <h4>チェックリスト結果</h4>
+      <div class="checklist-group">
+        <h5>キーボード操作</h5>
+        <div class="check-item pass">
+          <span class="icon">✓</span>
+          <span>Tabキーで順番に移動できる</span>
+        </div>
+        <div class="check-item pass">
+          <span class="icon">✓</span>
+          <span>Escキーで閉じられる</span>
+        </div>
+        <div class="check-item pass">
+          <span class="icon">✓</span>
+          <span>フォーカストラップが機能</span>
+        </div>
+      </div>
+
+      <div class="checklist-group">
+        <h5>スクリーンリーダー</h5>
+        <div class="check-item pass">
+          <span class="icon">✓</span>
+          <span>role="dialog"を設定</span>
+        </div>
+        <div class="check-item pass">
+          <span class="icon">✓</span>
+          <span>aria-labelが適切</span>
+        </div>
+        <div class="check-item pass">
+          <span class="icon">✓</span>
+          <span>aria-modal="true"</span>
+        </div>
+      </div>
+
+      <div class="checklist-group">
+        <h5>視覚的アクセシビリティ</h5>
+        <div class="check-item pass">
+          <span class="icon">✓</span>
+          <span>フォーカス表示が明確</span>
+        </div>
+        <div class="check-item pass">
+          <span class="icon">✓</span>
+          <span>コントラスト比 4.5:1以上</span>
+        </div>
+      </div>
+
+      <div class="checklist-group">
+        <h5>モーション</h5>
+        <div class="check-item pass">
+          <span class="icon">✓</span>
+          <span>prefers-reduced-motion対応</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="demo-section" id="inaccessible-version" hidden>
+    <div class="component-wrapper">
+      <h3>サンプルモーダルダイアログ</h3>
+      <div
+        id="openModalBad"
+        class="primary-button"
+        style="cursor: pointer;"
+      >
+        モーダルを開く
+      </div>
+
+      <div id="modalBad" class="modal" hidden>
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>お知らせ</h3>
+            <div id="closeModalBad" class="close-button" style="cursor: pointer;">
+              ×
+            </div>
+          </div>
+          <div class="modal-body">
+            <p>
+              このモーダルはアクセシビリティに問題があります。
+            </p>
+            <div class="primary-button" style="cursor: pointer;">確認</div>
+            <div class="secondary-button" style="cursor: pointer;">キャンセル</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="checklist-overlay">
+      <h4>チェックリスト結果</h4>
+      <div class="checklist-group">
+        <h5>キーボード操作</h5>
+        <div class="check-item fail">
+          <span class="icon">✗</span>
+          <span>Tabキーでフォーカスできない</span>
+        </div>
+        <div class="check-item fail">
+          <span class="icon">✗</span>
+          <span>Escキーが機能しない</span>
+        </div>
+        <div class="check-item fail">
+          <span class="icon">✗</span>
+          <span>フォーカストラップなし</span>
+        </div>
+      </div>
+
+      <div class="checklist-group">
+        <h5>スクリーンリーダー</h5>
+        <div class="check-item fail">
+          <span class="icon">✗</span>
+          <span>role属性が不足</span>
+        </div>
+        <div class="check-item fail">
+          <span class="icon">✗</span>
+          <span>aria-labelがない</span>
+        </div>
+        <div class="check-item fail">
+          <span class="icon">✗</span>
+          <span>aria-modal未設定</span>
+        </div>
+      </div>
+
+      <div class="checklist-group">
+        <h5>視覚的アクセシビリティ</h5>
+        <div class="check-item fail">
+          <span class="icon">✗</span>
+          <span>フォーカス表示なし</span>
+        </div>
+        <div class="check-item pass">
+          <span class="icon">✓</span>
+          <span>コントラスト比は良好</span>
+        </div>
+      </div>
+
+      <div class="checklist-group">
+        <h5>モーション</h5>
+        <div class="check-item fail">
+          <span class="icon">✗</span>
+          <span>モーション設定未対応</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+    .demo-container {
+      background: #0c1218;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .header {
+      background: #1f2a37;
+      padding: 1.5rem;
+      border-bottom: 2px solid #374151;
+    }
+
+    .header h2 {
+      margin: 0 0 1rem 0;
+      color: #e5edf4;
+      font-size: 1.5rem;
+    }
+
+    .toggle-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .toggle-btn {
+      padding: 0.75rem 1.5rem;
+      background: #374151;
+      color: #e5edf4;
+      border: 2px solid #4b5563;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+      min-height: 44px;
+    }
+
+    .toggle-btn:hover {
+      background: #4b5563;
+      transform: translateY(-2px);
+    }
+
+    .toggle-btn:focus {
+      outline: 3px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    .toggle-btn.active {
+      background: #3b82f6;
+      border-color: #3b82f6;
+    }
+
+    .demo-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      padding: 2rem;
+    }
+
+    @media (max-width: 768px) {
+      .demo-section {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .component-wrapper {
+      background: #1f2a37;
+      padding: 2rem;
+      border-radius: 8px;
+      border: 1px solid #374151;
+    }
+
+    .component-wrapper h3 {
+      margin-top: 0;
+      color: #60a5fa;
+      font-size: 1.25rem;
+    }
+
+    .primary-button {
+      padding: 0.75rem 1.5rem;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    .primary-button:hover {
+      background: #2563eb;
+      transform: scale(1.02);
+    }
+
+    .primary-button:focus {
+      outline: 3px solid #60a5fa;
+      outline-offset: 3px;
+    }
+
+    .secondary-button {
+      padding: 0.75rem 1.5rem;
+      background: #374151;
+      color: #e5edf4;
+      border: 2px solid #4b5563;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-height: 44px;
+    }
+
+    .secondary-button:hover {
+      background: #4b5563;
+    }
+
+    .secondary-button:focus {
+      outline: 3px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal[hidden] {
+      display: none;
+    }
+
+    .modal-backdrop {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      animation: fadeIn 0.2s;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .modal-backdrop {
+        animation: none;
+      }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-content {
+      position: relative;
+      background: #1f2a37;
+      border: 2px solid #374151;
+      border-radius: 12px;
+      max-width: 500px;
+      width: 90%;
+      animation: slideUp 0.3s;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .modal-content {
+        animation: none;
+      }
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem;
+      border-bottom: 1px solid #374151;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      color: #e5edf4;
+      font-size: 1.5rem;
+    }
+
+    .close-button {
+      background: transparent;
+      border: none;
+      color: #9ca3af;
+      font-size: 2rem;
+      cursor: pointer;
+      padding: 0;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .close-button:hover {
+      background: #374151;
+      color: #e5edf4;
+    }
+
+    .close-button:focus {
+      outline: 3px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    .modal-body p {
+      margin: 0 0 1.5rem 0;
+      color: #e5edf4;
+      line-height: 1.6;
+    }
+
+    .modal-body button,
+    .modal-body .primary-button,
+    .modal-body .secondary-button {
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .checklist-overlay {
+      background: #1f2a37;
+      border-radius: 8px;
+      padding: 1.5rem;
+      border: 1px solid #374151;
+    }
+
+    .checklist-overlay h4 {
+      margin: 0 0 1.5rem 0;
+      color: #e5edf4;
+      font-size: 1.25rem;
+      border-bottom: 2px solid #374151;
+      padding-bottom: 0.75rem;
+    }
+
+    .checklist-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .checklist-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .checklist-group h5 {
+      margin: 0 0 0.75rem 0;
+      color: #60a5fa;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .check-item.pass {
+      background: rgba(16, 185, 129, 0.1);
+      border-left: 3px solid #10b981;
+    }
+
+    .check-item.fail {
+      background: rgba(239, 68, 68, 0.1);
+      border-left: 3px solid #ef4444;
+    }
+
+    .check-item .icon {
+      font-weight: bold;
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+
+    .check-item.pass .icon {
+      color: #10b981;
+    }
+
+    .check-item.fail .icon {
+      color: #ef4444;
+    }
+
+    .check-item span:last-child {
+      color: #e5edf4;
+    }
+  `}
+  js={`
+    // Toggle between versions
+    const accessibleVersion = document.getElementById('accessible-version');
+    const inaccessibleVersion = document.getElementById('inaccessible-version');
+    const btnAccessible = document.getElementById('showAccessible');
+    const btnInaccessible = document.getElementById('showInaccessible');
+
+    btnAccessible.addEventListener('click', () => {
+      accessibleVersion.hidden = false;
+      inaccessibleVersion.hidden = true;
+      btnAccessible.classList.add('active');
+      btnInaccessible.classList.remove('active');
+    });
+
+    btnInaccessible.addEventListener('click', () => {
+      accessibleVersion.hidden = true;
+      inaccessibleVersion.hidden = false;
+      btnAccessible.classList.remove('active');
+      btnInaccessible.classList.add('active');
+    });
+
+    // Accessible modal
+    const openModalGood = document.getElementById('openModalGood');
+    const modalGood = document.getElementById('modalGood');
+    const closeModalGood = document.getElementById('closeModalGood');
+    let previousActiveElement;
+
+    function trapFocus(element) {
+      const focusableElements = element.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      element.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+          if (e.shiftKey && document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          } else if (!e.shiftKey && document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      });
+    }
+
+    openModalGood.addEventListener('click', () => {
+      previousActiveElement = document.activeElement;
+      modalGood.hidden = false;
+      closeModalGood.focus();
+      trapFocus(modalGood);
+    });
+
+    function closeModal() {
+      modalGood.hidden = true;
+      if (previousActiveElement) {
+        previousActiveElement.focus();
+      }
+    }
+
+    closeModalGood.addEventListener('click', closeModal);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !modalGood.hidden) {
+        closeModal();
+      }
+    });
+
+    // Inaccessible modal (no keyboard support)
+    const openModalBad = document.getElementById('openModalBad');
+    const modalBad = document.getElementById('modalBad');
+    const closeModalBad = document.getElementById('closeModalBad');
+
+    openModalBad.addEventListener('click', () => {
+      modalBad.hidden = false;
+    });
+
+    closeModalBad.addEventListener('click', () => {
+      modalBad.hidden = true;
+    });
+  `}
+/>
+
+## コンポーネントA11yチェックリストとは
+
+このチェックリストは、すべてのUIコンポーネントがアクセシビリティ基準を満たしているかを確認するための包括的なガイドです。WCAG 2.1 AAレベルの基準に基づき、実装時と品質監査時の両方で使用できます。
+
+## チェックリストの使い方
+
+### 実装時
+1. コンポーネント開発中に各項目を確認
+2. 未対応の項目は必ず対応してから完成とする
+3. 自動テストツールで検証
+
+### 監査時
+1. 既存コンポーネントに対して全項目をチェック
+2. 不合格項目をリストアップ
+3. 優先順位をつけて修正
+
+---
+
+## キーボードナビゲーション
+
+すべてのインタラクティブ要素はキーボードだけで操作できる必要があります。
+
+### 基本要件
+
+| 項目 | 説明 | チェック |
+|------|------|---------|
+| **Tab移動** | Tabキーで論理的な順序で移動できる | ☐ |
+| **フォーカス表示** | フォーカス中の要素が明確に表示される | ☐ |
+| **Enterキー** | Enterキーでリンク・ボタンを実行できる | ☐ |
+| **Spaceキー** | Spaceキーでボタン・チェックボックスを実行できる | ☐ |
+| **Escキー** | Escキーでモーダル・ドロップダウンを閉じられる | ☐ |
+| **矢印キー** | 矢印キーでタブ・リスト内を移動できる | ☐ |
+
+### 実装例：フォーカス管理
+
+```javascript
+// ✓ 良い例: 適切なフォーカス管理
+function openModal(modal) {
+  // 現在のフォーカス位置を保存
+  previousActiveElement = document.activeElement;
+
+  modal.hidden = false;
+
+  // モーダル内の最初のフォーカス可能要素にフォーカス
+  const firstFocusable = modal.querySelector('button, [href], input');
+  firstFocusable?.focus();
+
+  // フォーカストラップを設定
+  trapFocus(modal);
+}
+
+function closeModal(modal) {
+  modal.hidden = true;
+
+  // 元の位置にフォーカスを戻す
+  if (previousActiveElement) {
+    previousActiveElement.focus();
+  }
+}
+```
+
+```javascript
+// ✗ 悪い例: フォーカス管理なし
+function openModal(modal) {
+  modal.style.display = 'block';
+  // フォーカスが背景に残ったまま
+}
+```
+
+### フォーカストラップの実装
+
+```javascript
+function trapFocus(element) {
+  const focusableElements = element.querySelectorAll(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  );
+
+  const firstElement = focusableElements[0];
+  const lastElement = focusableElements[focusableElements.length - 1];
+
+  element.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault();
+        lastElement.focus();
+      } else if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
+      }
+    }
+
+    if (e.key === 'Escape') {
+      closeModal(element);
+    }
+  });
+}
+```
+
+---
+
+## スクリーンリーダーサポート
+
+視覚障害のあるユーザーがスクリーンリーダーでコンテンツを理解できるようにします。
+
+### ARIA属性チェックリスト
+
+| 項目 | 説明 | チェック |
+|------|------|---------|
+| **role属性** | 適切なroleが設定されている | ☐ |
+| **aria-label** | ラベルのない要素にaria-labelを設定 | ☐ |
+| **aria-labelledby** | 既存のテキストを参照してラベル付け | ☐ |
+| **aria-describedby** | 補足説明を提供 | ☐ |
+| **aria-expanded** | 展開/折りたたみ状態を示す | ☐ |
+| **aria-selected** | 選択状態を示す | ☐ |
+| **aria-live** | 動的コンテンツの変更を通知 | ☐ |
+| **aria-hidden** | 装飾要素をスクリーンリーダーから隠す | ☐ |
+| **aria-modal** | モーダルダイアログに設定 | ☐ |
+
+### コンポーネント別の必須ARIA
+
+#### モーダルダイアログ
+```html
+<div
+  role="dialog"
+  aria-labelledby="modal-title"
+  aria-describedby="modal-description"
+  aria-modal="true"
+>
+  <h2 id="modal-title">タイトル</h2>
+  <p id="modal-description">説明文</p>
+  <button aria-label="閉じる">×</button>
+</div>
+```
+
+#### ドロップダウンメニュー
+```html
+<button
+  aria-haspopup="true"
+  aria-expanded="false"
+  aria-controls="dropdown-menu"
+>
+  メニュー
+</button>
+<ul id="dropdown-menu" role="menu" hidden>
+  <li role="menuitem"><a href="#">項目1</a></li>
+  <li role="menuitem"><a href="#">項目2</a></li>
+</ul>
+```
+
+#### タブインターフェース
+```html
+<div role="tablist" aria-label="設定">
+  <button role="tab" aria-selected="true" aria-controls="panel1">
+    一般
+  </button>
+  <button role="tab" aria-selected="false" aria-controls="panel2">
+    詳細
+  </button>
+</div>
+<div role="tabpanel" id="panel1" aria-labelledby="tab1">
+  一般設定の内容
+</div>
+```
+
+#### アコーディオン
+```html
+<button
+  aria-expanded="false"
+  aria-controls="section1"
+>
+  セクション1
+</button>
+<div id="section1" role="region" aria-labelledby="button1" hidden>
+  コンテンツ
+</div>
+```
+
+### リンク・ボタンテキストのチェック
+
+```html
+<!-- ✗ 悪い例: 文脈なしで意味不明 -->
+<a href="/details">詳細はこちら</a>
+<button>送信</button>
+
+<!-- ✓ 良い例: 明確な説明 -->
+<a href="/details" aria-label="製品の詳細を見る">詳細はこちら</a>
+<button aria-label="お問い合わせフォームを送信">送信</button>
+```
+
+---
+
+## 視覚的アクセシビリティ
+
+色覚異常や弱視のユーザーでも情報を理解できるようにします。
+
+### カラーコントラスト
+
+| 基準 | テキストサイズ | 最小コントラスト比 | チェック |
+|------|---------------|-------------------|---------|
+| **WCAG AA** | 通常テキスト (18px未満) | 4.5:1 | ☐ |
+| **WCAG AA** | 大きいテキスト (18px以上) | 3:1 | ☐ |
+| **WCAG AAA** | 通常テキスト | 7:1 | ☐ |
+| **WCAG AAA** | 大きいテキスト | 4.5:1 | ☐ |
+
+### コントラストチェック方法
+
+```css
+/* ✗ 悪い例: コントラスト不足 (2.5:1) */
+.text {
+  color: #999999; /* グレー */
+  background: #ffffff; /* 白 */
+}
+
+/* ✓ 良い例: 十分なコントラスト (7:1) */
+.text {
+  color: #333333; /* 濃いグレー */
+  background: #ffffff; /* 白 */
+}
+
+/* ダークテーマの例 (9.4:1) */
+.dark-text {
+  color: #e5edf4; /* 明るいグレー */
+  background: #0c1218; /* 濃い青黒 */
+}
+```
+
+### 色以外の情報提供
+
+| 項目 | 説明 | チェック |
+|------|------|---------|
+| **アイコン併用** | 色だけでなくアイコンも使用 | ☐ |
+| **テキスト表示** | 状態をテキストで明示 | ☐ |
+| **パターン使用** | グラフにはパターンを追加 | ☐ |
+| **形状の違い** | 色以外の視覚的差異を提供 | ☐ |
+
+```html
+<!-- ✗ 悪い例: 色のみで状態を表現 -->
+<div class="status success"></div>
+
+<!-- ✓ 良い例: 色+アイコン+テキスト -->
+<div class="status success">
+  <span aria-hidden="true">✓</span>
+  <span>成功</span>
+</div>
+```
+
+### フォーカスインジケーター
+
+```css
+/* ✗ 悪い例: フォーカス表示を消す */
+button:focus {
+  outline: none;
+}
+
+/* ✓ 良い例: 明確なフォーカス表示 */
+button:focus {
+  outline: 3px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+/* さらに良い例: カスタムフォーカススタイル */
+button:focus-visible {
+  outline: 3px solid #60a5fa;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(96, 165, 250, 0.2);
+}
+```
+
+### テキストサイズ変更
+
+| 項目 | 説明 | チェック |
+|------|------|---------|
+| **200%拡大** | テキストを200%に拡大しても機能する | ☐ |
+| **レイアウト崩れなし** | 拡大してもコンテンツが隠れない | ☐ |
+| **スクロール可能** | 必要に応じてスクロールできる | ☐ |
+
+```css
+/* ✓ 良い例: 相対単位を使用 */
+.text {
+  font-size: 1rem; /* ユーザー設定に追従 */
+  line-height: 1.5;
+}
+
+/* ✗ 悪い例: 固定サイズ */
+.text {
+  font-size: 16px; /* 拡大されない */
+}
+```
+
+---
+
+## モーション・アニメーション
+
+アニメーションは一部のユーザーにとって不快や危険を感じることがあります。
+
+### モーション設定のチェック
+
+| 項目 | 説明 | チェック |
+|------|------|---------|
+| **prefers-reduced-motion** | OSの設定を尊重する | ☐ |
+| **一時停止機能** | 自動再生アニメーションを停止できる | ☐ |
+| **自動再生なし** | 5秒以上の自動再生コンテンツなし | ☐ |
+| **点滅回避** | 1秒に3回以上の点滅なし | ☐ |
+
+### 実装例
+
+```css
+/* デフォルトでアニメーションあり */
+.element {
+  animation: slideIn 0.5s ease-out;
+}
+
+/* モーション設定を尊重 */
+@media (prefers-reduced-motion: reduce) {
+  .element {
+    animation: none;
+    /* 即座に表示 */
+  }
+}
+```
+
+```javascript
+// JavaScriptでの対応
+const prefersReducedMotion = window.matchMedia(
+  '(prefers-reduced-motion: reduce)'
+).matches;
+
+if (prefersReducedMotion) {
+  // アニメーション時間を0に
+  element.style.transitionDuration = '0s';
+} else {
+  // 通常のアニメーション
+  element.style.transitionDuration = '0.3s';
+}
+```
+
+---
+
+## フォーム
+
+フォームは適切なラベルとエラー処理が必要です。
+
+### フォーム要素のチェック
+
+| 項目 | 説明 | チェック |
+|------|------|---------|
+| **label要素** | すべての入力にlabelが関連付けられている | ☐ |
+| **必須項目表示** | required属性とaria-required | ☐ |
+| **エラーメッセージ** | aria-invalidとrole="alert" | ☐ |
+| **補足説明** | aria-describedbyで説明を提供 | ☐ |
+| **グルーピング** | 関連フィールドをfieldsetでグループ化 | ☐ |
+
+### 実装例
+
+```html
+<!-- ✓ 良い例: 完全なフォームアクセシビリティ -->
+<form>
+  <fieldset>
+    <legend>ログイン情報</legend>
+
+    <div class="form-group">
+      <label for="username">
+        ユーザー名
+        <span aria-label="必須">*</span>
+      </label>
+      <input
+        type="text"
+        id="username"
+        name="username"
+        required
+        aria-required="true"
+        aria-describedby="username-hint"
+        aria-invalid="false"
+      >
+      <small id="username-hint">
+        半角英数字のみ使用可能
+      </small>
+      <span id="username-error" role="alert" class="error"></span>
+    </div>
+
+    <div class="form-group">
+      <label for="password">
+        パスワード
+        <span aria-label="必須">*</span>
+      </label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        required
+        aria-required="true"
+        aria-describedby="password-requirements"
+        aria-invalid="false"
+      >
+      <ul id="password-requirements">
+        <li>8文字以上</li>
+        <li>大文字・小文字を含む</li>
+        <li>数字を含む</li>
+      </ul>
+      <span id="password-error" role="alert" class="error"></span>
+    </div>
+  </fieldset>
+
+  <button type="submit">ログイン</button>
+</form>
+```
+
+### バリデーションのJavaScript
+
+```javascript
+function validateForm(form) {
+  const usernameInput = form.querySelector('#username');
+  const usernameError = form.querySelector('#username-error');
+
+  // バリデーション
+  const isValid = usernameInput.value.length >= 3;
+
+  // aria-invalid属性を更新
+  usernameInput.setAttribute('aria-invalid', !isValid);
+
+  if (!isValid) {
+    // エラーメッセージを表示
+    usernameError.textContent = 'ユーザー名は3文字以上で入力してください';
+    usernameInput.focus(); // エラーフィールドにフォーカス
+  } else {
+    usernameError.textContent = '';
+  }
+
+  return isValid;
+}
+```
+
+---
+
+## テストツールと方法
+
+### 自動テストツール
+
+| ツール | 用途 | チェック |
+|--------|------|---------|
+| **axe DevTools** | ブラウザ拡張でARIAエラー検出 | ☐ |
+| **Lighthouse** | Chrome DevToolsでアクセシビリティスコア | ☐ |
+| **WAVE** | ビジュアルなアクセシビリティ評価 | ☐ |
+| **pa11y** | コマンドラインで自動テスト | ☐ |
+
+### スクリーンリーダーテスト
+
+| 環境 | スクリーンリーダー | 使い方 |
+|------|-------------------|--------|
+| **macOS** | VoiceOver | Cmd + F5で起動 |
+| **Windows** | NVDA | 無料、最も使われている |
+| **Windows** | JAWS | 商用、高機能 |
+| **iOS** | VoiceOver | 設定 > アクセシビリティ |
+| **Android** | TalkBack | 設定 > ユーザー補助 |
+
+### 手動チェック項目
+
+```
+□ Tabキーだけで全機能を操作できる
+□ フォーカス位置が常に見える
+□ スクリーンリーダーで要素の役割が理解できる
+□ ズーム200%でもレイアウトが崩れない
+□ カラーコントラストが十分
+□ 色以外でも情報が伝わる
+□ prefers-reduced-motionに対応している
+□ フォームのエラーが明確
+```
+
+---
+
+## クイックリファレンス
+
+### よくあるコンポーネントのチェック項目
+
+#### ボタン
+```
+☐ <button>要素を使用（divではない）
+☐ aria-labelで目的を明確に
+☐ フォーカススタイルを設定
+☐ キーボードで操作可能
+☐ 最小サイズ44×44px
+```
+
+#### モーダル
+```
+☐ role="dialog"を設定
+☐ aria-modalを設定
+☐ フォーカストラップを実装
+☐ Escキーで閉じられる
+☐ 開閉時のフォーカス管理
+```
+
+#### ドロップダウン
+```
+☐ aria-haspopupを設定
+☐ aria-expandedで状態を管理
+☐ 矢印キーで項目を移動
+☐ Escキーで閉じられる
+```
+
+#### アコーディオン
+```
+☐ aria-expandedで状態を管理
+☐ aria-controlsで関連付け
+☐ 見出しとして適切な<h>タグ
+☐ Enter/Spaceで開閉
+```
+
+---
+
+## 既存モジュールへの適用方法
+
+### ステップ1: 現状把握
+1. Lighthouse でアクセシビリティスコアを測定
+2. axe DevTools で自動検出される問題を確認
+3. このチェックリストで手動確認
+
+### ステップ2: 優先順位付け
+**重要度：高**
+- キーボード操作不可
+- ARIA属性の致命的な誤り
+- カラーコントラスト不足
+
+**重要度：中**
+- 不十分なラベル
+- フォーカススタイル不足
+- prefers-reduced-motion未対応
+
+**重要度：低**
+- 説明テキストの改善
+- ARIA属性の最適化
+
+### ステップ3: 修正
+1. 重要度の高い項目から順に修正
+2. 修正後、再度テストツールで確認
+3. スクリーンリーダーで実際に操作
+
+### ステップ4: ドキュメント更新
+- アクセシビリティ対応状況を記載
+- 使用しているARIA属性を説明
+- キーボード操作方法を明記
+
+---
+
+## まとめ
+
+このチェックリストを使用することで：
+
+1. **開発中**: アクセシビリティを最初から組み込める
+2. **レビュー時**: 見落としがないか確認できる
+3. **監査時**: 既存コンポーネントの品質を評価できる
+4. **教育**: チームメンバーに基準を共有できる
+
+すべてのユーザーが平等にWebコンテンツにアクセスできるよう、このチェックリストを活用してください。
+
+## 参考リンク
+
+- [WCAG 2.1 ガイドライン](https://www.w3.org/WAI/WCAG21/quickref/)
+- [ARIA Authoring Practices Guide (APG)](https://www.w3.org/WAI/ARIA/apg/)
+- [WebAIM: Keyboard Accessibility](https://webaim.org/techniques/keyboard/)
+- [WebAIM: Contrast Checker](https://webaim.org/resources/contrastchecker/)
+- [axe DevTools](https://www.deque.com/axe/devtools/)

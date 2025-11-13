@@ -1,0 +1,540 @@
+---
+title: ダッシュボードカード（統計表示）
+description: 数値・トレンド・グラフ表示。レスポンシブグリッド対応。
+tags: [dashboard, card, data-visualization, grid]
+frameworks: [Vanilla, Any]
+level: basic
+demo_url: ""
+code_url: ""
+prompt_template: |
+  目的: {{purpose}}
+  前提: {{framework}}（デフォルト: Vanilla JS + CSS Grid）
+
+  要件:
+  - カードレイアウト（タイトル・数値・変化率・アイコン）
+  - トレンド表示（↑/↓アイコン、色分け）
+  - ローディング状態（スケルトンUI）
+  - ホバーエフェクト（elevation変化）
+  - レスポンシブグリッド（grid-template-columns: repeat(auto-fit, minmax())）
+  - カラーテーマ対応（CSS変数）
+  - 簡易グラフ（CSS barチャート or SVG sparkline）
+  - アクセシビリティ（role="region" aria-label）
+  - パフォーマンス考慮（CSSアニメーション、will-change最小化）
+
+  納品: コンポーネント+CSS+最小限のJS
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="ダッシュボード統計カード - アニメーション付き"
+  height="450px"
+  html={`
+<div class="dashboard-grid">
+  <article class="dashboard-card" role="region" aria-label="総売上統計">
+    <div class="card-header">
+      <h3 class="card-title">総売上</h3>
+      <svg class="card-icon" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+    </div>
+    <div class="card-body">
+      <p class="card-value">¥2,450,000</p>
+      <div class="card-trend trend-up">
+        <svg width="16" height="16" fill="currentColor">
+          <path d="M8 4l6 6H2z"/>
+        </svg>
+        <span>+12.5%</span>
+      </div>
+    </div>
+    <div class="card-chart">
+      <div class="bar-chart">
+        <div class="bar" style="height: 60%"></div>
+        <div class="bar" style="height: 80%"></div>
+        <div class="bar" style="height: 45%"></div>
+        <div class="bar" style="height: 90%"></div>
+        <div class="bar" style="height: 75%"></div>
+        <div class="bar" style="height: 100%"></div>
+      </div>
+    </div>
+  </article>
+
+  <article class="dashboard-card" role="region" aria-label="新規ユーザー統計">
+    <div class="card-header">
+      <h3 class="card-title">新規ユーザー</h3>
+      <svg class="card-icon" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/>
+      </svg>
+    </div>
+    <div class="card-body">
+      <p class="card-value">1,234</p>
+      <div class="card-trend trend-down">
+        <svg width="16" height="16" fill="currentColor">
+          <path d="M8 12L2 6h12z"/>
+        </svg>
+        <span>-3.2%</span>
+      </div>
+    </div>
+    <div class="card-chart">
+      <svg class="sparkline" width="100%" height="40" viewBox="0 0 100 40">
+        <polyline fill="none" stroke="currentColor" stroke-width="2" points="0,20 20,15 40,25 60,10 80,18 100,12"/>
+      </svg>
+    </div>
+  </article>
+
+  <article class="dashboard-card" role="region" aria-label="アクティブセッション">
+    <div class="card-header">
+      <h3 class="card-title">アクティブセッション</h3>
+      <svg class="card-icon" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
+      </svg>
+    </div>
+    <div class="card-body">
+      <p class="card-value">856</p>
+      <div class="card-trend trend-up">
+        <svg width="16" height="16" fill="currentColor">
+          <path d="M8 4l6 6H2z"/>
+        </svg>
+        <span>+8.1%</span>
+      </div>
+    </div>
+    <div class="card-chart">
+      <div class="bar-chart">
+        <div class="bar" style="height: 70%"></div>
+        <div class="bar" style="height: 55%"></div>
+        <div class="bar" style="height: 85%"></div>
+        <div class="bar" style="height: 65%"></div>
+        <div class="bar" style="height: 90%"></div>
+        <div class="bar" style="height: 75%"></div>
+      </div>
+    </div>
+  </article>
+</div>
+  `}
+  css={`
+.dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; padding: 1rem; }
+
+.dashboard-card { background: #1f2a37; border: 1px solid #374151; border-radius: 8px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.3); transition: box-shadow 0.2s ease, transform 0.2s ease; animation: fadeIn 0.5s ease-out; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dashboard-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.5); transform: translateY(-2px); }
+
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+
+.card-title { font-size: 0.875rem; font-weight: 500; color: #9ca3af; margin: 0; }
+
+.card-icon { color: #6b7280; }
+
+.card-body { margin-bottom: 1rem; }
+
+.card-value { font-size: 2rem; font-weight: 700; color: #e5edf4; margin: 0 0 0.5rem 0; }
+
+.card-trend { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.875rem; font-weight: 600; }
+
+.trend-up { color: #10b981; }
+
+.trend-down { color: #ef4444; }
+
+.bar-chart { display: flex; align-items: flex-end; gap: 0.25rem; height: 40px; }
+
+.bar { flex: 1; background: linear-gradient(to top, #3b82f6, #60a5fa); border-radius: 2px 2px 0 0; min-height: 4px; transition: height 0.3s ease; animation: growBar 0.8s ease-out; }
+
+@keyframes growBar {
+  from { height: 0 !important; }
+}
+
+.sparkline { color: #3b82f6; }
+  `}
+  js={`
+(() => {
+  const cards = document.querySelectorAll('.dashboard-card');
+
+  cards.forEach((card, index) => {
+    card.style.animationDelay = \`\${index * 0.1}s\`;
+  });
+
+  const bars = document.querySelectorAll('.bar');
+  bars.forEach((bar, index) => {
+    bar.style.animationDelay = \`\${index * 0.05}s\`;
+  });
+})();
+  `}
+/>
+
+## 概要
+
+管理画面やダッシュボードで使用する統計表示カード。数値、トレンド、簡易グラフを含み、レスポンシブなグリッドレイアウトで複数枚並べて表示できます。
+
+## 実装のポイント
+
+### 1. レスポンシブグリッド
+
+```css
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+```
+
+### 2. スケルトンローディング
+
+データ取得中の視覚的フィードバックとして、スケルトンUIを表示します。
+
+### 3. アクセシビリティ
+
+- `role="region"` でカード領域を明示
+- `aria-label` で統計内容を説明
+- 色だけに依存しない情報提示（アイコン併用）
+
+## コード例
+
+**HTML**
+```html
+<div class="dashboard-grid">
+  <!-- カード1: 通常状態 -->
+  <article class="dashboard-card" role="region" aria-label="総売上統計">
+    <div class="card-header">
+      <h3 class="card-title">総売上</h3>
+      <svg class="card-icon" width="24" height="24" fill="none" stroke="currentColor">
+        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+    </div>
+
+    <div class="card-body">
+      <p class="card-value">¥2,450,000</p>
+      <div class="card-trend trend-up">
+        <svg width="16" height="16" fill="currentColor">
+          <path d="M8 4l6 6H2z"/>
+        </svg>
+        <span>+12.5%</span>
+      </div>
+    </div>
+
+    <div class="card-chart">
+      <div class="bar-chart">
+        <div class="bar" style="height: 60%"></div>
+        <div class="bar" style="height: 80%"></div>
+        <div class="bar" style="height: 45%"></div>
+        <div class="bar" style="height: 90%"></div>
+        <div class="bar" style="height: 75%"></div>
+        <div class="bar" style="height: 100%"></div>
+      </div>
+    </div>
+  </article>
+
+  <!-- カード2: トレンド下降 -->
+  <article class="dashboard-card" role="region" aria-label="新規ユーザー統計">
+    <div class="card-header">
+      <h3 class="card-title">新規ユーザー</h3>
+      <svg class="card-icon" width="24" height="24" fill="none" stroke="currentColor">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/>
+      </svg>
+    </div>
+
+    <div class="card-body">
+      <p class="card-value">1,234</p>
+      <div class="card-trend trend-down">
+        <svg width="16" height="16" fill="currentColor">
+          <path d="M8 12L2 6h12z"/>
+        </svg>
+        <span>-3.2%</span>
+      </div>
+    </div>
+
+    <div class="card-chart">
+      <svg class="sparkline" width="100%" height="40" viewBox="0 0 100 40">
+        <polyline
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          points="0,20 20,15 40,25 60,10 80,18 100,12"
+        />
+      </svg>
+    </div>
+  </article>
+
+  <!-- カード3: ローディング状態 -->
+  <article class="dashboard-card skeleton" aria-busy="true" aria-label="読み込み中">
+    <div class="card-header">
+      <div class="skeleton-text skeleton-title"></div>
+      <div class="skeleton-icon"></div>
+    </div>
+
+    <div class="card-body">
+      <div class="skeleton-text skeleton-value"></div>
+      <div class="skeleton-text skeleton-trend"></div>
+    </div>
+
+    <div class="card-chart">
+      <div class="skeleton-chart"></div>
+    </div>
+  </article>
+</div>
+```
+
+**CSS**
+```css
+:root {
+  --card-bg: #ffffff;
+  --card-border: #e5e7eb;
+  --card-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  --card-shadow-hover: 0 4px 12px rgba(0,0,0,0.15);
+  --trend-up-color: #10b981;
+  --trend-down-color: #ef4444;
+  --skeleton-bg: #f3f4f6;
+  --skeleton-shimmer: #e5e7eb;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem;
+}
+
+.dashboard-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: var(--card-shadow);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.dashboard-card:hover {
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-2px);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.card-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  margin: 0;
+}
+
+.card-icon {
+  color: #9ca3af;
+}
+
+.card-body {
+  margin-bottom: 1rem;
+}
+
+.card-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 0.5rem 0;
+}
+
+.card-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.trend-up {
+  color: var(--trend-up-color);
+}
+
+.trend-down {
+  color: var(--trend-down-color);
+}
+
+/* Bar Chart */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.25rem;
+  height: 40px;
+}
+
+.bar {
+  flex: 1;
+  background: linear-gradient(to top, #3b82f6, #60a5fa);
+  border-radius: 2px 2px 0 0;
+  min-height: 4px;
+  transition: height 0.3s ease;
+}
+
+/* Sparkline */
+.sparkline {
+  color: #3b82f6;
+}
+
+/* Skeleton Loading */
+.skeleton .skeleton-text,
+.skeleton .skeleton-icon,
+.skeleton .skeleton-chart {
+  background: var(--skeleton-bg);
+  border-radius: 4px;
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+.skeleton-title {
+  width: 60%;
+  height: 14px;
+}
+
+.skeleton-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.skeleton-value {
+  width: 80%;
+  height: 32px;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-trend {
+  width: 40%;
+  height: 14px;
+}
+
+.skeleton-chart {
+  width: 100%;
+  height: 40px;
+}
+
+@keyframes skeleton-shimmer {
+  0%, 100% {
+    background-color: var(--skeleton-bg);
+  }
+  50% {
+    background-color: var(--skeleton-shimmer);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-card,
+  .bar {
+    transition: none;
+  }
+
+  .skeleton-text,
+  .skeleton-icon,
+  .skeleton-chart {
+    animation: none;
+  }
+}
+
+/* Dark theme support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --card-bg: #1f2937;
+    --card-border: #374151;
+    --card-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    --card-shadow-hover: 0 4px 12px rgba(0,0,0,0.5);
+    --skeleton-bg: #374151;
+    --skeleton-shimmer: #4b5563;
+  }
+
+  .card-title {
+    color: #9ca3af;
+  }
+
+  .card-value {
+    color: #f9fafb;
+  }
+}
+```
+
+**JS**
+```javascript
+(() => {
+  // データ取得とカード更新のサンプル
+  async function loadDashboardData() {
+    const cards = document.querySelectorAll('.dashboard-card.skeleton');
+
+    try {
+      // API呼び出し（サンプル）
+      const response = await fetch('/api/dashboard-stats');
+      const data = await response.json();
+
+      cards.forEach((card, index) => {
+        setTimeout(() => {
+          updateCard(card, data[index]);
+        }, index * 200); // スタガーアニメーション
+      });
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error);
+      cards.forEach(card => {
+        card.setAttribute('aria-busy', 'false');
+        card.classList.remove('skeleton');
+        card.innerHTML = '<p>データの読み込みに失敗しました</p>';
+      });
+    }
+  }
+
+  function updateCard(card, data) {
+    card.setAttribute('aria-busy', 'false');
+    card.classList.remove('skeleton');
+
+    const trendClass = data.trend >= 0 ? 'trend-up' : 'trend-down';
+    const trendIcon = data.trend >= 0
+      ? '<path d="M8 4l6 6H2z"/>'
+      : '<path d="M8 12L2 6h12z"/>';
+
+    card.innerHTML = `
+      <div class="card-header">
+        <h3 class="card-title">${data.title}</h3>
+        ${data.icon}
+      </div>
+      <div class="card-body">
+        <p class="card-value">${data.value}</p>
+        <div class="card-trend ${trendClass}">
+          <svg width="16" height="16" fill="currentColor">${trendIcon}</svg>
+          <span>${data.trend > 0 ? '+' : ''}${data.trend}%</span>
+        </div>
+      </div>
+      <div class="card-chart">${generateChart(data.chartData)}</div>
+    `;
+  }
+
+  function generateChart(chartData) {
+    // バーチャート生成
+    const bars = chartData.map(value =>
+      `<div class="bar" style="height: ${value}%"></div>`
+    ).join('');
+
+    return `<div class="bar-chart">${bars}</div>`;
+  }
+
+  // 初期化
+  if (document.querySelector('.dashboard-card.skeleton')) {
+    loadDashboardData();
+  }
+})();
+```
+
+## 注意点
+
+- グリッドの `minmax()` 値は、カード内コンテンツに応じて調整
+- スケルトンアニメーションは控えめに（アクセシビリティ考慮）
+- 大量のカード表示時は仮想スクロール検討
+- チャートライブラリ（Chart.js, Recharts等）と組み合わせるとより高機能に
+- リアルタイム更新する場合は WebSocket や SSE を検討
+
+## 参考リンク
+
+- [CSS Grid Layout - MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Grid_Layout)
+- [Building skeleton screens with CSS custom properties](https://css-tricks.com/building-skeleton-screens-css-custom-properties/)
+- [ARIA: region role - MDN](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/region_role)

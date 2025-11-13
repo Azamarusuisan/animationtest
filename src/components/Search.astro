@@ -1,0 +1,79 @@
+---
+// クライアントサイド検索コンポーネント
+---
+
+<div class="search-container" style="margin: 2rem 0;">
+  <input
+    type="text"
+    id="search-input"
+    class="search-box"
+    placeholder="検索... (タイトル、説明、タグ)"
+    style="width: 100%;"
+  >
+  <div id="search-results" style="margin-top: 1rem;"></div>
+</div>
+
+<script>
+  import Fuse from 'fuse.js';
+
+  let fuse: Fuse<any>;
+  let allItems: any[] = [];
+
+  // 検索インデックスを読み込み
+  fetch('/index.json')
+    .then(res => res.json())
+    .then(data => {
+      allItems = data;
+      fuse = new Fuse(allItems, {
+        keys: ['title', 'description', 'tags'],
+        threshold: 0.3,
+        includeScore: true,
+      });
+    })
+    .catch(err => console.error('検索インデックスの読み込みに失敗しました:', err));
+
+  const searchInput = document.getElementById('search-input') as HTMLInputElement;
+  const searchResults = document.getElementById('search-results') as HTMLDivElement;
+
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      const query = (e.target as HTMLInputElement).value;
+
+      if (!query || query.length < 2) {
+        searchResults.innerHTML = '';
+        return;
+      }
+
+      if (!fuse) {
+        searchResults.innerHTML = '<p>検索インデックスを読み込み中...</p>';
+        return;
+      }
+
+      const results = fuse.search(query);
+
+      if (results.length === 0) {
+        searchResults.innerHTML = '<p>検索結果が見つかりませんでした。</p>';
+        return;
+      }
+
+      const html = results.slice(0, 10).map(result => {
+        const item = result.item;
+        return `
+          <div class="card" style="margin-bottom: 1rem;">
+            <h4 style="margin-bottom: 0.5rem;">
+              <a href="${item.url}">${item.title}</a>
+            </h4>
+            <p style="color: var(--color-text-light); font-size: 0.875rem; margin-bottom: 0.5rem;">
+              ${item.description}
+            </p>
+            <div>
+              ${item.tags.map((tag: string) => `<span class="tag">${tag}</span>`).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      searchResults.innerHTML = html;
+    });
+  }
+</script>

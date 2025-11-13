@@ -1,0 +1,887 @@
+---
+title: Flexboxの知られざるテクニック
+description: space-between、align-self、flex-growを使いこなして、複雑なレイアウトを簡単に実装
+tags: [css, flexbox, layout, tricks]
+category: css
+level: basic
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## Flexboxの真の力を引き出す
+
+Flexbox は「横並び」だけのツールではありません。`justify-content`、`align-items`、`flex-grow`、`align-self` などのプロパティを組み合わせることで、かつては JavaScript が必要だった複雑なレイアウトも、純粋な CSS だけで実装できます。
+
+多くの開発者は `display: flex` と `justify-content: space-between` だけを使いがちですが、それは Flexbox のほんの一部にすぎません。`flex-grow`、`flex-shrink`、`flex-basis` を理解すれば、レスポンシブなレイアウトがより直感的に書けるようになります。
+
+このガイドでは、実務でよく使われるものの見落とされがちな Flexbox のテクニックを、実際に動くデモとともに紹介します。
+
+<LiveDemo
+  title="space-between の応用 - 完璧な配置パターン"
+  height="550px"
+  html={`
+<div class="flex-showcase">
+  <section class="demo-section">
+    <h3>1. ヘッダーレイアウト</h3>
+    <div class="header">
+      <div class="logo">🎨 MyApp</div>
+      <nav class="nav">
+        <a href="#">ホーム</a>
+        <a href="#">機能</a>
+        <a href="#">価格</a>
+      </nav>
+      <button class="cta-btn">ログイン</button>
+    </div>
+  </section>
+
+  <section class="demo-section">
+    <h3>2. カードフッター</h3>
+    <div class="card">
+      <div class="card-content">
+        <h4>製品タイトル</h4>
+        <p>製品の説明文がここに入ります。</p>
+      </div>
+      <div class="card-footer">
+        <span class="price">¥9,800</span>
+        <button class="buy-btn">購入する</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="demo-section">
+    <h3>3. 均等配置</h3>
+    <div class="even-spacing">
+      <div class="item">アイテム 1</div>
+      <div class="item">アイテム 2</div>
+      <div class="item">アイテム 3</div>
+      <div class="item">アイテム 4</div>
+    </div>
+  </section>
+</div>
+  `}
+  css={`
+.flex-showcase {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.demo-section h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* 1. ヘッダーレイアウト */
+.header {
+  display: flex;
+  justify-content: space-between; /* 両端揃え */
+  align-items: center;
+  background: #1f2a37;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+}
+
+.logo {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #60a5fa;
+}
+
+.nav {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.nav a {
+  color: #e5edf4;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.nav a:hover {
+  color: #60a5fa;
+}
+
+.cta-btn {
+  background: #60a5fa;
+  color: #0c1218;
+  border: none;
+  padding: 0.5rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cta-btn:hover {
+  background: #3b82f6;
+}
+
+/* 2. カードフッター */
+.card {
+  background: #1f2a37;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-content {
+  padding: 1.5rem;
+  flex-grow: 1; /* 残りのスペースを占有 */
+}
+
+.card-content h4 {
+  margin: 0 0 0.5rem 0;
+  color: #e5edf4;
+}
+
+.card-content p {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: #374151;
+  border-top: 1px solid #4b5563;
+}
+
+.price {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #60a5fa;
+}
+
+.buy-btn {
+  background: #60a5fa;
+  color: #0c1218;
+  border: none;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* 3. 均等配置 */
+.even-spacing {
+  display: flex;
+  justify-content: space-evenly; /* 均等配置 */
+  background: #1f2a37;
+  padding: 1.5rem;
+  border-radius: 8px;
+}
+
+.item {
+  background: #374151;
+  padding: 1rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 640px) {
+  .header {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .nav {
+    order: 3; /* ナビゲーションを最後に */
+    width: 100%;
+    justify-content: center;
+  }
+}
+  `}
+/>
+
+### space-between と space-evenly の使い分け
+
+```css
+/* 両端に配置、間隔は均等 */
+.container {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* すべての間隔が均等（両端含む） */
+.container {
+  justify-content: space-evenly;
+}
+
+/* 要素間の間隔のみ均等 */
+.container {
+  justify-content: space-around;
+}
+```
+
+**使い分けのポイント:**
+- `space-between`: ヘッダー、フッターなど両端揃えが必要な場合
+- `space-evenly`: アイコン、タグなど完全に均等配置したい場合
+- `space-around`: 両端に少し余白が欲しい場合
+
+<LiveDemo
+  title="align-self で個別制御 - 柔軟な縦方向の配置"
+  height="500px"
+  html={`
+<div class="align-demo">
+  <div class="timeline">
+    <div class="timeline-item" style="align-self: flex-start;">
+      <div class="badge">開始</div>
+      <h4>プロジェクト開始</h4>
+      <p>2025年1月1日</p>
+    </div>
+
+    <div class="timeline-item" style="align-self: center;">
+      <div class="badge progress">進行中</div>
+      <h4>開発フェーズ</h4>
+      <p>現在進行中のタスク</p>
+      <ul>
+        <li>デザイン完成</li>
+        <li>フロントエンド開発</li>
+        <li>バックエンド統合</li>
+      </ul>
+    </div>
+
+    <div class="timeline-item" style="align-self: flex-end;">
+      <div class="badge future">予定</div>
+      <h4>リリース</h4>
+      <p>2025年6月1日</p>
+    </div>
+  </div>
+
+  <div class="feature-comparison">
+    <div class="feature-col">
+      <h4>基本プラン</h4>
+      <ul>
+        <li>機能 A</li>
+        <li>機能 B</li>
+      </ul>
+      <button class="plan-btn" style="align-self: flex-start;">選択</button>
+    </div>
+
+    <div class="feature-col featured">
+      <div class="popular-badge">人気</div>
+      <h4>プロプラン</h4>
+      <ul>
+        <li>すべての基本機能</li>
+        <li>優先サポート</li>
+        <li>高度な分析</li>
+        <li>カスタムドメイン</li>
+      </ul>
+      <button class="plan-btn featured-btn" style="align-self: center;">選択</button>
+    </div>
+
+    <div class="feature-col">
+      <h4>エンタープライズ</h4>
+      <ul>
+        <li>すべてのプロ機能</li>
+        <li>専任サポート</li>
+      </ul>
+      <button class="plan-btn" style="align-self: flex-start;">お問い合わせ</button>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.align-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* タイムライン */
+.timeline {
+  display: flex;
+  align-items: stretch; /* デフォルトは stretch */
+  gap: 1rem;
+  background: #1f2a37;
+  padding: 1.5rem;
+  border-radius: 10px;
+  min-height: 200px;
+}
+
+.timeline-item {
+  flex: 1;
+  background: #374151;
+  padding: 1.25rem;
+  border-radius: 8px;
+  /* align-self はインラインスタイルで個別指定 */
+}
+
+.badge {
+  display: inline-block;
+  background: #60a5fa;
+  color: #0c1218;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.badge.progress {
+  background: #f59e0b;
+}
+
+.badge.future {
+  background: #9ca3af;
+}
+
+.timeline-item h4 {
+  margin: 0 0 0.5rem 0;
+  color: #e5edf4;
+  font-size: 1rem;
+}
+
+.timeline-item p {
+  margin: 0 0 0.5rem 0;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.timeline-item ul {
+  margin: 0.75rem 0 0 0;
+  padding-left: 1.25rem;
+  color: #d1d5db;
+  font-size: 0.875rem;
+}
+
+.timeline-item li {
+  margin: 0.25rem 0;
+}
+
+/* プラン比較 */
+.feature-comparison {
+  display: flex;
+  align-items: flex-start; /* 上揃え */
+  gap: 1rem;
+}
+
+.feature-col {
+  flex: 1;
+  background: #1f2a37;
+  padding: 1.5rem;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.feature-col:hover {
+  border-color: #374151;
+}
+
+.feature-col.featured {
+  background: linear-gradient(135deg, #1f2a37, #374151);
+  border-color: #60a5fa;
+  position: relative;
+}
+
+.popular-badge {
+  position: absolute;
+  top: -10px;
+  right: 1rem;
+  background: #60a5fa;
+  color: #0c1218;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.feature-col h4 {
+  margin: 0 0 1rem 0;
+  color: #e5edf4;
+  font-size: 1.125rem;
+}
+
+.feature-col ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem 0;
+  flex-grow: 1;
+}
+
+.feature-col li {
+  padding: 0.5rem 0;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  border-bottom: 1px solid #374151;
+}
+
+.plan-btn {
+  background: #374151;
+  color: #e5edf4;
+  border: none;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.plan-btn:hover {
+  background: #4b5563;
+}
+
+.plan-btn.featured-btn {
+  background: #60a5fa;
+  color: #0c1218;
+}
+
+.plan-btn.featured-btn:hover {
+  background: #3b82f6;
+}
+
+@media (max-width: 640px) {
+  .timeline, .feature-comparison {
+    flex-direction: column;
+  }
+
+  .timeline-item {
+    align-self: stretch !important;
+  }
+}
+  `}
+/>
+
+### align-self で個別に制御
+
+```css
+.container {
+  display: flex;
+  align-items: stretch; /* 全体のデフォルト */
+}
+
+/* 個別の要素だけ異なる配置 */
+.item-top {
+  align-self: flex-start;
+}
+
+.item-center {
+  align-self: center;
+}
+
+.item-bottom {
+  align-self: flex-end;
+}
+```
+
+**実用例:**
+- タイムラインの各要素を異なる高さに配置
+- カード内のボタンを下揃え
+- タグやバッジを上部に固定
+
+<LiveDemo
+  title="flex-grow の魔法 - 動的なスペース配分"
+  height="500px"
+  html={`
+<div class="grow-showcase">
+  <section class="grow-example">
+    <h3>1. 検索バー + ボタン</h3>
+    <div class="search-bar">
+      <input type="text" placeholder="検索..." class="search-input">
+      <button class="search-btn">🔍 検索</button>
+    </div>
+  </section>
+
+  <section class="grow-example">
+    <h3>2. 比率制御 (1:2:1)</h3>
+    <div class="ratio-demo">
+      <div class="box" style="flex-grow: 1;">flex-grow: 1</div>
+      <div class="box main" style="flex-grow: 2;">flex-grow: 2</div>
+      <div class="box" style="flex-grow: 1;">flex-grow: 1</div>
+    </div>
+  </section>
+
+  <section class="grow-example">
+    <h3>3. ダッシュボードレイアウト</h3>
+    <div class="dashboard-layout">
+      <aside class="sidebar-mini">
+        <div class="icon">📊</div>
+        <div class="icon">👥</div>
+        <div class="icon">⚙️</div>
+      </aside>
+      <main class="main-area">
+        <h4>メインコンテンツエリア</h4>
+        <p>このエリアは利用可能なスペースをすべて使用します（flex-grow: 1）</p>
+      </main>
+      <aside class="info-panel">
+        <h4>情報パネル</h4>
+        <div class="info-item">通知: 3件</div>
+        <div class="info-item">タスク: 5件</div>
+      </aside>
+    </div>
+  </section>
+</div>
+  `}
+  css={`
+.grow-showcase {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.grow-example h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* 1. 検索バー */
+.search-bar {
+  display: flex;
+  gap: 0.5rem;
+  background: #1f2a37;
+  padding: 0.75rem;
+  border-radius: 8px;
+}
+
+.search-input {
+  flex-grow: 1; /* 残りのスペースをすべて使用 */
+  background: #374151;
+  border: 1px solid #4b5563;
+  color: #e5edf4;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: #60a5fa;
+}
+
+.search-btn {
+  flex-grow: 0; /* 固定幅 */
+  background: #60a5fa;
+  color: #0c1218;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* 2. 比率制御 */
+.ratio-demo {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.box {
+  background: #374151;
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.box.main {
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  color: #0c1218;
+  font-weight: 600;
+}
+
+/* 3. ダッシュボード */
+.dashboard-layout {
+  display: flex;
+  gap: 1rem;
+  min-height: 180px;
+}
+
+.sidebar-mini {
+  flex-grow: 0;
+  flex-shrink: 0;
+  width: 60px;
+  background: #1f2a37;
+  padding: 1rem 0.5rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+}
+
+.icon {
+  font-size: 1.5rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.icon:hover {
+  background: #374151;
+}
+
+.main-area {
+  flex-grow: 1; /* 利用可能なスペースを占有 */
+  background: linear-gradient(135deg, #1f2a37, #374151);
+  padding: 1.5rem;
+  border-radius: 8px;
+}
+
+.main-area h4 {
+  margin: 0 0 0.75rem 0;
+  color: #e5edf4;
+}
+
+.main-area p {
+  margin: 0;
+  color: #9ca3af;
+  line-height: 1.6;
+  font-size: 0.875rem;
+}
+
+.info-panel {
+  flex-grow: 0;
+  flex-shrink: 0;
+  width: 180px;
+  background: #1f2a37;
+  padding: 1.5rem;
+  border-radius: 8px;
+}
+
+.info-panel h4 {
+  margin: 0 0 1rem 0;
+  color: #e5edf4;
+  font-size: 0.875rem;
+}
+
+.info-item {
+  background: #374151;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #d1d5db;
+}
+
+@media (max-width: 768px) {
+  .dashboard-layout {
+    flex-direction: column;
+  }
+
+  .sidebar-mini {
+    flex-direction: row;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .info-panel {
+    width: 100%;
+  }
+}
+  `}
+/>
+
+### flex-grow, flex-shrink, flex-basis の理解
+
+```css
+/* 基本構文 */
+.item {
+  flex: <flex-grow> <flex-shrink> <flex-basis>;
+}
+
+/* よく使うパターン */
+.item {
+  flex: 1;       /* flex: 1 1 0% - 均等に分割 */
+  flex: 0 0 200px; /* 固定幅 200px */
+  flex: 2;       /* flex: 2 1 0% - 他の要素の2倍 */
+}
+```
+
+**実用例:**
+
+```css
+/* 入力フィールド + ボタン */
+.input-group {
+  display: flex;
+}
+
+.input {
+  flex: 1; /* 残りのスペースを占有 */
+}
+
+.button {
+  flex: 0 0 auto; /* 内容に応じた幅 */
+}
+```
+
+## Tips & Gotchas
+
+### ✅ 実践テクニック
+
+1. **`gap` で余白を統一管理**
+   ```css
+   .container {
+     display: flex;
+     gap: 1rem; /* すべての子要素間に 1rem の余白 */
+   }
+
+   /* margin を使うより簡潔 */
+   ```
+
+2. **`margin: auto` で中央揃え**
+   ```css
+   .container {
+     display: flex;
+   }
+
+   .item {
+     margin-left: auto; /* 右端に配置 */
+   }
+   ```
+
+3. **`order` で順序を変更**
+   ```css
+   .item-last {
+     order: 1; /* 最後に表示 */
+   }
+
+   /* レスポンシブデザインで便利 */
+   @media (max-width: 768px) {
+     .logo {
+       order: 1;
+     }
+     .nav {
+       order: 3;
+     }
+     .cta {
+       order: 2;
+     }
+   }
+   ```
+
+4. **`flex-wrap` で折り返し**
+   ```css
+   .tag-container {
+     display: flex;
+     flex-wrap: wrap; /* 幅が足りなければ折り返し */
+     gap: 0.5rem;
+   }
+   ```
+
+### ⚠️ よくある落とし穴
+
+1. **`align-items` と `align-content` の混同**
+   ```css
+   /* 単一行の縦方向揃え */
+   .container {
+     align-items: center;
+   }
+
+   /* 複数行の縦方向揃え（flex-wrap 必須） */
+   .container {
+     flex-wrap: wrap;
+     align-content: center;
+   }
+   ```
+
+2. **min-width のデフォルト値**
+   ```css
+   /* Flexアイテムのデフォルト min-width は auto */
+   /* はみ出る可能性がある */
+
+   .item {
+     min-width: 0; /* 強制的に縮小可能に */
+     overflow: hidden;
+     text-overflow: ellipsis;
+   }
+   ```
+
+3. **`flex: 1` の落とし穴**
+   ```css
+   /* ❌ flex: 1 は flex-basis: 0% */
+   /* コンテンツサイズを無視 */
+
+   /* ✅ コンテンツサイズを考慮したい場合 */
+   .item {
+     flex: 1 1 auto;
+   }
+   ```
+
+## 実用的な組み合わせパターン
+
+### パターン1: 完璧なヘッダー
+
+```css
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav {
+  display: flex;
+  gap: 1.5rem;
+  margin-right: auto; /* ロゴとナビの間のスペースを自動調整 */
+}
+```
+
+### パターン2: カードレイアウト
+
+```css
+.card {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-content {
+  flex-grow: 1; /* 残りのスペースを占有 */
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+```
+
+### パターン3: フォームレイアウト
+
+```css
+.form-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.form-field {
+  flex: 1; /* 均等に分割 */
+}
+
+.form-field-small {
+  flex: 0 0 100px; /* 固定幅 */
+}
+```
+
+## まとめ
+
+Flexbox のマスターには以下が重要です:
+
+- **justify-content**: 主軸方向の配置（横方向）
+- **align-items**: 交差軸方向の配置（縦方向）
+- **align-self**: 個別要素の縦方向配置
+- **flex-grow**: 残りスペースの配分比率
+- **gap**: 要素間の余白を一括管理
+
+これらを組み合わせることで、ほとんどのレイアウトパターンを実装できます。Grid と使い分けることで、さらに強力な設計が可能になります。

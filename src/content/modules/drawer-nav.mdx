@@ -1,0 +1,391 @@
+---
+title: ドロワーナビ（左スワイプ開閉）
+description: 左端からスワイプして開く。オーバーレイ・フォーカストラップ付き。
+tags: [drawer, navigation, swipe, mobile]
+frameworks: [Vanilla, Any]
+level: intermediate
+demo_url: ""
+code_url: ""
+prompt_template: |
+  目的: {{purpose}}
+  前提: {{framework}}（デフォルト: Vanilla JS）
+
+  要件:
+  - 左端（50px以内）からのスワイプで開く
+  - ボタンでも開閉可能
+  - スワイプ中のドラッグ追従（transform連動）
+  - オーバーレイクリックで閉じる
+  - Escキーで閉じる
+  - フォーカストラップ実装
+  - 背景スクロール抑止
+  - prefers-reduced-motion対応
+  - role="navigation" aria-labelledby でアクセシブル
+  - タッチイベントとマウスイベント両対応
+
+  納品: コンポーネント+CSS+最小限のJS
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## 概要
+
+左端からのスワイプジェスチャーで開くドロワーナビゲーション。モバイル・タブレットでの直感的な操作を実現し、アクセシビリティにも配慮した実装です。
+
+## 実装のポイント
+
+### 1. スワイプジェスチャー検出
+
+```javascript
+// 左端50px以内からのスワイプを検出
+let startX = 0;
+let isDragging = false;
+
+document.addEventListener('touchstart', (e) => {
+  if (e.touches[0].clientX <= 50) {
+    startX = e.touches[0].clientX;
+    isDragging = true;
+  }
+});
+```
+
+### 2. アクセシビリティ
+
+- `role="navigation"` でナビゲーション領域として明示
+- `aria-labelledby` でラベルを関連付け
+- フォーカストラップで Tab キーの循環を実現
+- Esc キーで閉じる機能
+
+### 3. パフォーマンス
+
+- `transform` を使用して GPU アクセラレーション
+- `will-change` でブラウザに最適化のヒントを提供
+- `prefers-reduced-motion` でアニメーション無効化
+
+<LiveDemo height="400px">
+{`<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0c1218; color: #e5edf4; height: 100vh; overflow: hidden; }
+
+    .demo-container { position: relative; width: 100%; height: 100%; background: linear-gradient(135deg, #0c1218 0%, #1f2a37 100%); }
+    .demo-content { padding: 2rem; }
+    .demo-content h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .demo-content p { color: #9ca3af; line-height: 1.6; margin-bottom: 1rem; }
+
+    .open-btn { background: #1f2a37; border: 1px solid #374151; color: #e5edf4; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; transition: background 0.2s; font-size: 1rem; }
+    .open-btn:hover { background: #374151; }
+
+    .drawer-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 999; opacity: 0; pointer-events: none; transition: opacity 0.3s ease-out; }
+    .drawer-overlay.visible { opacity: 1; pointer-events: auto; }
+
+    .drawer { position: fixed; top: 0; left: 0; width: 280px; height: 100vh; background: #1f2a37; border-right: 1px solid #374151; z-index: 1000; transform: translateX(-100%); transition: transform 0.3s ease-out; will-change: transform; }
+    .drawer.open { transform: translateX(0); }
+
+    .drawer-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid #374151; }
+    .drawer-header h2 { font-size: 1.2rem; margin: 0; }
+    .close-btn { background: transparent; border: none; color: #e5edf4; font-size: 1.5rem; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 4px; transition: background 0.2s; }
+    .close-btn:hover { background: #374151; }
+
+    .drawer-menu { list-style: none; padding: 1rem 0; }
+    .drawer-menu a { display: block; color: #e5edf4; text-decoration: none; padding: 0.75rem 1rem; margin: 0.25rem 0.5rem; border-radius: 8px; transition: background 0.2s; }
+    .drawer-menu a:hover { background: #374151; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .drawer, .drawer-overlay { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <div class="demo-content">
+      <h1>ドロワーナビゲーション</h1>
+      <p>左からスライドして開くナビゲーションメニューです。</p>
+      <button class="open-btn" id="openBtn">メニューを開く</button>
+    </div>
+
+    <div class="drawer-overlay" id="overlay"></div>
+
+    <nav class="drawer" id="drawer" role="navigation" aria-labelledby="drawerTitle">
+      <div class="drawer-header">
+        <h2 id="drawerTitle">メニュー</h2>
+        <button class="close-btn" id="closeBtn" aria-label="メニューを閉じる">×</button>
+      </div>
+      <ul class="drawer-menu">
+        <li><a href="#home">ホーム</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#services">サービス</a></li>
+        <li><a href="#contact">お問い合わせ</a></li>
+      </ul>
+    </nav>
+  </div>
+
+  <script>
+    const drawer = document.getElementById('drawer');
+    const overlay = document.getElementById('overlay');
+    const openBtn = document.getElementById('openBtn');
+    const closeBtn = document.getElementById('closeBtn');
+
+    function open() {
+      drawer.classList.add('open');
+      overlay.classList.add('visible');
+    }
+
+    function close() {
+      drawer.classList.remove('open');
+      overlay.classList.remove('visible');
+    }
+
+    openBtn.addEventListener('click', open);
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', close);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && drawer.classList.contains('open')) {
+        close();
+      }
+    });
+  </script>
+</body>
+</html>`}
+</LiveDemo>
+
+## コード例
+
+**HTML**
+```html
+<button id="drawer-open-btn" class="drawer-toggle" aria-label="メニューを開く">
+  <svg width="24" height="24" fill="none" stroke="currentColor">
+    <path d="M3 6h18M3 12h18M3 18h18"/>
+  </svg>
+</button>
+
+<div class="drawer-overlay" id="drawer-overlay" hidden></div>
+
+<nav
+  id="drawer-nav"
+  class="drawer"
+  role="navigation"
+  aria-labelledby="drawer-title"
+  hidden
+>
+  <div class="drawer-header">
+    <h2 id="drawer-title">メニュー</h2>
+    <button class="drawer-close" aria-label="メニューを閉じる">
+      <svg width="24" height="24">
+        <path d="M6 6L18 18M6 18L18 6"/>
+      </svg>
+    </button>
+  </div>
+
+  <ul class="drawer-menu">
+    <li><a href="/">ホーム</a></li>
+    <li><a href="/about">About</a></li>
+    <li><a href="/services">サービス</a></li>
+    <li><a href="/contact">お問い合わせ</a></li>
+  </ul>
+</nav>
+```
+
+**CSS**
+```css
+.drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 100vh;
+  background: #fff;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-out;
+  z-index: 1000;
+  will-change: transform;
+}
+
+.drawer[hidden] {
+  display: block;
+}
+
+.drawer.open {
+  transform: translateX(0);
+}
+
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+  z-index: 999;
+}
+
+.drawer-overlay[hidden] {
+  display: block;
+  pointer-events: none;
+}
+
+.drawer-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.drawer-menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.drawer-menu a {
+  display: block;
+  padding: 1rem;
+  color: #374151;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.drawer-menu a:hover,
+.drawer-menu a:focus {
+  background: #f3f4f6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer, .drawer-overlay {
+    transition: none;
+  }
+}
+```
+
+**JS**
+```javascript
+(() => {
+  const drawer = document.getElementById('drawer-nav');
+  const overlay = document.getElementById('drawer-overlay');
+  const openBtn = document.getElementById('drawer-open-btn');
+  const closeBtn = drawer.querySelector('.drawer-close');
+
+  let startX = 0;
+  let currentX = 0;
+  let isDragging = false;
+
+  // フォーカス可能な要素
+  const focusableElements = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+  function open() {
+    drawer.hidden = false;
+    overlay.hidden = false;
+    drawer.classList.add('open');
+    overlay.classList.add('visible');
+    document.body.style.overflow = 'hidden';
+
+    // フォーカストラップ
+    const focusable = drawer.querySelectorAll(focusableElements);
+    if (focusable.length) focusable[0].focus();
+  }
+
+  function close() {
+    drawer.classList.remove('open');
+    overlay.classList.remove('visible');
+    document.body.style.overflow = '';
+
+    setTimeout(() => {
+      drawer.hidden = true;
+      overlay.hidden = true;
+    }, 300);
+  }
+
+  // ボタン操作
+  openBtn.addEventListener('click', open);
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', close);
+
+  // Escキー
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !drawer.hidden) close();
+  });
+
+  // スワイプ開始
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches[0].clientX <= 50) {
+      startX = e.touches[0].clientX;
+      isDragging = true;
+    }
+  }, { passive: true });
+
+  // スワイプ中
+  document.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+
+    currentX = e.touches[0].clientX;
+    const diff = currentX - startX;
+
+    if (diff > 0 && diff <= 280) {
+      drawer.hidden = false;
+      overlay.hidden = false;
+      drawer.style.transform = `translateX(calc(-100% + ${diff}px))`;
+      overlay.style.opacity = diff / 280 * 0.5;
+    }
+  }, { passive: true });
+
+  // スワイプ終了
+  document.addEventListener('touchend', () => {
+    if (!isDragging) return;
+
+    const diff = currentX - startX;
+    drawer.style.transform = '';
+    overlay.style.opacity = '';
+
+    if (diff > 140) {
+      open();
+    } else {
+      close();
+    }
+
+    isDragging = false;
+    startX = 0;
+    currentX = 0;
+  });
+
+  // フォーカストラップ
+  drawer.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab' || drawer.hidden) return;
+
+    const focusable = Array.from(drawer.querySelectorAll(focusableElements));
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  });
+})();
+```
+
+## 注意点
+
+- iOS Safari では `touchmove` のスクロール制御に注意
+- スワイプ速度（velocity）を計算してより自然な挙動に
+- マウスイベントも同様に実装すると PC でも動作確認可能
+- ドロワー幅を 80vw 程度にすると、背景が見えて UX 向上
+- 右から左への言語（RTL）対応も考慮すると良い
+
+## 参考リンク
+
+- [Touch events - MDN](https://developer.mozilla.org/en-US/docs/Web/API/Touch_events)
+- [ARIA: navigation role - MDN](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/navigation_role)
+- [Keyboard-navigable JavaScript widgets](https://developer.mozilla.org/en-US/docs/Web/Accessibility/Keyboard-navigable_JavaScript_widgets)

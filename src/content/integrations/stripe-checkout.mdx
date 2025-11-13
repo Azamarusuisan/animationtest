@@ -1,0 +1,1151 @@
+---
+title: Stripe最小Checkout統合
+description: Stripe Checkoutを使った最小限の決済フロー実装。テストモードで動作する完全なコード例付き。
+tags: [integration, stripe, payment, checkout, e-commerce]
+service: Stripe
+level: intermediate
+env_vars: [STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET]
+dependencies: ["stripe", "@stripe/stripe-js"]
+prompt_template: |
+  Create a minimal Stripe Checkout integration with:
+  - Product display UI
+  - Buy Now button triggering Stripe Checkout
+  - Success/cancel redirect handling
+  - Webhook endpoint for payment verification
+  - Complete security considerations
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## Stripe Checkout統合の概要
+
+Stripe Checkoutは、安全な決済ページをホスティングしてくれるStripeの完全管理型ソリューションです。自分でPCI-DSS準拠のフォームを構築する必要がなく、数行のコードで本格的な決済フローを実装できます。
+
+この統合では以下を実現します：
+- 商品・価格表示UI
+- Stripe Checkoutへのリダイレクト
+- 決済成功/キャンセル時の処理
+- Webhookによる決済確認
+
+<LiveDemo
+  title="Stripe Checkout デモ - 商品購入フロー"
+  height="600px"
+  html={`
+<div class="checkout-container">
+  <!-- 商品カード -->
+  <div class="product-card">
+    <div class="product-badge">人気</div>
+    <div class="product-icon">💎</div>
+    <h2 class="product-title">プレミアムプラン</h2>
+    <p class="product-description">
+      すべての機能にアクセス可能。高度な分析、優先サポート、カスタムドメインが含まれます。
+    </p>
+
+    <ul class="feature-list">
+      <li>✓ すべての基本機能</li>
+      <li>✓ 優先カスタマーサポート</li>
+      <li>✓ 高度な分析ダッシュボード</li>
+      <li>✓ カスタムドメイン対応</li>
+      <li>✓ API アクセス</li>
+    </ul>
+
+    <div class="pricing">
+      <div class="price-wrapper">
+        <span class="currency">¥</span>
+        <span class="amount">2,980</span>
+        <span class="period">/月</span>
+      </div>
+      <p class="price-note">いつでもキャンセル可能</p>
+    </div>
+
+    <button class="checkout-btn" id="checkoutBtn">
+      <span class="btn-icon">🔒</span>
+      <span class="btn-text">今すぐ購入</span>
+    </button>
+
+    <div class="trust-badges">
+      <div class="badge-item">
+        <span class="badge-icon">🔐</span>
+        <span class="badge-text">SSL暗号化</span>
+      </div>
+      <div class="badge-item">
+        <span class="badge-icon">💳</span>
+        <span class="badge-text">Stripe決済</span>
+      </div>
+      <div class="badge-item">
+        <span class="badge-icon">🛡️</span>
+        <span class="badge-text">返金保証</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 決済状態表示 -->
+  <div class="status-container" id="statusContainer" style="display: none;">
+    <div class="status-card">
+      <div class="status-icon" id="statusIcon">✓</div>
+      <h3 class="status-title" id="statusTitle">決済完了</h3>
+      <p class="status-message" id="statusMessage">
+        ご購入ありがとうございます！確認メールを送信しました。
+      </p>
+      <button class="status-btn" id="backBtn">商品ページに戻る</button>
+    </div>
+  </div>
+
+  <!-- テストモード表示 -->
+  <div class="test-mode-banner">
+    <span class="banner-icon">🧪</span>
+    <strong>テストモード:</strong> 実際の決済は発生しません
+    <div class="test-card-info">
+      テストカード番号: <code>4242 4242 4242 4242</code>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.checkout-container {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+/* 商品カード */
+.product-card {
+  background: linear-gradient(135deg, #1f2a37 0%, #374151 100%);
+  border-radius: 16px;
+  padding: 2rem;
+  border: 2px solid #374151;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  position: relative;
+  animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.product-badge {
+  position: absolute;
+  top: -12px;
+  right: 2rem;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #0c1218;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.product-icon {
+  font-size: 3rem;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.product-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #e5edf4;
+  text-align: center;
+  margin: 0 0 1rem 0;
+}
+
+.product-description {
+  color: #9ca3af;
+  text-align: center;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+/* 機能リスト */
+.feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem 0;
+  background: #0c1218;
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.feature-list li {
+  color: #d1d5db;
+  padding: 0.625rem 0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #1f2a37;
+}
+
+.feature-list li:last-child {
+  border-bottom: none;
+}
+
+/* 価格表示 */
+.pricing {
+  text-align: center;
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: #0c1218;
+  border-radius: 12px;
+  border: 2px solid #374151;
+}
+
+.price-wrapper {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.currency {
+  font-size: 1.5rem;
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.amount {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #e5edf4;
+  line-height: 1;
+}
+
+.period {
+  font-size: 1.125rem;
+  color: #9ca3af;
+}
+
+.price-note {
+  margin: 0.75rem 0 0 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* チェックアウトボタン */
+.checkout-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  color: #ffffff;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 10px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);
+}
+
+.checkout-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(96, 165, 250, 0.4);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.checkout-btn:active {
+  transform: translateY(0);
+}
+
+.btn-icon {
+  font-size: 1.25rem;
+}
+
+.checkout-btn.loading {
+  background: #4b5563;
+  cursor: not-allowed;
+}
+
+.checkout-btn.loading .btn-text::after {
+  content: '...';
+  animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+  0%, 20% { content: '.'; }
+  40% { content: '..'; }
+  60%, 100% { content: '...'; }
+}
+
+/* トラストバッジ */
+.trust-badges {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #374151;
+}
+
+.badge-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.badge-icon {
+  font-size: 1.5rem;
+}
+
+.badge-text {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-align: center;
+}
+
+/* ステータス表示 */
+.status-container {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.status-card {
+  background: #1f2a37;
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  text-align: center;
+  border: 2px solid #374151;
+}
+
+.status-icon {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  margin: 0 auto 1.5rem;
+  animation: scaleIn 0.5s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.status-icon.error {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.status-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #e5edf4;
+  margin: 0 0 1rem 0;
+}
+
+.status-message {
+  color: #9ca3af;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.status-btn {
+  background: #374151;
+  color: #e5edf4;
+  border: none;
+  padding: 0.875rem 2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.status-btn:hover {
+  background: #4b5563;
+}
+
+/* テストモードバナー */
+.test-mode-banner {
+  background: linear-gradient(135deg, #1f2a37, #374151);
+  border: 2px solid #f59e0b;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #d1d5db;
+}
+
+.banner-icon {
+  font-size: 1.25rem;
+  margin-right: 0.5rem;
+}
+
+.test-card-info {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #374151;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.test-card-info code {
+  background: #0c1218;
+  padding: 0.25rem 0.625rem;
+  border-radius: 4px;
+  color: #60a5fa;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .product-card {
+    padding: 1.5rem;
+  }
+
+  .amount {
+    font-size: 2.5rem;
+  }
+
+  .trust-badges {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
+  `}
+  js={`
+// 状態管理
+let checkoutSession = null;
+
+// ボタン要素
+const checkoutBtn = document.getElementById('checkoutBtn');
+const statusContainer = document.getElementById('statusContainer');
+const backBtn = document.getElementById('backBtn');
+const productCard = document.querySelector('.product-card');
+
+// チェックアウトボタンクリック
+checkoutBtn.addEventListener('click', async () => {
+  checkoutBtn.classList.add('loading');
+  checkoutBtn.querySelector('.btn-text').textContent = '処理中';
+
+  // シミュレート: Stripe Checkoutセッション作成
+  await simulateCheckout();
+
+  checkoutBtn.classList.remove('loading');
+  checkoutBtn.querySelector('.btn-text').textContent = '今すぐ購入';
+});
+
+// 戻るボタン
+backBtn.addEventListener('click', () => {
+  statusContainer.style.display = 'none';
+  productCard.style.display = 'block';
+});
+
+// チェックアウトシミュレーション
+async function simulateCheckout() {
+  // API呼び出しをシミュレート
+  await new Promise(resolve => setTimeout(resolve, 1500));
+
+  // ランダムで成功/キャンセルを決定（70%成功）
+  const isSuccess = Math.random() > 0.3;
+
+  if (isSuccess) {
+    showStatus('success', '決済完了！', 'ご購入ありがとうございます。確認メールをお送りしました。');
+  } else {
+    showStatus('cancel', '決済キャンセル', '決済がキャンセルされました。再度お試しください。');
+  }
+}
+
+// ステータス表示
+function showStatus(type, title, message) {
+  const statusIcon = document.getElementById('statusIcon');
+  const statusTitle = document.getElementById('statusTitle');
+  const statusMessage = document.getElementById('statusMessage');
+
+  if (type === 'success') {
+    statusIcon.textContent = '✓';
+    statusIcon.classList.remove('error');
+  } else {
+    statusIcon.textContent = '✕';
+    statusIcon.classList.add('error');
+  }
+
+  statusTitle.textContent = title;
+  statusMessage.textContent = message;
+
+  productCard.style.display = 'none';
+  statusContainer.style.display = 'block';
+}
+
+// URLパラメータチェック（実際の実装用）
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('success') === 'true') {
+  showStatus('success', '決済完了！', 'ご購入ありがとうございます。');
+} else if (urlParams.get('canceled') === 'true') {
+  showStatus('cancel', '決済キャンセル', '決済がキャンセルされました。');
+}
+  `}
+/>
+
+## 前提条件
+
+### 必要なアカウント・設定
+
+1. **Stripeアカウント**
+   - [Stripe Dashboard](https://dashboard.stripe.com/register)で無料登録
+   - テストモードで開発可能（本番環境切り替え不要）
+
+2. **APIキーの取得**
+   - Dashboard → Developers → API keys
+   - Publishable key（公開可能鍵）: フロントエンド用
+   - Secret key（秘密鍵）: サーバーサイド用
+
+3. **商品・価格の作成**
+   - Dashboard → Products → Add product
+   - 価格IDをコピー（例: `price_1234567890`）
+
+## 環境設定
+
+### .env.example
+
+```bash
+# Stripe API Keys (テストモード)
+STRIPE_SECRET_KEY=your_stripe_secret_key_here
+STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key_here
+
+# Webhook署名シークレット
+STRIPE_WEBHOOK_SECRET=your_webhook_secret_here
+
+# アプリケーションURL
+APP_URL=http://localhost:3000
+
+# 成功/キャンセル時のリダイレクトURL
+SUCCESS_URL=${APP_URL}/success
+CANCEL_URL=${APP_URL}/cancel
+```
+
+### 依存関係のインストール
+
+```bash
+# サーバーサイド用Stripe SDK
+npm install stripe
+
+# クライアントサイド用Stripe.js
+npm install @stripe/stripe-js
+```
+
+## フロントエンド実装
+
+### 1. Stripe.js の初期化
+
+```javascript
+// lib/stripe-client.js
+import { loadStripe } from '@stripe/stripe-js';
+
+// 環境変数から公開可能鍵を取得
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+
+export default stripePromise;
+```
+
+### 2. チェックアウトボタンの実装
+
+```javascript
+// components/CheckoutButton.jsx
+import { useState } from 'react';
+import stripePromise from '../lib/stripe-client';
+
+export default function CheckoutButton({ priceId, productName }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleCheckout = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // バックエンドAPIを呼び出してCheckoutセッションを作成
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId,
+          quantity: 1,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Checkout session creation failed');
+      }
+
+      const { sessionId } = await response.json();
+
+      // Stripeのチェックアウトページにリダイレクト
+      const stripe = await stripePromise;
+      const { error } = await stripe.redirectToCheckout({ sessionId });
+
+      if (error) {
+        setError(error.message);
+      }
+    } catch (err) {
+      setError(err.message);
+      console.error('Checkout error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <button
+        onClick={handleCheckout}
+        disabled={loading}
+        style={{
+          padding: '1rem 2rem',
+          background: loading ? '#6b7280' : '#60a5fa',
+          color: '#ffffff',
+          border: 'none',
+          borderRadius: '8px',
+          fontSize: '1rem',
+          fontWeight: 'bold',
+          cursor: loading ? 'not-allowed' : 'pointer',
+        }}
+      >
+        {loading ? '処理中...' : `${productName}を購入`}
+      </button>
+
+      {error && (
+        <p style={{ color: '#ef4444', marginTop: '0.5rem', fontSize: '0.875rem' }}>
+          エラー: {error}
+        </p>
+      )}
+    </div>
+  );
+}
+```
+
+### 3. 商品ページの実装例
+
+```jsx
+// pages/product.jsx
+import CheckoutButton from '../components/CheckoutButton';
+
+export default function ProductPage() {
+  return (
+    <div style={{ maxWidth: '500px', margin: '2rem auto', padding: '2rem' }}>
+      <h1>プレミアムプラン</h1>
+      <p>すべての機能にアクセス可能</p>
+
+      <ul>
+        <li>優先サポート</li>
+        <li>高度な分析</li>
+        <li>カスタムドメイン</li>
+      </ul>
+
+      <div style={{ fontSize: '2rem', fontWeight: 'bold', margin: '1rem 0' }}>
+        ¥2,980/月
+      </div>
+
+      <CheckoutButton
+        priceId="price_1234567890"
+        productName="プレミアムプラン"
+      />
+    </div>
+  );
+}
+```
+
+## バックエンド実装
+
+### 1. Checkoutセッション作成API
+
+```javascript
+// pages/api/create-checkout-session.js
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { priceId, quantity = 1 } = req.body;
+
+  // バリデーション
+  if (!priceId) {
+    return res.status(400).json({ error: 'Price ID is required' });
+  }
+
+  try {
+    // Checkoutセッションを作成
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription', // または 'payment' (一回払い)
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: priceId,
+          quantity: quantity,
+        },
+      ],
+      success_url: `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.APP_URL}/cancel`,
+      // オプション: 顧客メールアドレスの事前入力
+      // customer_email: req.user?.email,
+      // メタデータ（後でWebhookで使用）
+      metadata: {
+        userId: req.user?.id || 'guest',
+        productName: 'Premium Plan',
+      },
+    });
+
+    res.status(200).json({ sessionId: session.id });
+  } catch (error) {
+    console.error('Stripe error:', error);
+    res.status(500).json({
+      error: 'Checkout session creation failed',
+      details: error.message,
+    });
+  }
+}
+```
+
+### 2. 成功ページの実装
+
+```javascript
+// pages/success.jsx
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+
+export default function SuccessPage() {
+  const router = useRouter();
+  const { session_id } = router.query;
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (session_id) {
+      // セッション情報を取得（オプション）
+      fetch(\`/api/checkout-session?session_id=\${session_id}\`)
+        .then((res) => res.json())
+        .then((data) => {
+          setSession(data);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error('Session fetch error:', err);
+          setLoading(false);
+        });
+    }
+  }, [session_id]);
+
+  if (loading) {
+    return <div>読み込み中...</div>;
+  }
+
+  return (
+    <div style={{ maxWidth: '500px', margin: '2rem auto', textAlign: 'center' }}>
+      <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✓</div>
+      <h1>決済完了！</h1>
+      <p>ご購入ありがとうございます。</p>
+      <p>確認メールをお送りしました。</p>
+
+      {session && (
+        <div style={{ marginTop: '2rem', padding: '1rem', background: '#1f2a37', borderRadius: '8px' }}>
+          <p>注文番号: {session.id}</p>
+          <p>金額: ¥{(session.amount_total / 100).toLocaleString()}</p>
+        </div>
+      )}
+
+      <button
+        onClick={() => router.push('/')}
+        style={{
+          marginTop: '2rem',
+          padding: '0.75rem 2rem',
+          background: '#60a5fa',
+          color: '#ffffff',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+        }}
+      >
+        ホームに戻る
+      </button>
+    </div>
+  );
+}
+```
+
+### 3. キャンセルページの実装
+
+```javascript
+// pages/cancel.jsx
+import { useRouter } from 'next/router';
+
+export default function CancelPage() {
+  const router = useRouter();
+
+  return (
+    <div style={{ maxWidth: '500px', margin: '2rem auto', textAlign: 'center' }}>
+      <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✕</div>
+      <h1>決済キャンセル</h1>
+      <p>決済がキャンセルされました。</p>
+      <p>ご不明な点がございましたら、お問い合わせください。</p>
+
+      <button
+        onClick={() => router.push('/product')}
+        style={{
+          marginTop: '2rem',
+          padding: '0.75rem 2rem',
+          background: '#60a5fa',
+          color: '#ffffff',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+        }}
+      >
+        商品ページに戻る
+      </button>
+    </div>
+  );
+}
+```
+
+## Webhook実装
+
+### 1. Webhook エンドポイント
+
+```javascript
+// pages/api/webhooks/stripe.js
+import Stripe from 'stripe';
+import { buffer } from 'micro';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+// Next.jsのbody parserを無効化（raw bodyが必要）
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const buf = await buffer(req);
+  const sig = req.headers['stripe-signature'];
+
+  let event;
+
+  try {
+    // Webhook署名を検証
+    event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).json({ error: \`Webhook Error: \${err.message}\` });
+  }
+
+  // イベント処理
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed':
+        const session = event.data.object;
+        await handleCheckoutCompleted(session);
+        break;
+
+      case 'payment_intent.succeeded':
+        const paymentIntent = event.data.object;
+        await handlePaymentSucceeded(paymentIntent);
+        break;
+
+      case 'payment_intent.payment_failed':
+        const failedPayment = event.data.object;
+        await handlePaymentFailed(failedPayment);
+        break;
+
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+        const subscription = event.data.object;
+        await handleSubscriptionChange(subscription);
+        break;
+
+      default:
+        console.log(\`Unhandled event type: \${event.type}\`);
+    }
+
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error('Webhook handler error:', error);
+    res.status(500).json({ error: 'Webhook handler failed' });
+  }
+}
+
+// チェックアウト完了処理
+async function handleCheckoutCompleted(session) {
+  console.log('Checkout completed:', session.id);
+
+  const userId = session.metadata?.userId;
+  const customerEmail = session.customer_details?.email;
+
+  // データベースに注文情報を保存
+  // await db.orders.create({
+  //   userId,
+  //   sessionId: session.id,
+  //   amount: session.amount_total,
+  //   status: 'completed',
+  //   email: customerEmail,
+  // });
+
+  // 確認メールを送信
+  // await sendConfirmationEmail(customerEmail, session);
+
+  console.log('Order saved and email sent to:', customerEmail);
+}
+
+// 決済成功処理
+async function handlePaymentSucceeded(paymentIntent) {
+  console.log('Payment succeeded:', paymentIntent.id);
+
+  // 追加のビジネスロジック
+  // - 在庫の更新
+  // - サービスのアクティベーション
+  // - 請求書の発行
+}
+
+// 決済失敗処理
+async function handlePaymentFailed(paymentIntent) {
+  console.log('Payment failed:', paymentIntent.id);
+
+  // 失敗通知の送信
+  // await sendPaymentFailedEmail(paymentIntent.customer);
+}
+
+// サブスクリプション変更処理
+async function handleSubscriptionChange(subscription) {
+  console.log('Subscription changed:', subscription.id, subscription.status);
+
+  // データベースのサブスクリプション状態を更新
+  // await db.subscriptions.update({
+  //   stripeSubscriptionId: subscription.id,
+  //   status: subscription.status,
+  //   currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+  // });
+}
+```
+
+### 2. Webhook設定（Stripe Dashboard）
+
+1. Dashboard → Developers → Webhooks
+2. "Add endpoint"をクリック
+3. エンドポイントURL: `https://yourdomain.com/api/webhooks/stripe`
+4. リッスンするイベントを選択:
+   - `checkout.session.completed`
+   - `payment_intent.succeeded`
+   - `payment_intent.payment_failed`
+   - `customer.subscription.created`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+5. Webhook署名シークレットをコピーして`.env`に設定
+
+### 3. ローカル開発でのWebhookテスト
+
+```bash
+# Stripe CLIのインストール
+brew install stripe/stripe-cli/stripe
+
+# ログイン
+stripe login
+
+# Webhookをローカルにフォワード
+stripe listen --forward-to localhost:3000/api/webhooks/stripe
+
+# テストイベントの送信
+stripe trigger checkout.session.completed
+```
+
+## セキュリティ対策
+
+### 1. APIキーの保護
+
+```javascript
+// ✅ 正しい方法
+// サーバーサイドでのみSecret Keyを使用
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// クライアントサイドではPublishable Keyのみ使用
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+
+// ❌ 絶対にしてはいけないこと
+// クライアントサイドでSecret Keyを使用
+// const stripe = new Stripe('sk_live_...'); // NEVER DO THIS!
+```
+
+### 2. Webhook署名検証
+
+```javascript
+// 必ず署名を検証
+try {
+  event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
+} catch (err) {
+  // 署名が無効な場合は処理を拒否
+  return res.status(400).json({ error: 'Invalid signature' });
+}
+```
+
+### 3. HTTPS必須
+
+```bash
+# 本番環境では必ずHTTPSを使用
+# Let's Encryptで無料SSL証明書を取得可能
+```
+
+### 4. CSRF対策
+
+```javascript
+// セッショントークンを使用
+const session = await stripe.checkout.sessions.create({
+  // ...
+  metadata: {
+    userId: req.user.id,
+    sessionToken: req.session.token, // CSRFトークン
+  },
+});
+```
+
+### 5. 金額の検証
+
+```javascript
+// クライアントから金額を受け取らない
+// ❌ 危険
+const { amount } = req.body; // ユーザーが改ざん可能
+
+// ✅ 安全
+const { priceId } = req.body;
+// 金額はStripe側で管理されているPriceオブジェクトから取得
+```
+
+## テストカード番号
+
+Stripeのテストモードでは以下のカード番号が使用できます：
+
+| カード番号 | 用途 |
+|-----------|------|
+| `4242 4242 4242 4242` | 成功 |
+| `4000 0000 0000 9995` | 残高不足 |
+| `4000 0000 0000 9987` | 紛失カード |
+| `4000 0000 0000 0002` | カード拒否 |
+| `4000 0025 0000 3155` | 3Dセキュア必須 |
+
+**その他の詳細:**
+- 有効期限: 任意の未来の日付（例: 12/34）
+- CVC: 任意の3桁（例: 123）
+- 郵便番号: 任意（例: 12345）
+
+詳細は[Stripe Testing Cards](https://stripe.com/docs/testing)を参照。
+
+## 本番環境チェックリスト
+
+### 環境設定
+
+- [ ] 本番用APIキー（`sk_live_...`, `pk_live_...`）に切り替え
+- [ ] Webhook URLを本番ドメインに設定
+- [ ] Webhook署名シークレットを本番環境に設定
+- [ ] HTTPS証明書の有効化
+
+### セキュリティ
+
+- [ ] Secret Keyがクライアントサイドに露出していないか確認
+- [ ] Webhook署名検証が実装されているか確認
+- [ ] CSRF対策が実装されているか確認
+- [ ] レート制限の実装
+- [ ] エラーログの監視設定
+
+### ビジネスロジック
+
+- [ ] 注文情報のデータベース保存
+- [ ] 確認メールの送信機能
+- [ ] サブスクリプション管理機能
+- [ ] 返金処理のフロー
+- [ ] 請求書発行機能
+
+### テスト
+
+- [ ] テストモードでの動作確認
+- [ ] 決済成功フローのテスト
+- [ ] 決済失敗フローのテスト
+- [ ] Webhookイベントのテスト
+- [ ] エラーハンドリングのテスト
+
+### コンプライアンス
+
+- [ ] 利用規約の掲載
+- [ ] プライバシーポリシーの掲載
+- [ ] 特定商取引法に基づく表記（日本）
+- [ ] 返金ポリシーの明記
+
+## トラブルシューティング
+
+### Webhook が届かない
+
+```bash
+# Webhook ログを確認
+# Stripe Dashboard → Developers → Webhooks → [Your endpoint] → Logs
+
+# ローカル開発の場合
+stripe listen --forward-to localhost:3000/api/webhooks/stripe
+
+# エンドポイントの到達確認
+curl -X POST https://yourdomain.com/api/webhooks/stripe
+```
+
+### 決済が完了しない
+
+1. ブラウザのコンソールエラーを確認
+2. Stripe Dashboardの Logs → Events でイベントを確認
+3. `payment_intent.payment_failed` イベントの詳細を確認
+4. テストカード番号が正しいか確認
+
+### セッションIDが取得できない
+
+```javascript
+// redirectToCheckout の戻り値を確認
+const { error } = await stripe.redirectToCheckout({ sessionId });
+if (error) {
+  console.error('Redirect error:', error);
+  // エラーハンドリング
+}
+```
+
+## 外部リンク
+
+- [Stripe Checkout ドキュメント](https://stripe.com/docs/payments/checkout)
+- [Stripe Dashboard](https://dashboard.stripe.com/)
+- [Stripe API リファレンス](https://stripe.com/docs/api)
+- [Stripe Webhook ガイド](https://stripe.com/docs/webhooks)
+- [Stripe テストカード](https://stripe.com/docs/testing)
+- [Stripe セキュリティベストプラクティス](https://stripe.com/docs/security/guide)
+
+---
+
+**注意:** このコード例はテスト用です。本番環境で使用する前に、必ずセキュリティレビューを行ってください。

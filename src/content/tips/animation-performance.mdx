@@ -1,0 +1,588 @@
+---
+title: アニメーションのパフォーマンス最適化
+description: transform/opacity、will-change、GPU accelerationを使った60fps維持の実践テクニック
+tags: [animation, performance, optimization, gpu, will-change]
+category: performance
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## 60fpsを維持するための必須知識
+
+Webアニメーションをスムーズに動かすには、1フレームを**16.67ms以内**（60fps）で処理する必要があります。ブラウザのレンダリングパイプラインを理解し、適切なプロパティを使うことが重要です。
+
+### ブラウザのレンダリングパイプライン
+
+```
+JavaScript → Style → Layout → Paint → Composite
+```
+
+- **JavaScript**: アニメーション処理の実行
+- **Style**: CSS スタイルの計算
+- **Layout**: 要素の配置とサイズの計算（最も重い処理）
+- **Paint**: ピクセルの描画
+- **Composite**: レイヤーの合成（GPU で処理）
+
+## パフォーマンスの良い例と悪い例
+
+<LiveDemo
+  title="パフォーマンス比較デモ"
+  height="500px"
+  html={`
+<div class="demo-container">
+  <div class="section">
+    <h3 class="section-title">❌ 悪い例: left プロパティ</h3>
+    <div class="box-container">
+      <div class="box bad" id="badBox">Layout + Paint</div>
+    </div>
+    <p class="description">left を変更すると Layout と Paint が発生</p>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title">✅ 良い例: transform プロパティ</h3>
+    <div class="box-container">
+      <div class="box good" id="goodBox">Composite のみ</div>
+    </div>
+    <p class="description">transform は GPU で処理され高速</p>
+  </div>
+
+  <div class="controls">
+    <button id="startBtn" class="btn">アニメーション開始</button>
+    <button id="stopBtn" class="btn">停止</button>
+  </div>
+
+  <div class="metrics">
+    <div class="metric">
+      <span class="label">経過時間:</span>
+      <span id="elapsed">0ms</span>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.demo-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.section {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #e5edf4;
+}
+
+.box-container {
+  position: relative;
+  height: 80px;
+  background: #0c1218;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.box {
+  position: absolute;
+  width: 80px;
+  height: 60px;
+  top: 10px;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 6px;
+  color: #0c1218;
+}
+
+.box.bad {
+  background: #ef4444;
+}
+
+.box.good {
+  background: #10b981;
+  will-change: transform;
+}
+
+.description {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.controls {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.btn {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  background: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 6px;
+  color: #e5edf4;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn:hover {
+  background: #4b5563;
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.metrics {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.label {
+  color: #9ca3af;
+}
+
+#elapsed {
+  color: #10b981;
+  font-weight: 600;
+  font-size: 1rem;
+}
+  `}
+  js={`
+let animating = false;
+let startTime = 0;
+
+const badBox = document.getElementById('badBox');
+const goodBox = document.getElementById('goodBox');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const elapsed = document.getElementById('elapsed');
+
+function animate() {
+  if (!animating) return;
+
+  const now = performance.now();
+  const duration = now - startTime;
+  const progress = (duration % 2000) / 2000;
+  const position = Math.sin(progress * Math.PI * 2) * 200 + 200;
+
+  // 悪い例: left を変更（Layout が発生）
+  badBox.style.left = position + 'px';
+
+  // 良い例: transform を変更（Composite のみ）
+  goodBox.style.transform = 'translateX(' + position + 'px)';
+
+  elapsed.textContent = Math.round(duration) + 'ms';
+
+  requestAnimationFrame(animate);
+}
+
+startBtn.addEventListener('click', () => {
+  if (!animating) {
+    animating = true;
+    startTime = performance.now();
+    animate();
+  }
+});
+
+stopBtn.addEventListener('click', () => {
+  animating = false;
+});
+
+// 初期状態で1秒後に自動開始
+setTimeout(() => {
+  startBtn.click();
+}, 500);
+  `}
+/>
+
+## パフォーマンスに影響するプロパティ
+
+### 最速: Composite のみ（GPU アクセラレーション）
+
+これらのプロパティのみを変更すれば、GPU で処理されるため最も高速です：
+
+```css
+/* GPU で処理される高速なプロパティ */
+.element {
+  transform: translate(10px, 20px);
+  transform: scale(1.5);
+  transform: rotate(45deg);
+  opacity: 0.5;
+}
+```
+
+### 遅い: Layout + Paint + Composite
+
+これらのプロパティを変更すると、レイアウトの再計算が発生し、パフォーマンスが低下します：
+
+```css
+/* 避けるべき重いプロパティ */
+.element {
+  width: 200px;      /* Layout 発生 */
+  height: 100px;     /* Layout 発生 */
+  top: 50px;         /* Layout 発生 */
+  left: 100px;       /* Layout 発生 */
+  margin: 20px;      /* Layout 発生 */
+  padding: 10px;     /* Layout 発生 */
+  font-size: 16px;   /* Layout 発生 */
+}
+```
+
+## GPU アクセラレーションの有効化
+
+<LiveDemo
+  title="GPU アクセラレーション比較"
+  height="450px"
+  html={`
+<div class="gpu-demo">
+  <div class="example">
+    <h3>translate() - 2D変換</h3>
+    <div class="box box-2d">2D</div>
+    <p class="note">GPU が使われない場合がある</p>
+  </div>
+
+  <div class="example">
+    <h3>translate3d() - 3D変換</h3>
+    <div class="box box-3d">3D</div>
+    <p class="note">確実に GPU レイヤーを作成</p>
+  </div>
+
+  <div class="info">
+    <strong>💡 ポイント:</strong> translate3d(x, y, 0) を使うことで、
+    Z軸を0に設定しても GPU アクセラレーションが有効になります
+  </div>
+</div>
+  `}
+  css={`
+.gpu-demo {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.example {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.example h3 {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  color: #e5edf4;
+}
+
+.box {
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+  animation: slide 3s ease-in-out infinite;
+}
+
+.box-2d {
+  /* 通常の 2D 変換 */
+}
+
+.box-3d {
+  /* 3D 変換で GPU レイヤーを強制 */
+  transform: translate3d(0, 0, 0);
+}
+
+@keyframes slide {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(200px); }
+}
+
+.note {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.info {
+  background: #374151;
+  border-left: 4px solid #10b981;
+  border-radius: 6px;
+  padding: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.info strong {
+  color: #10b981;
+}
+  `}
+/>
+
+### 1. translate3d() を使う
+
+```css
+/* ❌ 2D 変換: GPU が使われない場合がある */
+.element {
+  transform: translateY(10px);
+}
+
+/* ✅ 3D 変換: 確実に GPU レイヤーを作成 */
+.element {
+  transform: translate3d(0, 10px, 0);
+}
+```
+
+### 2. will-change の適切な使用
+
+`will-change` は、ブラウザに「このプロパティが変更される」ことを事前に伝え、最適化を促します。
+
+<LiveDemo
+  title="will-change の使い方"
+  height="400px"
+  html={`
+<div class="will-change-demo">
+  <div class="demo-section">
+    <div class="hover-box without">
+      <span>will-change なし</span>
+      <small>ホバーしてみてください</small>
+    </div>
+  </div>
+
+  <div class="demo-section">
+    <div class="hover-box with">
+      <span>will-change あり</span>
+      <small>ホバーしてみてください</small>
+    </div>
+  </div>
+
+  <div class="warning">
+    ⚠️ will-change は常時適用せず、必要な時だけ使用してください。
+    メモリを大量に消費します。
+  </div>
+</div>
+  `}
+  css={`
+.will-change-demo {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.demo-section {
+  margin-bottom: 1.5rem;
+}
+
+.hover-box {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem;
+  border-radius: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.3s ease-out;
+}
+
+.hover-box span {
+  display: block;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 0.5rem;
+}
+
+.hover-box small {
+  display: block;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.hover-box.without:hover {
+  transform: scale(1.05) rotate(2deg);
+}
+
+.hover-box.with {
+  will-change: transform;
+}
+
+.hover-box.with:hover {
+  transform: scale(1.05) rotate(2deg);
+}
+
+.warning {
+  background: #374151;
+  border-left: 4px solid #f59e0b;
+  border-radius: 6px;
+  padding: 1rem;
+  font-size: 0.875rem;
+  color: #f59e0b;
+}
+  `}
+/>
+
+```css
+/* ❌ 悪い例: 常時適用（メモリを消費） */
+.element {
+  will-change: transform, opacity;
+}
+
+/* ✅ 良い例: ホバー時のみ */
+.element:hover {
+  will-change: transform;
+}
+
+.element {
+  transition: transform 0.3s;
+}
+
+/* ✅ JavaScript で動的に制御 */
+element.addEventListener('mouseenter', () => {
+  element.style.willChange = 'transform';
+});
+
+element.addEventListener('animationend', () => {
+  element.style.willChange = 'auto'; // 完了後に解除
+});
+```
+
+### 3. backface-visibility
+
+3D変換を使わない場合でも、GPU レイヤーを作成する方法：
+
+```css
+.element {
+  backface-visibility: hidden;
+  /* または */
+  -webkit-backface-visibility: hidden;
+}
+```
+
+## パフォーマンス計測
+
+### Chrome DevTools での確認
+
+1. **Performance タブ**
+   - Record ボタンをクリック
+   - アニメーションを実行
+   - Stop をクリック
+   - FPS グラフを確認（60fps を維持しているか）
+
+2. **Rendering タブ**
+   - "Paint flashing": 再描画をハイライト表示
+   - "Layout Shift Regions": レイアウトシフトを可視化
+   - "Frame Rendering Stats": FPS を常時表示
+
+3. **Layers タブ**
+   - どの要素がレイヤー化されているか確認
+   - 不要なレイヤーがないかチェック
+
+### JavaScript で FPS を計測
+
+```javascript
+let fps = 0;
+let lastTime = performance.now();
+let frameCount = 0;
+
+function measureFPS() {
+  const now = performance.now();
+  frameCount++;
+
+  // 1秒ごとに FPS を計算
+  if (now >= lastTime + 1000) {
+    fps = Math.round((frameCount * 1000) / (now - lastTime));
+    frameCount = 0;
+    lastTime = now;
+    console.log('FPS:', fps);
+
+    if (fps < 55) {
+      console.warn('⚠️ パフォーマンス低下検出');
+    }
+  }
+
+  requestAnimationFrame(measureFPS);
+}
+
+measureFPS();
+```
+
+## ベストプラクティス
+
+### チェックリスト
+
+- [ ] `transform` と `opacity` のみでアニメーション
+- [ ] `translate3d()` で GPU アクセラレーション
+- [ ] `requestAnimationFrame` を使用
+- [ ] `will-change` は必要な時だけ適用
+- [ ] アニメーション完了後に `will-change: auto` で解除
+- [ ] `prefers-reduced-motion` に対応
+- [ ] DevTools で 60fps を確認
+- [ ] モバイルデバイスでテスト
+
+### 大量の要素をアニメーション
+
+```javascript
+// ❌ 悪い例: 個別にアニメーション
+items.forEach(item => {
+  item.style.transform = `translateY(${y}px)`;
+});
+
+// ✅ 良い例: 親要素をアニメーション
+container.style.transform = `translateY(${y}px)`;
+```
+
+### アクセシビリティへの配慮
+
+```css
+/* アニメーションを無効化する設定のユーザーに配慮 */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+## まとめ
+
+1. **transform と opacity のみを使用** - Layout を回避し、Composite のみで処理
+2. **translate3d() で GPU アクセラレーション** - 確実にハードウェアアクセラレーションを有効化
+3. **will-change は必要な時だけ** - メモリ消費を抑えるため、適切に管理
+4. **60fps を維持** - DevTools で定期的にパフォーマンスを確認
+5. **アクセシビリティに配慮** - prefers-reduced-motion に必ず対応
+
+これらを守れば、ほとんどのアニメーションで 60fps を維持できます。
+
+## 参考リンク
+
+- [Rendering Performance - web.dev](https://web.dev/rendering-performance/)
+- [CSS Triggers](https://csstriggers.com/)
+- [High Performance Animations - web.dev](https://web.dev/animations/)

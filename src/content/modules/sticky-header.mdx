@@ -1,0 +1,315 @@
+---
+title: スティッキーヘッダー（固定ヘッダー）
+description: スクロールで上部固定。スクロール方向で表示/非表示切替。
+tags: [sticky, header, scroll, navigation]
+frameworks: [Vanilla, Any]
+level: intermediate
+prompt_template: |
+  スクロール対応ヘッダー：
+  - position: stickyの基本実装
+  - スクロール方向検出（上/下）
+  - 上スクロール時に表示、下で非表示
+  - スクロール位置でスタイル変更（影追加など）
+  - transform: translateY()でアニメーション
+  - スクロール閾値設定（例: 100px以上で固定）
+  - モバイル対応（高さ調整）
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo height="500px" html={`
+<header class="header" id="main-header">
+  <div class="header__container">
+    <a href="#" class="header__logo">ロゴ</a>
+    <nav class="header__nav">
+      <a href="#section1">ホーム</a>
+      <a href="#section2">概要</a>
+      <a href="#section3">サービス</a>
+      <a href="#section4">お問い合わせ</a>
+    </nav>
+  </div>
+</header>
+
+<main style="padding-top: 80px; background: #0c1218;">
+  <section id="section1" style="height: 400px; padding: 2rem; background: #1f2a37; margin-bottom: 1rem; border-radius: 8px;">
+    <h2 style="color: #e5edf4; margin-bottom: 1rem;">セクション 1</h2>
+    <p style="color: #9ca3af;">下にスクロールするとヘッダーが隠れ、上にスクロールすると表示されます。</p>
+  </section>
+  <section id="section2" style="height: 400px; padding: 2rem; background: #1f2a37; margin-bottom: 1rem; border-radius: 8px;">
+    <h2 style="color: #e5edf4; margin-bottom: 1rem;">セクション 2</h2>
+    <p style="color: #9ca3af;">スクロール位置が100pxを超えると、ヘッダーに影が追加されます。</p>
+  </section>
+  <section id="section3" style="height: 400px; padding: 2rem; background: #1f2a37; margin-bottom: 1rem; border-radius: 8px;">
+    <h2 style="color: #e5edf4; margin-bottom: 1rem;">セクション 3</h2>
+    <p style="color: #9ca3af;">スクロール方向を検出して、スムーズにアニメーションします。</p>
+  </section>
+  <section id="section4" style="height: 400px; padding: 2rem; background: #1f2a37; border-radius: 8px;">
+    <h2 style="color: #e5edf4; margin-bottom: 1rem;">セクション 4</h2>
+    <p style="color: #9ca3af;">最後のセクションです。上にスクロールしてヘッダーの動作を確認してください。</p>
+  </section>
+</main>
+`} css={`
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #1f2a37;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  will-change: transform;
+}
+
+.header__container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header__logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #e5edf4;
+  text-decoration: none;
+}
+
+.header__nav {
+  display: flex;
+  gap: 2rem;
+}
+
+.header__nav a {
+  color: #9ca3af;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.header__nav a:hover,
+.header__nav a:focus-visible {
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+  outline: none;
+}
+
+.header--scrolled {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.header--hidden {
+  transform: translateY(-100%);
+}
+
+@media (max-width: 768px) {
+  .header__container {
+    padding: 0.75rem 1rem;
+  }
+
+  .header__nav {
+    gap: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .header__logo {
+    font-size: 1.25rem;
+  }
+}
+`} js={`
+(() => {
+  const header = document.getElementById('main-header');
+  if (!header) return;
+
+  let lastScrollY = 0;
+  let ticking = false;
+  const scrollThreshold = 100;
+  const headerHeight = header.offsetHeight;
+
+  const updateHeader = () => {
+    const container = header.closest('.card__preview') || window;
+    const currentScrollY = container === window ? window.scrollY : container.scrollTop;
+    const scrollDelta = currentScrollY - lastScrollY;
+
+    if (currentScrollY > scrollThreshold) {
+      header.classList.add('header--scrolled');
+
+      if (scrollDelta > 5 && currentScrollY > headerHeight) {
+        header.classList.add('header--hidden');
+      } else if (scrollDelta < -5) {
+        header.classList.remove('header--hidden');
+      }
+    } else {
+      header.classList.remove('header--scrolled', 'header--hidden');
+    }
+
+    lastScrollY = currentScrollY;
+    ticking = false;
+  };
+
+  const onScroll = () => {
+    if (!ticking) {
+      requestAnimationFrame(updateHeader);
+      ticking = true;
+    }
+  };
+
+  const scrollContainer = header.closest('.card__preview');
+  if (scrollContainer) {
+    scrollContainer.addEventListener('scroll', onScroll, { passive: true });
+  } else {
+    window.addEventListener('scroll', onScroll, { passive: true });
+  }
+
+  updateHeader();
+})();
+`} />
+
+## 実装コード
+
+**HTML**
+```html
+<header class="header" id="main-header">
+  <div class="header__container">
+    <a href="#" class="header__logo">ロゴ</a>
+    <nav class="header__nav">
+      <a href="#home">ホーム</a>
+      <a href="#about">概要</a>
+      <a href="#services">サービス</a>
+      <a href="#contact">お問い合わせ</a>
+    </nav>
+  </div>
+</header>
+
+<main style="height: 200vh; padding-top: 80px;">
+  <h1>スクロールしてヘッダーの動きを確認</h1>
+  <p>下にスクロールするとヘッダーが隠れ、上にスクロールすると表示されます。</p>
+</main>
+```
+
+**CSS**
+```css
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #ffffff;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  will-change: transform;
+}
+
+.header__container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header__logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #1f2937;
+  text-decoration: none;
+}
+
+.header__nav {
+  display: flex;
+  gap: 2rem;
+}
+
+.header__nav a {
+  color: #4b5563;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.header__nav a:hover,
+.header__nav a:focus-visible {
+  color: #60a5fa;
+  outline: 2px solid #60a5fa;
+  outline-offset: 4px;
+}
+
+/* スクロール時のスタイル */
+.header--scrolled {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 下スクロール時に隠す */
+.header--hidden {
+  transform: translateY(-100%);
+}
+
+/* モバイル対応 */
+@media (max-width: 768px) {
+  .header__container {
+    padding: 0.75rem 1rem;
+  }
+
+  .header__nav {
+    gap: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .header__logo {
+    font-size: 1.25rem;
+  }
+}
+```
+
+**JS**
+```js
+(() => {
+  const header = document.getElementById('main-header');
+  if (!header) return;
+
+  let lastScrollY = window.scrollY;
+  let ticking = false;
+  const scrollThreshold = 100;
+  const headerHeight = header.offsetHeight;
+
+  const updateHeader = () => {
+    const currentScrollY = window.scrollY;
+    const scrollDelta = currentScrollY - lastScrollY;
+
+    // スクロール位置が閾値を超えたらスタイル追加
+    if (currentScrollY > scrollThreshold) {
+      header.classList.add('header--scrolled');
+
+      // スクロール方向判定
+      if (scrollDelta > 5 && currentScrollY > headerHeight) {
+        // 下スクロール：隠す
+        header.classList.add('header--hidden');
+      } else if (scrollDelta < -5) {
+        // 上スクロール：表示
+        header.classList.remove('header--hidden');
+      }
+    } else {
+      // ページトップ付近：常に表示、影なし
+      header.classList.remove('header--scrolled', 'header--hidden');
+    }
+
+    lastScrollY = currentScrollY;
+    ticking = false;
+  };
+
+  const onScroll = () => {
+    if (!ticking) {
+      requestAnimationFrame(updateHeader);
+      ticking = true;
+    }
+  };
+
+  // スクロールイベント登録
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  // 初期状態設定
+  updateHeader();
+})();
+```

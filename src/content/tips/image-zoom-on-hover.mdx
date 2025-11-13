@@ -1,0 +1,587 @@
+---
+title: ホバー時の画像ズームアニメーション
+description: カード要素にホバーした時に背景画像がスムーズにズームイン/アウトするエフェクトの実装方法
+tags: [css, animation, hover, transform, scale, image]
+category: animation
+level: basic
+date: 2025-11-13
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## 概要
+
+カード要素にホバーした時に背景画像がズームするアニメーションは、モダンなWebサイトでよく見られるインタラクティブな効果です。適切に実装することで、視覚的な魅力とユーザーエンゲージメントを高めることができます。
+
+## 基本実装
+
+<LiveDemo
+  title="画像ズームエフェクト"
+  height="500px"
+  html={`
+<div class="demo-container">
+  <div class="card">
+    <div class="card-image-wrapper">
+      <img src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=600&fit=crop" alt="デモ画像" class="card-image" />
+    </div>
+    <div class="card-overlay"></div>
+    <div class="card-content">
+      <div class="card-number">01</div>
+      <h3>プロジェクト名</h3>
+      <p>ホバーすると画像がスムーズにズームインします。transform: scale()を使ってGPUアクセラレーションを活用しています。</p>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.demo-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  min-height: 350px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* 画像コンテナ */
+.card-image-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  overflow: hidden;
+}
+
+/* 画像本体 */
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease-out;
+}
+
+/* ホバー時のズームエフェクト */
+.card:hover .card-image {
+  transform: scale(1.1);
+}
+
+/* オーバーレイ */
+.card-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.7));
+  z-index: 1;
+  transition: background 0.3s ease;
+}
+
+.card:hover .card-overlay {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.8));
+}
+
+/* コンテンツ */
+.card-content {
+  position: relative;
+  z-index: 2;
+  padding: 2rem;
+  color: white;
+}
+
+.card-number {
+  font-size: 3rem;
+  font-weight: bold;
+  opacity: 0.3;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.card-content h3 {
+  font-size: 1.5rem;
+  margin: 0 0 0.75rem 0;
+  color: white;
+}
+
+.card-content p {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+}
+  `}
+/>
+
+## 実装のポイント
+
+### 1. HTML構造
+
+```html
+<div class="card">
+  <!-- 画像のコンテナ -->
+  <div class="card-image-wrapper">
+    <img src="image.jpg" alt="説明" class="card-image" />
+  </div>
+
+  <!-- オーバーレイ -->
+  <div class="card-overlay"></div>
+
+  <!-- コンテンツ -->
+  <div class="card-content">
+    <div class="card-number">01</div>
+    <h3>タイトル</h3>
+    <p>説明文</p>
+  </div>
+</div>
+```
+
+**重要なポイント:**
+- **3層構造**: 画像、オーバーレイ、コンテンツの順に重ねる
+- **overflow: hidden**: カードに設定して、画像がはみ出ないようにする
+- **z-index**: 正しい重なり順を保つ
+
+### 2. CSS設定
+
+#### カードのベーススタイル
+
+```css
+.card {
+  position: relative;      /* 子要素の絶対配置の基準 */
+  overflow: hidden;        /* 拡大した画像を隠す */
+  border-radius: 12px;
+  min-height: 350px;
+}
+```
+
+#### 画像コンテナ
+
+```css
+.card-image-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;        /* 重要: 拡大した画像がはみ出ないように */
+  z-index: 0;
+}
+```
+
+#### 画像のズームエフェクト
+
+```css
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;               /* アスペクト比を保ちながらカバー */
+  transition: transform 0.6s ease-out;  /* スムーズなアニメーション */
+}
+
+.card:hover .card-image {
+  transform: scale(1.1);           /* 10%拡大 */
+}
+```
+
+## 応用例
+
+<LiveDemo
+  title="複数のズームバリエーション"
+  height="700px"
+  html={`
+<div class="variations">
+  <div class="variation-card">
+    <h4>通常のズームイン (1.1倍)</h4>
+    <div class="card card-zoom-1">
+      <div class="card-image-wrapper">
+        <img src="https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&h=600&fit=crop" alt="コード" class="card-image" />
+      </div>
+      <div class="card-overlay"></div>
+      <div class="card-content">
+        <p>scale(1.1)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="variation-card">
+    <h4>強めのズームイン (1.2倍)</h4>
+    <div class="card card-zoom-2">
+      <div class="card-image-wrapper">
+        <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=600&fit=crop" alt="グラフ" class="card-image" />
+      </div>
+      <div class="card-overlay"></div>
+      <div class="card-content">
+        <p>scale(1.2)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="variation-card">
+    <h4>ズームアウト (0.95倍)</h4>
+    <div class="card card-zoom-3">
+      <div class="card-image-wrapper">
+        <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=600&fit=crop" alt="データ" class="card-image zoom-out" />
+      </div>
+      <div class="card-overlay"></div>
+      <div class="card-content">
+        <p>scale(0.95) → scale(1)</p>
+      </div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.variations {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: grid;
+  gap: 2rem;
+}
+
+.variation-card h4 {
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  color: #e5edf4;
+}
+
+.card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  height: 200px;
+  display: flex;
+  align-items: flex-end;
+  cursor: pointer;
+}
+
+.card-image-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease-out;
+}
+
+/* バリエーション1: 通常のズームイン */
+.card-zoom-1:hover .card-image {
+  transform: scale(1.1);
+}
+
+/* バリエーション2: 強めのズームイン */
+.card-zoom-2:hover .card-image {
+  transform: scale(1.2);
+}
+
+/* バリエーション3: ズームアウト効果 */
+.card-image.zoom-out {
+  transform: scale(1.05);
+}
+
+.card-zoom-3:hover .card-image.zoom-out {
+  transform: scale(1);
+}
+
+.card-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.6));
+  z-index: 1;
+}
+
+.card-content {
+  position: relative;
+  z-index: 2;
+  padding: 1.5rem;
+  color: white;
+  width: 100%;
+}
+
+.card-content p {
+  margin: 0;
+  font-weight: 600;
+}
+  `}
+/>
+
+## パフォーマンス最適化
+
+### 1. GPUアクセラレーションの活用
+
+`transform: scale()` はGPUで処理されるため、高速で滑らかなアニメーションが可能です。
+
+```css
+/* ✅ 良い例: transform を使用 */
+.card-image {
+  transition: transform 0.6s ease-out;
+}
+
+.card:hover .card-image {
+  transform: scale(1.1);
+}
+
+/* ❌ 悪い例: width/height を変更 */
+.card:hover .card-image {
+  width: 110%;   /* Layout が発生して重い */
+  height: 110%;
+}
+```
+
+### 2. will-change の使用（任意）
+
+多数の画像を同時にアニメーションする場合は、`will-change` を検討します。
+
+```css
+.card-image {
+  will-change: transform;
+  transition: transform 0.6s ease-out;
+}
+
+/* アニメーション終了後は解除 */
+.card-image {
+  transition: transform 0.6s ease-out, will-change 0s 0.6s;
+}
+```
+
+**注意**: `will-change` は メモリを消費するため、必要な場合のみ使用してください。
+
+### 3. 画像の最適化
+
+```html
+<!-- レスポンシブ画像を使用 -->
+<img
+  src="image-800w.jpg"
+  srcset="image-400w.jpg 400w, image-800w.jpg 800w, image-1200w.jpg 1200w"
+  sizes="(max-width: 600px) 100vw, 600px"
+  alt="説明"
+  loading="lazy"
+/>
+```
+
+## アニメーションのタイミング調整
+
+### ease-out が最適な理由
+
+```css
+/* ✅ おすすめ: ease-out */
+transition: transform 0.6s ease-out;
+/* 開始は速く、終了はゆっくり - 自然な感じ */
+
+/* 他のオプション */
+transition: transform 0.6s ease-in-out;
+/* バランス型 */
+
+transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+/* カスタムイージング */
+```
+
+### duration の選択
+
+- **0.3s - 0.4s**: 速い、軽快な印象
+- **0.5s - 0.6s**: 標準的、バランスが良い（おすすめ）
+- **0.7s - 1.0s**: ゆったり、高級感
+
+## Astroでの実装例
+
+```astro
+---
+const items = [
+  {
+    id: 1,
+    title: 'プロジェクト1',
+    description: '説明文',
+    image: '/images/project1.jpg'
+  },
+  // ...
+];
+---
+
+<div class="grid">
+  {items.map((item, index) => (
+    <a href={`/projects/${item.id}`} class="card">
+      <div class="card-image-wrapper">
+        <img src={item.image} alt={item.title} class="card-image" />
+      </div>
+      <div class="card-overlay"></div>
+      <div class="card-content">
+        <div class="card-number">{String(index + 1).padStart(2, '0')}</div>
+        <h3>{item.title}</h3>
+        <p>{item.description}</p>
+      </div>
+    </a>
+  ))}
+</div>
+
+<style>
+  .card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    text-decoration: none;
+  }
+
+  .card-image-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  .card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s ease-out;
+  }
+
+  .card:hover .card-image {
+    transform: scale(1.1);
+  }
+
+  .card-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.7));
+    z-index: 1;
+    transition: background 0.3s ease;
+  }
+
+  .card:hover .card-overlay {
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.8));
+  }
+
+  .card-content {
+    position: relative;
+    z-index: 2;
+    padding: 2rem;
+    color: white;
+  }
+
+  .card-number {
+    font-size: 3rem;
+    font-weight: bold;
+    opacity: 0.3;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+</style>
+```
+
+## アクセシビリティへの配慮
+
+```css
+/* アニメーションを無効化する設定のユーザーに配慮 */
+@media (prefers-reduced-motion: reduce) {
+  .card-image {
+    transition: none;
+  }
+
+  .card:hover .card-image {
+    transform: none;
+  }
+}
+```
+
+## よくある問題と解決策
+
+### 問題1: 画像がはみ出る
+
+```css
+/* 解決策: overflow: hidden を確実に設定 */
+.card {
+  overflow: hidden;  /* カードに設定 */
+}
+
+.card-image-wrapper {
+  overflow: hidden;  /* 画像ラッパーにも設定 */
+}
+```
+
+### 問題2: アニメーションがカクつく
+
+```css
+/* 解決策: GPUアクセラレーションを強制 */
+.card-image {
+  transform: translateZ(0);  /* GPUレイヤーを作成 */
+  transition: transform 0.6s ease-out;
+}
+```
+
+### 問題3: モバイルでパフォーマンスが悪い
+
+```css
+/* 解決策: モバイルでは控えめに */
+@media (max-width: 768px) {
+  .card:hover .card-image {
+    transform: scale(1.05);  /* 拡大率を下げる */
+  }
+
+  .card-image {
+    transition: transform 0.4s ease-out;  /* 時間を短縮 */
+  }
+}
+
+/* またはタッチデバイスではホバー効果を無効化 */
+@media (hover: none) {
+  .card:hover .card-image {
+    transform: none;
+  }
+}
+```
+
+## まとめ
+
+画像ズームエフェクトを実装する際のポイント:
+
+1. **transform: scale() を使用** - GPUアクセラレーションで高速
+2. **overflow: hidden を設定** - 画像がはみ出ないように
+3. **transition: 0.6s ease-out** - 自然な動きのタイミング
+4. **オーバーレイで可読性を確保** - テキストが読みやすく
+5. **アクセシビリティに配慮** - prefers-reduced-motion に対応
+6. **画像を最適化** - 適切なサイズと形式を使用
+
+これらを守れば、視覚的に魅力的でパフォーマンスの良い画像ズームエフェクトを実装できます。
+
+## 参考リンク
+
+- [CSS Transforms - MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/transform)
+- [CSS Transitions - MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Transitions)
+- [Rendering Performance - web.dev](https://web.dev/rendering-performance/)

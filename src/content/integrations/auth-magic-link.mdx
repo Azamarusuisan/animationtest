@@ -1,0 +1,1673 @@
+---
+title: Magic Link認証実装
+description: パスワードレス認証を実現するMagic Link（マジックリンク）の完全実装ガイド。セキュアなトークン生成からメール送信まで。
+tags: [integration, auth, authentication, magic-link, passwordless, security]
+service: Email Service (SendGrid/Resend)
+level: intermediate
+env_vars: [JWT_SECRET, EMAIL_API_KEY, EMAIL_FROM, APP_URL, MAGIC_LINK_TTL]
+dependencies: [jsonwebtoken, nodemailer, resend, bcryptjs]
+prompt_template: |
+  Create a Magic Link authentication system with:
+  - Email input form for passwordless login
+  - Secure token generation (JWT or crypto)
+  - Email sending with magic link
+  - Token verification on callback
+  - Session/JWT management after login
+  - Security best practices (token expiry, one-time use, CSRF protection)
+  - Email template with HTML styling
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## Magic Link認証の概要
+
+Magic Link（マジックリンク）は、パスワードを使わずにメールアドレスだけでログインできる認証方式です。ユーザーがメールアドレスを入力すると、セキュアなリンクが送信され、そのリンクをクリックするだけでログインが完了します。
+
+**メリット:**
+- パスワード管理不要（漏洩リスクなし）
+- パスワードリセット機能が不要
+- ユーザー体験の向上
+- 実装がシンプル
+
+**セキュリティ要件:**
+- トークンの有効期限（15分推奨）
+- ワンタイムトークン（一度使用したら無効化）
+- CSRF対策
+- レート制限
+
+<LiveDemo
+  title="Magic Link認証デモ - パスワードレスログイン"
+  height="600px"
+  html={`
+<div class="auth-container">
+  <!-- ログインフォーム -->
+  <div class="login-card" id="loginCard">
+    <div class="logo">🔐</div>
+    <h1 class="title">Magic Linkでログイン</h1>
+    <p class="subtitle">パスワード不要。メールアドレスだけでログインできます。</p>
+
+    <form class="login-form" id="loginForm">
+      <div class="form-group">
+        <label for="email" class="label">メールアドレス</label>
+        <input
+          type="email"
+          id="email"
+          class="input"
+          placeholder="your@email.com"
+          required
+        />
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn">
+        <span class="btn-icon">✉️</span>
+        <span class="btn-text">Magic Linkを送信</span>
+      </button>
+    </form>
+
+    <div class="info-box">
+      <span class="info-icon">ℹ️</span>
+      <p>
+        セキュアなリンクをメールで送信します。リンクの有効期限は<strong>15分間</strong>です。
+      </p>
+    </div>
+
+    <div class="features">
+      <div class="feature-item">
+        <span class="feature-icon">🔒</span>
+        <span class="feature-text">パスワード不要</span>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">⚡</span>
+        <span class="feature-text">素早くログイン</span>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">🛡️</span>
+        <span class="feature-text">安全な認証</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- メール送信完了画面 -->
+  <div class="email-sent-card" id="emailSentCard" style="display: none;">
+    <div class="checkmark-wrapper">
+      <div class="checkmark">✓</div>
+    </div>
+    <h2 class="success-title">メールを送信しました！</h2>
+    <p class="success-message">
+      <strong id="sentEmail"></strong> にMagic Linkを送信しました。
+    </p>
+
+    <div class="email-preview">
+      <div class="email-header">
+        <div class="email-from">
+          <strong>From:</strong> noreply@yourapp.com
+        </div>
+        <div class="email-subject">
+          <strong>Subject:</strong> ログインリンク
+        </div>
+      </div>
+      <div class="email-body">
+        <p>こんにちは！</p>
+        <p>以下のボタンをクリックしてログインしてください：</p>
+        <button class="magic-link-btn" id="magicLinkBtn">
+          🔐 ログイン
+        </button>
+        <p class="email-note">このリンクは15分間有効です。</p>
+      </div>
+    </div>
+
+    <div class="instructions">
+      <p>📧 メールボックスを確認してください</p>
+      <p class="small-text">メールが届かない場合は、迷惑メールフォルダもご確認ください。</p>
+    </div>
+
+    <button class="back-btn" id="backBtn">別のアドレスを試す</button>
+  </div>
+
+  <!-- 認証中画面 -->
+  <div class="verifying-card" id="verifyingCard" style="display: none;">
+    <div class="spinner"></div>
+    <h2 class="verifying-title">認証中...</h2>
+    <p class="verifying-message">Magic Linkを検証しています。少々お待ちください。</p>
+  </div>
+
+  <!-- ログイン成功画面 -->
+  <div class="success-card" id="successCard" style="display: none;">
+    <div class="welcome-icon">👋</div>
+    <h2 class="welcome-title">ログイン成功！</h2>
+    <p class="welcome-message">
+      ようこそ、<strong id="loggedInEmail"></strong>さん
+    </p>
+
+    <div class="user-dashboard">
+      <div class="dashboard-item">
+        <div class="dashboard-icon">👤</div>
+        <div class="dashboard-content">
+          <div class="dashboard-label">ユーザーID</div>
+          <div class="dashboard-value" id="userId">user_1234567890</div>
+        </div>
+      </div>
+
+      <div class="dashboard-item">
+        <div class="dashboard-icon">🕒</div>
+        <div class="dashboard-content">
+          <div class="dashboard-label">ログイン時刻</div>
+          <div class="dashboard-value" id="loginTime"></div>
+        </div>
+      </div>
+
+      <div class="dashboard-item">
+        <div class="dashboard-icon">🔑</div>
+        <div class="dashboard-content">
+          <div class="dashboard-label">セッション</div>
+          <div class="dashboard-value">アクティブ</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="logout-btn" id="logoutBtn">ログアウト</button>
+  </div>
+
+  <!-- テストモード表示 -->
+  <div class="test-mode-banner">
+    <span class="banner-icon">🧪</span>
+    <strong>デモモード:</strong> 実際のメールは送信されません。Magic Linkボタンをクリックしてログインフローを体験できます。
+  </div>
+</div>
+  `}
+  css={`
+.auth-container {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+/* ロゴ */
+.logo {
+  font-size: 4rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* ログインカード */
+.login-card, .email-sent-card, .verifying-card, .success-card {
+  background: linear-gradient(135deg, #1f2a37 0%, #374151 100%);
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  border: 2px solid #374151;
+  animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #e5edf4;
+  text-align: center;
+  margin: 0 0 0.75rem 0;
+}
+
+.subtitle {
+  color: #9ca3af;
+  text-align: center;
+  margin: 0 0 2rem 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* フォーム */
+.login-form {
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.label {
+  display: block;
+  color: #d1d5db;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.input {
+  width: 100%;
+  background: #0c1218;
+  border: 2px solid #374151;
+  color: #e5edf4;
+  padding: 0.875rem 1rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+.input:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+.input::placeholder {
+  color: #6b7280;
+}
+
+/* 送信ボタン */
+.submit-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  color: #ffffff;
+  border: none;
+  padding: 1rem;
+  border-radius: 10px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);
+}
+
+.submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(96, 165, 250, 0.4);
+}
+
+.submit-btn:active {
+  transform: translateY(0);
+}
+
+.submit-btn.loading {
+  background: #4b5563;
+  cursor: not-allowed;
+}
+
+.submit-btn.loading .btn-text::after {
+  content: '...';
+  animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+  0%, 20% { content: '.'; }
+  40% { content: '..'; }
+  60%, 100% { content: '...'; }
+}
+
+/* インフォボックス */
+.info-box {
+  background: #0c1218;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: #9ca3af;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+.info-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+/* 機能リスト */
+.features {
+  display: flex;
+  justify-content: space-around;
+  gap: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #374151;
+}
+
+.feature-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.feature-icon {
+  font-size: 1.75rem;
+}
+
+.feature-text {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-align: center;
+}
+
+/* メール送信完了画面 */
+.checkmark-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.checkmark {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  color: #ffffff;
+  animation: scaleIn 0.5s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.success-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #e5edf4;
+  text-align: center;
+  margin: 0 0 0.75rem 0;
+}
+
+.success-message {
+  color: #9ca3af;
+  text-align: center;
+  margin: 0 0 2rem 0;
+  line-height: 1.5;
+}
+
+.success-message strong {
+  color: #60a5fa;
+}
+
+/* メールプレビュー */
+.email-preview {
+  background: #0c1218;
+  border: 1px solid #374151;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.email-header {
+  background: #1f2a37;
+  padding: 1rem;
+  border-bottom: 1px solid #374151;
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.email-from, .email-subject {
+  margin: 0.25rem 0;
+}
+
+.email-body {
+  padding: 1.5rem;
+  color: #d1d5db;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.email-body p {
+  margin: 0.75rem 0;
+}
+
+.magic-link-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  color: #ffffff;
+  border: none;
+  padding: 0.875rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin: 1.25rem 0;
+  transition: all 0.2s;
+}
+
+.magic-link-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.4);
+}
+
+.email-note {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 1rem !important;
+  text-align: center;
+}
+
+/* 指示 */
+.instructions {
+  text-align: center;
+  padding: 1.25rem;
+  background: #0c1218;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.instructions p {
+  margin: 0.5rem 0;
+  color: #d1d5db;
+}
+
+.small-text {
+  font-size: 0.8rem;
+  color: #6b7280 !important;
+}
+
+/* 戻るボタン */
+.back-btn {
+  width: 100%;
+  background: #374151;
+  color: #e5edf4;
+  border: none;
+  padding: 0.875rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.back-btn:hover {
+  background: #4b5563;
+}
+
+/* 認証中画面 */
+.spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid #374151;
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  margin: 0 auto 1.5rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.verifying-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #e5edf4;
+  text-align: center;
+  margin: 0 0 0.75rem 0;
+}
+
+.verifying-message {
+  color: #9ca3af;
+  text-align: center;
+  margin: 0;
+}
+
+/* ログイン成功画面 */
+.welcome-icon {
+  font-size: 4rem;
+  text-align: center;
+  margin-bottom: 1rem;
+  animation: wave 1s ease-in-out;
+}
+
+@keyframes wave {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(20deg); }
+  75% { transform: rotate(-20deg); }
+}
+
+.welcome-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #e5edf4;
+  text-align: center;
+  margin: 0 0 0.75rem 0;
+}
+
+.welcome-message {
+  color: #9ca3af;
+  text-align: center;
+  margin: 0 0 2rem 0;
+}
+
+.welcome-message strong {
+  color: #60a5fa;
+}
+
+/* ユーザーダッシュボード */
+.user-dashboard {
+  background: #0c1218;
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 0;
+  border-bottom: 1px solid #1f2a37;
+}
+
+.dashboard-item:last-child {
+  border-bottom: none;
+}
+
+.dashboard-icon {
+  font-size: 1.75rem;
+  width: 45px;
+  text-align: center;
+}
+
+.dashboard-content {
+  flex: 1;
+}
+
+.dashboard-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.dashboard-value {
+  font-size: 0.95rem;
+  color: #e5edf4;
+  font-weight: 600;
+}
+
+/* ログアウトボタン */
+.logout-btn {
+  width: 100%;
+  background: #374151;
+  color: #e5edf4;
+  border: none;
+  padding: 0.875rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.logout-btn:hover {
+  background: #4b5563;
+}
+
+/* テストモードバナー */
+.test-mode-banner {
+  background: linear-gradient(135deg, #1f2a37, #374151);
+  border: 2px solid #f59e0b;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  color: #d1d5db;
+  line-height: 1.6;
+}
+
+.banner-icon {
+  font-size: 1.25rem;
+  margin-right: 0.5rem;
+}
+
+@media (max-width: 480px) {
+  .login-card, .email-sent-card, .verifying-card, .success-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .features {
+    flex-direction: column;
+  }
+}
+  `}
+  js={`
+// 状態管理
+let currentEmail = '';
+let currentToken = '';
+
+// 要素の取得
+const loginCard = document.getElementById('loginCard');
+const emailSentCard = document.getElementById('emailSentCard');
+const verifyingCard = document.getElementById('verifyingCard');
+const successCard = document.getElementById('successCard');
+
+const loginForm = document.getElementById('loginForm');
+const emailInput = document.getElementById('email');
+const submitBtn = document.getElementById('submitBtn');
+const backBtn = document.getElementById('backBtn');
+const magicLinkBtn = document.getElementById('magicLinkBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+
+// ログインフォーム送信
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const email = emailInput.value.trim();
+  if (!email) return;
+
+  currentEmail = email;
+
+  // ボタンをローディング状態に
+  submitBtn.classList.add('loading');
+  submitBtn.querySelector('.btn-text').textContent = 'メール送信中';
+
+  // APIコール（シミュレート）
+  await sendMagicLink(email);
+
+  submitBtn.classList.remove('loading');
+  submitBtn.querySelector('.btn-text').textContent = 'Magic Linkを送信';
+
+  // メール送信完了画面を表示
+  showEmailSent(email);
+});
+
+// Magic Link送信（シミュレーション）
+async function sendMagicLink(email) {
+  // 実際にはバックエンドAPIを呼び出す
+  await new Promise(resolve => setTimeout(resolve, 1500));
+
+  // トークン生成（シミュレート）
+  currentToken = generateToken();
+
+  console.log('Magic Link sent to:', email);
+  console.log('Token:', currentToken);
+}
+
+// トークン生成（デモ用）
+function generateToken() {
+  return 'demo_token_' + Math.random().toString(36).substring(2, 15);
+}
+
+// メール送信完了画面表示
+function showEmailSent(email) {
+  document.getElementById('sentEmail').textContent = email;
+
+  loginCard.style.display = 'none';
+  emailSentCard.style.display = 'block';
+}
+
+// Magic Linkクリック
+magicLinkBtn.addEventListener('click', async () => {
+  // 認証中画面を表示
+  emailSentCard.style.display = 'none';
+  verifyingCard.style.display = 'block';
+
+  // トークン検証（シミュレート）
+  await verifyToken(currentToken);
+
+  // ログイン成功画面を表示
+  showSuccess(currentEmail);
+});
+
+// トークン検証（シミュレーション）
+async function verifyToken(token) {
+  // 実際にはバックエンドAPIを呼び出す
+  await new Promise(resolve => setTimeout(resolve, 2000));
+
+  console.log('Token verified:', token);
+
+  // セッション設定（実際にはJWTなどを保存）
+  sessionStorage.setItem('authToken', token);
+  sessionStorage.setItem('userEmail', currentEmail);
+}
+
+// ログイン成功画面表示
+function showSuccess(email) {
+  document.getElementById('loggedInEmail').textContent = email;
+
+  // 現在時刻を表示
+  const now = new Date();
+  document.getElementById('loginTime').textContent = now.toLocaleString('ja-JP');
+
+  verifyingCard.style.display = 'none';
+  successCard.style.display = 'block';
+}
+
+// 戻るボタン
+backBtn.addEventListener('click', () => {
+  emailSentCard.style.display = 'none';
+  loginCard.style.display = 'block';
+  emailInput.value = '';
+});
+
+// ログアウトボタン
+logoutBtn.addEventListener('click', () => {
+  // セッションクリア
+  sessionStorage.removeItem('authToken');
+  sessionStorage.removeItem('userEmail');
+
+  // ログイン画面に戻る
+  successCard.style.display = 'none';
+  loginCard.style.display = 'block';
+  emailInput.value = '';
+  currentEmail = '';
+  currentToken = '';
+});
+
+// 初回ロード時のセッション確認
+window.addEventListener('load', () => {
+  const savedToken = sessionStorage.getItem('authToken');
+  const savedEmail = sessionStorage.getItem('userEmail');
+
+  if (savedToken && savedEmail) {
+    currentEmail = savedEmail;
+    currentToken = savedToken;
+    showSuccess(savedEmail);
+  }
+});
+  `}
+/>
+
+## 前提条件
+
+### 必要なアカウント・設定
+
+1. **メール送信サービス**
+   - [Resend](https://resend.com/) - おすすめ（無料枠あり）
+   - [SendGrid](https://sendgrid.com/) - 大規模向け
+   - [AWS SES](https://aws.amazon.com/ses/) - AWSユーザー向け
+
+2. **APIキーの取得**
+   - Resend: Dashboard → API Keys → Create API Key
+   - SendGrid: Settings → API Keys → Create API Key
+
+3. **データベース（推奨）**
+   - PostgreSQL, MySQL, MongoDB など
+   - トークンの保存と検証に使用
+
+## 環境設定
+
+### .env.example
+
+```bash
+# JWT Secret（ランダムな文字列を生成）
+JWT_SECRET=your_super_secret_key_here_min_32_characters
+
+# メールサービス（ResendまたはSendGrid）
+EMAIL_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxx
+EMAIL_FROM=noreply@yourdomain.com
+
+# アプリケーションURL
+APP_URL=http://localhost:3000
+
+# Magic Link設定
+MAGIC_LINK_TTL=900  # トークン有効期限（秒）: 15分 = 900秒
+MAGIC_LINK_LENGTH=32  # トークンの長さ
+
+# データベース（オプション）
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
+
+# レート制限
+RATE_LIMIT_MAX=5  # 1時間あたりの最大リクエスト数
+RATE_LIMIT_WINDOW=3600  # 秒単位（1時間 = 3600秒）
+```
+
+### 依存関係のインストール
+
+```bash
+# 必須パッケージ
+npm install jsonwebtoken bcryptjs
+
+# メール送信（いずれか選択）
+npm install resend  # おすすめ
+# または
+npm install @sendgrid/mail
+
+# データベース（使用するDBに応じて）
+npm install pg  # PostgreSQL
+npm install mysql2  # MySQL
+npm install mongoose  # MongoDB
+
+# Express.js用のミドルウェア
+npm install express-rate-limit
+npm install cors
+```
+
+## フロントエンド実装
+
+### 1. ログインフォームコンポーネント
+
+```jsx
+// components/MagicLinkLogin.jsx
+import { useState } from 'react';
+
+export default function MagicLinkLogin() {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/auth/send-magic-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to send magic link');
+      }
+
+      setSent(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (sent) {
+    return (
+      <div style={{ textAlign: 'center', padding: '2rem' }}>
+        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✉️</div>
+        <h2>メールを確認してください</h2>
+        <p>
+          <strong>{email}</strong> にMagic Linkを送信しました。
+        </p>
+        <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+          リンクの有効期限は15分間です。
+        </p>
+        <button
+          onClick={() => {
+            setSent(false);
+            setEmail('');
+          }}
+          style={{
+            marginTop: '1rem',
+            padding: '0.75rem 1.5rem',
+            background: '#374151',
+            color: '#e5edf4',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+          }}
+        >
+          別のアドレスを試す
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} style={{ maxWidth: '400px', margin: '2rem auto' }}>
+      <h1 style={{ textAlign: 'center', marginBottom: '1rem' }}>
+        Magic Linkでログイン
+      </h1>
+
+      <div style={{ marginBottom: '1rem' }}>
+        <label
+          htmlFor="email"
+          style={{
+            display: 'block',
+            marginBottom: '0.5rem',
+            fontWeight: '600',
+            fontSize: '0.875rem',
+          }}
+        >
+          メールアドレス
+        </label>
+        <input
+          type="email"
+          id="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="your@email.com"
+          required
+          style={{
+            width: '100%',
+            padding: '0.875rem',
+            background: '#0c1218',
+            border: '2px solid #374151',
+            borderRadius: '8px',
+            color: '#e5edf4',
+            fontSize: '1rem',
+          }}
+        />
+      </div>
+
+      {error && (
+        <p style={{ color: '#ef4444', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          {error}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        disabled={loading}
+        style={{
+          width: '100%',
+          padding: '1rem',
+          background: loading ? '#4b5563' : '#60a5fa',
+          color: '#ffffff',
+          border: 'none',
+          borderRadius: '8px',
+          fontSize: '1rem',
+          fontWeight: 'bold',
+          cursor: loading ? 'not-allowed' : 'pointer',
+        }}
+      >
+        {loading ? '送信中...' : 'Magic Linkを送信'}
+      </button>
+
+      <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
+        🔒 パスワード不要で安全にログインできます
+      </p>
+    </form>
+  );
+}
+```
+
+### 2. Magic Link検証ページ
+
+```jsx
+// pages/auth/verify.jsx
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+
+export default function VerifyMagicLink() {
+  const router = useRouter();
+  const { token } = router.query;
+  const [status, setStatus] = useState('verifying'); // verifying | success | error
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (token) {
+      verifyToken(token);
+    }
+  }, [token]);
+
+  const verifyToken = async (token) => {
+    try {
+      const response = await fetch('/api/auth/verify-magic-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Verification failed');
+      }
+
+      // JWTトークンを保存
+      localStorage.setItem('authToken', data.token);
+
+      setStatus('success');
+
+      // ダッシュボードにリダイレクト
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 2000);
+    } catch (err) {
+      setError(err.message);
+      setStatus('error');
+    }
+  };
+
+  if (status === 'verifying') {
+    return (
+      <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+        <div style={{
+          width: '60px',
+          height: '60px',
+          border: '4px solid #374151',
+          borderTopColor: '#60a5fa',
+          borderRadius: '50%',
+          margin: '0 auto 1.5rem',
+          animation: 'spin 1s linear infinite',
+        }}></div>
+        <h2>認証中...</h2>
+        <p style={{ color: '#6b7280' }}>少々お待ちください</p>
+      </div>
+    );
+  }
+
+  if (status === 'success') {
+    return (
+      <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✓</div>
+        <h2>ログイン成功！</h2>
+        <p style={{ color: '#6b7280' }}>ダッシュボードにリダイレクトしています...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+      <div style={{ fontSize: '4rem', marginBottom: '1rem', color: '#ef4444' }}>✕</div>
+      <h2>認証失敗</h2>
+      <p style={{ color: '#ef4444' }}>{error}</p>
+      <p style={{ color: '#6b7280', marginTop: '1rem' }}>
+        リンクの有効期限が切れているか、既に使用されています。
+      </p>
+      <button
+        onClick={() => router.push('/login')}
+        style={{
+          marginTop: '2rem',
+          padding: '0.75rem 2rem',
+          background: '#60a5fa',
+          color: '#ffffff',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+        }}
+      >
+        ログインページに戻る
+      </button>
+    </div>
+  );
+}
+```
+
+## バックエンド実装
+
+### 1. トークン生成とメール送信API
+
+```javascript
+// pages/api/auth/send-magic-link.js
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.EMAIL_API_KEY);
+
+// データベース（簡易版 - 実際にはDBを使用）
+const tokenStore = new Map();
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { email } = req.body;
+
+  // バリデーション
+  if (!email || !isValidEmail(email)) {
+    return res.status(400).json({ error: 'Invalid email address' });
+  }
+
+  // レート制限チェック（実装は後述）
+  // if (await isRateLimited(email)) {
+  //   return res.status(429).json({ error: 'Too many requests' });
+  // }
+
+  try {
+    // セキュアなトークン生成
+    const token = crypto.randomBytes(32).toString('hex');
+
+    // トークン情報を保存（データベースに保存すべき）
+    const tokenData = {
+      email,
+      token,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + parseInt(process.env.MAGIC_LINK_TTL) * 1000,
+      used: false,
+    };
+
+    tokenStore.set(token, tokenData);
+
+    // Magic Linkの生成
+    const magicLink = \`\${process.env.APP_URL}/auth/verify?token=\${token}\`;
+
+    // メール送信
+    await resend.emails.send({
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: 'ログインリンク',
+      html: generateEmailHTML(magicLink, email),
+    });
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Magic link error:', error);
+    res.status(500).json({ error: 'Failed to send magic link' });
+  }
+}
+
+// メールアドレス検証
+function isValidEmail(email) {
+  const regex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+  return regex.test(email);
+}
+
+// HTMLメールテンプレート
+function generateEmailHTML(magicLink, email) {
+  return \`
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ログインリンク</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0c1218;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+    <!-- ヘッダー -->
+    <div style="text-align: center; margin-bottom: 40px;">
+      <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
+      <h1 style="color: #e5edf4; font-size: 24px; margin: 0;">Magic Linkでログイン</h1>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div style="background: linear-gradient(135deg, #1f2a37 0%, #374151 100%); border-radius: 16px; padding: 32px; border: 2px solid #374151;">
+      <p style="color: #d1d5db; margin: 0 0 24px 0; font-size: 16px; line-height: 1.6;">
+        こんにちは！
+      </p>
+
+      <p style="color: #d1d5db; margin: 0 0 24px 0; font-size: 16px; line-height: 1.6;">
+        以下のボタンをクリックして、<strong style="color: #60a5fa;">\${email}</strong> でログインしてください。
+      </p>
+
+      <!-- ボタン -->
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="\${magicLink}" style="display: inline-block; background: linear-gradient(135deg, #60a5fa, #3b82f6); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 10px; font-weight: 700; font-size: 18px; box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);">
+          🔐 ログイン
+        </a>
+      </div>
+
+      <p style="color: #9ca3af; margin: 24px 0 0 0; font-size: 14px; text-align: center; line-height: 1.5;">
+        このリンクは<strong>15分間</strong>有効です。<br>
+        一度使用すると無効になります。
+      </p>
+    </div>
+
+    <!-- セキュリティ情報 -->
+    <div style="background: #0c1218; border: 1px solid #374151; border-radius: 12px; padding: 20px; margin-top: 24px;">
+      <p style="color: #9ca3af; margin: 0; font-size: 14px; line-height: 1.6;">
+        <strong style="color: #f59e0b;">⚠️ セキュリティに関する注意:</strong><br>
+        このメールに心当たりがない場合は、無視してください。<br>
+        ログインリンクは誰にも共有しないでください。
+      </p>
+    </div>
+
+    <!-- フッター -->
+    <div style="text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid #374151;">
+      <p style="color: #6b7280; margin: 0; font-size: 12px;">
+        このメールは自動送信されています。<br>
+        © 2025 YourApp. All rights reserved.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+  \`;
+}
+```
+
+### 2. トークン検証API
+
+```javascript
+// pages/api/auth/verify-magic-link.js
+import jwt from 'jsonwebtoken';
+
+// データベース（簡易版 - 実際にはDBを使用）
+// 注: 実際のアプリではDBに保存されたトークンを検証
+const tokenStore = new Map();
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ error: 'Token is required' });
+  }
+
+  try {
+    // トークンを取得
+    const tokenData = tokenStore.get(token);
+
+    if (!tokenData) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    // トークンの有効期限チェック
+    if (Date.now() > tokenData.expiresAt) {
+      tokenStore.delete(token);
+      return res.status(401).json({ error: 'Token expired' });
+    }
+
+    // ワンタイムトークンチェック（既に使用済みか）
+    if (tokenData.used) {
+      return res.status(401).json({ error: 'Token already used' });
+    }
+
+    // トークンを使用済みにマーク
+    tokenData.used = true;
+    tokenStore.set(token, tokenData);
+
+    // ユーザー情報を取得（DBから）
+    // const user = await db.users.findOne({ email: tokenData.email });
+    // if (!user) {
+    //   // 新規ユーザーの場合は作成
+    //   user = await db.users.create({ email: tokenData.email });
+    // }
+
+    // JWTトークンを生成
+    const jwtToken = jwt.sign(
+      {
+        email: tokenData.email,
+        userId: 'user_1234567890', // 実際のユーザーID
+        iat: Math.floor(Date.now() / 1000),
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: '7d', // 7日間有効
+      }
+    );
+
+    // トークンをクリーンアップ（使用済みなので削除）
+    setTimeout(() => {
+      tokenStore.delete(token);
+    }, 1000);
+
+    res.status(200).json({
+      success: true,
+      token: jwtToken,
+      user: {
+        email: tokenData.email,
+        userId: 'user_1234567890',
+      },
+    });
+  } catch (error) {
+    console.error('Token verification error:', error);
+    res.status(500).json({ error: 'Verification failed' });
+  }
+}
+```
+
+### 3. データベーススキーマ（PostgreSQL例）
+
+```sql
+-- ユーザーテーブル
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  last_login TIMESTAMP
+);
+
+-- Magic Linkトークンテーブル
+CREATE TABLE magic_link_tokens (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  token VARCHAR(64) UNIQUE NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL,
+  used BOOLEAN DEFAULT FALSE,
+  used_at TIMESTAMP,
+  ip_address VARCHAR(45),
+  user_agent TEXT
+);
+
+-- インデックス
+CREATE INDEX idx_token ON magic_link_tokens(token);
+CREATE INDEX idx_email ON magic_link_tokens(email);
+CREATE INDEX idx_expires_at ON magic_link_tokens(expires_at);
+
+-- 期限切れトークンの自動削除（PostgreSQLの場合）
+CREATE OR REPLACE FUNCTION delete_expired_tokens()
+RETURNS void AS $$
+BEGIN
+  DELETE FROM magic_link_tokens
+  WHERE expires_at < NOW() - INTERVAL '1 day';
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## セキュリティ対策
+
+### 1. トークンの生成
+
+```javascript
+// ✅ セキュアな方法
+const crypto = require('crypto');
+
+function generateSecureToken() {
+  return crypto.randomBytes(32).toString('hex'); // 64文字のランダム文字列
+}
+
+// ❌ 推奨しない方法
+function insecureToken() {
+  return Math.random().toString(36); // 予測可能
+}
+```
+
+### 2. レート制限の実装
+
+```javascript
+// middleware/rateLimit.js
+import rateLimit from 'express-rate-limit';
+
+export const magicLinkLimiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW) * 1000, // 1時間
+  max: parseInt(process.env.RATE_LIMIT_MAX), // 5回まで
+  message: 'リクエストが多すぎます。1時間後に再試行してください。',
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // IPアドレスとメールアドレスの組み合わせでレート制限
+    return \`\${req.ip}:\${req.body.email}\`;
+  },
+});
+
+// 使用例
+// app.post('/api/auth/send-magic-link', magicLinkLimiter, handler);
+```
+
+### 3. CSRF保護
+
+```javascript
+// トークン生成時にセッションIDを含める
+const csrfToken = crypto.randomBytes(32).toString('hex');
+
+const tokenData = {
+  email,
+  token,
+  csrfToken,
+  sessionId: req.session.id,
+  // ...
+};
+
+// 検証時にCSRFトークンをチェック
+if (tokenData.csrfToken !== req.body.csrfToken) {
+  return res.status(403).json({ error: 'CSRF token mismatch' });
+}
+```
+
+### 4. IPアドレスとUser-Agentの検証
+
+```javascript
+// トークン生成時に保存
+const tokenData = {
+  // ...
+  ipAddress: req.ip,
+  userAgent: req.headers['user-agent'],
+};
+
+// 検証時にチェック（オプション）
+if (tokenData.ipAddress !== req.ip) {
+  console.warn('IP address mismatch:', {
+    original: tokenData.ipAddress,
+    current: req.ip,
+  });
+  // 警告のみ（ブロックしない - モバイルネットワークでIPが変わる場合がある）
+}
+```
+
+### 5. トークンのハッシュ化
+
+```javascript
+// データベースにはハッシュ化したトークンを保存
+import bcrypt from 'bcryptjs';
+
+async function storeToken(token, email) {
+  const hashedToken = await bcrypt.hash(token, 10);
+
+  await db.magicLinkTokens.create({
+    token: hashedToken, // ハッシュ化
+    email,
+    expiresAt: new Date(Date.now() + 900000), // 15分
+  });
+
+  return token; // 平文のトークンはメールで送信
+}
+
+// 検証時
+async function verifyToken(token) {
+  const tokens = await db.magicLinkTokens.findAll({
+    where: {
+      expiresAt: { $gt: new Date() },
+      used: false,
+    },
+  });
+
+  for (const storedToken of tokens) {
+    const isValid = await bcrypt.compare(token, storedToken.token);
+    if (isValid) {
+      return storedToken;
+    }
+  }
+
+  return null;
+}
+```
+
+## メールテンプレートのカスタマイズ
+
+### プレーンテキスト版（HTMLメール非対応クライアント用）
+
+```javascript
+function generatePlainTextEmail(magicLink, email) {
+  return \`
+こんにちは！
+
+以下のリンクをクリックして、\${email} でログインしてください。
+
+\${magicLink}
+
+このリンクは15分間有効です。一度使用すると無効になります。
+
+このメールに心当たりがない場合は、無視してください。
+
+---
+© 2025 YourApp. All rights reserved.
+  \`.trim();
+}
+
+// Resendでの送信例
+await resend.emails.send({
+  from: process.env.EMAIL_FROM,
+  to: email,
+  subject: 'ログインリンク',
+  html: generateEmailHTML(magicLink, email),
+  text: generatePlainTextEmail(magicLink, email), // プレーンテキスト版も追加
+});
+```
+
+## テストガイド
+
+### 1. ユニットテスト（Jest）
+
+```javascript
+// __tests__/auth/magic-link.test.js
+import { generateSecureToken, isValidEmail } from '../../lib/auth';
+
+describe('Magic Link Authentication', () => {
+  describe('generateSecureToken', () => {
+    it('should generate a 64-character token', () => {
+      const token = generateSecureToken();
+      expect(token).toHaveLength(64);
+    });
+
+    it('should generate unique tokens', () => {
+      const token1 = generateSecureToken();
+      const token2 = generateSecureToken();
+      expect(token1).not.toBe(token2);
+    });
+  });
+
+  describe('isValidEmail', () => {
+    it('should validate correct email addresses', () => {
+      expect(isValidEmail('test@example.com')).toBe(true);
+      expect(isValidEmail('user+tag@domain.co.jp')).toBe(true);
+    });
+
+    it('should reject invalid email addresses', () => {
+      expect(isValidEmail('invalid')).toBe(false);
+      expect(isValidEmail('@example.com')).toBe(false);
+      expect(isValidEmail('test@')).toBe(false);
+    });
+  });
+});
+```
+
+### 2. E2Eテスト（Playwright）
+
+```javascript
+// e2e/magic-link.spec.js
+import { test, expect } from '@playwright/test';
+
+test('Magic Link login flow', async ({ page, context }) => {
+  // ログインページにアクセス
+  await page.goto('/login');
+
+  // メールアドレスを入力
+  await page.fill('input[type="email"]', 'test@example.com');
+
+  // Magic Link送信ボタンをクリック
+  await page.click('button[type="submit"]');
+
+  // メール送信完了メッセージを確認
+  await expect(page.locator('text=メールを確認してください')).toBeVisible();
+
+  // 実際のE2Eテストではメールサーバーのモックが必要
+  // または、テスト用のトークン取得APIを用意
+});
+```
+
+## 本番環境チェックリスト
+
+### セキュリティ
+
+- [ ] JWT_SECRETが強力なランダム文字列（32文字以上）
+- [ ] トークンの有効期限が適切（15分推奨）
+- [ ] ワンタイムトークンが実装されている
+- [ ] レート制限が実装されている（1時間5回など）
+- [ ] HTTPS通信が強制されている
+- [ ] CSRF対策が実装されている
+- [ ] トークンがデータベースにハッシュ化して保存されている
+
+### メール送信
+
+- [ ] 送信元メールアドレスのドメイン認証（SPF/DKIM/DMARC）
+- [ ] メール送信エラーのログ記録
+- [ ] メール送信失敗時のリトライ機能
+- [ ] プレーンテキスト版メールの用意
+
+### データベース
+
+- [ ] トークンテーブルのインデックス設定
+- [ ] 期限切れトークンの自動削除処理
+- [ ] バックアップ設定
+
+### 監視
+
+- [ ] メール送信成功率の監視
+- [ ] トークン検証の成功/失敗率の監視
+- [ ] レート制限の発動状況の監視
+- [ ] エラーログの集約と通知
+
+### ユーザー体験
+
+- [ ] メールが届かない場合のヘルプページ
+- [ ] 再送信機能（クールダウン付き）
+- [ ] トークン有効期限のわかりやすい表示
+
+## トラブルシューティング
+
+### メールが届かない
+
+1. **迷惑メールフォルダを確認**
+2. **SPF/DKIMレコードの設定確認**
+   ```bash
+   # DNSレコードを確認
+   dig TXT yourdomain.com
+   dig TXT _dmarc.yourdomain.com
+   ```
+3. **メール送信ログの確認**
+   ```javascript
+   console.log('Email sent:', {
+     to: email,
+     messageId: result.id,
+     timestamp: new Date().toISOString(),
+   });
+   ```
+
+### トークンが無効になる
+
+1. **有効期限の確認**
+   ```javascript
+   console.log('Token expiry:', {
+     createdAt: new Date(tokenData.createdAt),
+     expiresAt: new Date(tokenData.expiresAt),
+     now: new Date(),
+   });
+   ```
+2. **タイムゾーンの問題**
+   - サーバーとDBのタイムゾーンを統一
+3. **クロック同期**
+   ```bash
+   # NTPで時刻同期
+   sudo ntpdate -s time.nist.gov
+   ```
+
+### レート制限が厳しすぎる
+
+```javascript
+// 開発環境では緩和
+const limiter = rateLimit({
+  windowMs: process.env.NODE_ENV === 'production' ? 3600000 : 60000,
+  max: process.env.NODE_ENV === 'production' ? 5 : 100,
+});
+```
+
+## 外部リンク
+
+- [Resend ドキュメント](https://resend.com/docs)
+- [SendGrid API リファレンス](https://docs.sendgrid.com/)
+- [JWT.io - JWTデバッガー](https://jwt.io/)
+- [OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
+- [Node.js Crypto モジュール](https://nodejs.org/api/crypto.html)
+- [bcrypt.js ドキュメント](https://github.com/dcodeIO/bcrypt.js)
+
+---
+
+**注意:** このコード例はテスト・学習用です。本番環境で使用する前に、セキュリティ専門家によるレビューを受けてください。

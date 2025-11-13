@@ -1,0 +1,379 @@
+---
+title: FAB（Floating Action Button）
+description: 画面右下の固定アクションボタン。展開メニュー付き。
+tags: [fab, floating, button, mobile, ux]
+frameworks: [Vanilla, Any]
+level: basic
+prompt_template: |
+  右下固定のFloating Action Button：
+  - position: fixedで画面右下に配置
+  - クリックでサブメニュー展開（aria-expanded）
+  - スクロール時の表示/非表示制御
+  - リップルエフェクト付き
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="Floating Action Buttonのデモ"
+  height="400px"
+  html={`
+<div class="fab-demo-area">
+  <p class="fab-demo-text">右下のボタンをクリックしてメニューを展開</p>
+  <p class="fab-demo-hint">キーボード操作（Tab, Enter, Escape）にも対応</p>
+</div>
+
+<div class="fab-container">
+  <button class="fab" aria-expanded="false" aria-label="アクションメニュー">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+  </button>
+  <div class="fab-menu" hidden>
+    <button class="fab-item" aria-label="編集">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+      </svg>
+      <span>編集</span>
+    </button>
+    <button class="fab-item" aria-label="共有">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="18" cy="5" r="3"></circle>
+        <circle cx="6" cy="12" r="3"></circle>
+        <circle cx="18" cy="19" r="3"></circle>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+      </svg>
+      <span>共有</span>
+    </button>
+    <button class="fab-item" aria-label="お気に入り">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+      </svg>
+      <span>お気に入り</span>
+    </button>
+    <button class="fab-item" aria-label="削除">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="3 6 5 6 21 6"></polyline>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+      </svg>
+      <span>削除</span>
+    </button>
+  </div>
+</div>
+  `}
+  css={`
+.fab-demo-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  padding: 20px;
+  text-align: center;
+}
+
+.fab-demo-text {
+  margin: 0 0 12px 0;
+  color: #e5edf4;
+  font-size: 18px;
+}
+
+.fab-demo-hint {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.fab-container {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000;
+}
+
+.fab {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
+}
+
+.fab:active {
+  transform: scale(0.95);
+}
+
+.fab svg {
+  transition: transform 0.2s ease;
+}
+
+.fab[aria-expanded="true"] svg {
+  transform: rotate(45deg);
+}
+
+.fab::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  opacity: 0;
+  transform: scale(0);
+  transition: transform 0.4s ease, opacity 0.4s ease;
+}
+
+.fab:active::after {
+  transform: scale(1);
+  opacity: 1;
+  transition: transform 0s, opacity 0s;
+}
+
+.fab-menu {
+  position: absolute;
+  bottom: 70px;
+  right: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 12px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+
+.fab-menu:not([hidden]) {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.fab-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  padding: 10px 16px;
+  border-radius: 24px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: background 0.15s ease, transform 0.15s ease;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.fab-item:hover {
+  background: #334155;
+  transform: translateX(-4px);
+}
+
+.fab-item svg {
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab,
+  .fab-menu,
+  .fab-item {
+    transition: none;
+  }
+}
+  `}
+  js={`
+const fab = document.querySelector('.fab');
+const menu = document.querySelector('.fab-menu');
+const fabItems = document.querySelectorAll('.fab-item');
+
+// Toggle menu
+fab.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const expanded = fab.getAttribute('aria-expanded') === 'true';
+  fab.setAttribute('aria-expanded', !expanded);
+  menu.hidden = expanded;
+});
+
+// Close menu when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.fab-container')) {
+    fab.setAttribute('aria-expanded', 'false');
+    menu.hidden = true;
+  }
+});
+
+// Keyboard support
+fab.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && fab.getAttribute('aria-expanded') === 'true') {
+    fab.setAttribute('aria-expanded', 'false');
+    menu.hidden = true;
+  }
+});
+
+// FAB item actions
+fabItems.forEach((item, index) => {
+  item.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const action = item.getAttribute('aria-label');
+    alert(\`\${action}がクリックされました\`);
+    fab.setAttribute('aria-expanded', 'false');
+    menu.hidden = true;
+  });
+});
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<div class="fab-container">
+  <button class="fab" aria-expanded="false" aria-label="アクション">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+  </button>
+  <div class="fab-menu" hidden>
+    <button class="fab-item" aria-label="編集">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+      </svg>
+      <span>編集</span>
+    </button>
+    <button class="fab-item" aria-label="共有">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="18" cy="5" r="3"></circle>
+        <circle cx="6" cy="12" r="3"></circle>
+        <circle cx="18" cy="19" r="3"></circle>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+      </svg>
+      <span>共有</span>
+    </button>
+    <button class="fab-item" aria-label="削除">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="3 6 5 6 21 6"></polyline>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+      </svg>
+      <span>削除</span>
+    </button>
+  </div>
+</div>
+```
+
+**CSS**
+```css
+.fab-container { position: fixed; right: 20px; bottom: 20px; z-index: 1000; }
+.fab {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: #2563eb; color: #fff; border: none;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: transform .2s ease, box-shadow .2s ease;
+  position: relative; overflow: hidden;
+}
+.fab:hover { transform: scale(1.05); box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4); }
+.fab:active { transform: scale(0.95); }
+.fab[aria-expanded="true"] svg { transform: rotate(45deg); transition: transform .2s ease; }
+.fab svg { transition: transform .2s ease; }
+
+/* Ripple effect */
+.fab::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3); opacity: 0;
+  transform: scale(0); transition: transform .4s ease, opacity .4s ease;
+}
+.fab:active::after { transform: scale(1); opacity: 1; transition: transform 0s, opacity 0s; }
+
+.fab-menu {
+  position: absolute; bottom: 70px; right: 0;
+  display: flex; flex-direction: column-reverse; gap: 12px;
+  opacity: 0; transform: translateY(10px);
+  transition: opacity .2s ease, transform .2s ease;
+  pointer-events: none;
+}
+.fab-menu:not([hidden]) { opacity: 1; transform: none; pointer-events: auto; }
+
+.fab-item {
+  display: flex; align-items: center; gap: 8px;
+  background: #1e293b; color: #e2e8f0; border: 1px solid #334155;
+  padding: 10px 16px; border-radius: 24px; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: background .15s ease, transform .15s ease;
+  white-space: nowrap; font-size: 14px;
+}
+.fab-item:hover { background: #334155; transform: translateX(-4px); }
+.fab-item svg { flex-shrink: 0; }
+
+/* スクロール時の非表示 */
+.fab-container.hidden { opacity: 0; transform: translateY(80px); transition: opacity .3s ease, transform .3s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fab, .fab-menu, .fab-item { transition: none; }
+}
+```
+
+**JS**
+```js
+(() => {
+  const fab = document.querySelector('.fab');
+  const menu = document.querySelector('.fab-menu');
+  let scrollTimeout;
+  let lastScroll = 0;
+
+  // Toggle menu
+  fab.addEventListener('click', () => {
+    const expanded = fab.getAttribute('aria-expanded') === 'true';
+    fab.setAttribute('aria-expanded', !expanded);
+    menu.hidden = expanded;
+  });
+
+  // Close menu when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.fab-container')) {
+      fab.setAttribute('aria-expanded', 'false');
+      menu.hidden = true;
+    }
+  });
+
+  // Hide/show on scroll
+  window.addEventListener('scroll', () => {
+    const container = document.querySelector('.fab-container');
+    const currentScroll = window.scrollY;
+
+    if (currentScroll > lastScroll && currentScroll > 100) {
+      container.classList.add('hidden');
+    } else {
+      container.classList.remove('hidden');
+    }
+
+    lastScroll = currentScroll;
+  });
+
+  // Keyboard navigation
+  fab.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && fab.getAttribute('aria-expanded') === 'true') {
+      fab.setAttribute('aria-expanded', 'false');
+      menu.hidden = true;
+    }
+  });
+})();
+```

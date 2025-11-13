@@ -1,0 +1,929 @@
+---
+title: 色のコントラスト比とアクセシビリティ
+description: WCAG基準に準拠したカラー設計と検証ツールの活用法
+tags: [accessibility, color, wcag, a11y, design]
+category: accessibility
+level: basic
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="カラーコントラスト比の実例"
+  height="850px"
+  html={`
+<div class="contrast-demo">
+  <section class="intro-section">
+    <h2>カラーコントラスト比とは</h2>
+    <p>
+      文字と背景の明るさの差を数値化したもの。
+      <strong>1:1（最小）</strong>から<strong>21:1（最大）</strong>まで。
+    </p>
+  </section>
+
+  <section class="wcag-standards">
+    <h2>WCAG 2.1 基準</h2>
+    <div class="standards-grid">
+      <div class="standard-card">
+        <div class="badge level-aa">AA</div>
+        <h3>レベルAA（推奨）</h3>
+        <ul>
+          <li>通常テキスト: <strong>4.5:1</strong> 以上</li>
+          <li>大きなテキスト: <strong>3:1</strong> 以上</li>
+        </ul>
+      </div>
+      <div class="standard-card">
+        <div class="badge level-aaa">AAA</div>
+        <h3>レベルAAA（理想）</h3>
+        <ul>
+          <li>通常テキスト: <strong>7:1</strong> 以上</li>
+          <li>大きなテキスト: <strong>4.5:1</strong> 以上</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note">
+      大きなテキスト = 18pt以上 または 14pt太字以上
+    </p>
+  </section>
+
+  <section class="examples-section">
+    <h2>コントラスト比の実例</h2>
+
+    <div class="example-grid">
+      <div class="example-item fail">
+        <div class="color-box" style="background: #999; color: #666;">
+          <span class="text-sample">サンプルテキスト</span>
+          <span class="ratio">2.8:1</span>
+        </div>
+        <div class="result">
+          <span class="icon">❌</span>
+          <span>不合格（AAもAAAも満たさず）</span>
+        </div>
+      </div>
+
+      <div class="example-item pass-aa">
+        <div class="color-box" style="background: #1f2a37; color: #9ca3af;">
+          <span class="text-sample">サンプルテキスト</span>
+          <span class="ratio">4.6:1</span>
+        </div>
+        <div class="result">
+          <span class="icon">✓</span>
+          <span>AA合格</span>
+        </div>
+      </div>
+
+      <div class="example-item pass-aaa">
+        <div class="color-box" style="background: #0c1218; color: #e5edf4;">
+          <span class="text-sample">サンプルテキスト</span>
+          <span class="ratio">14.2:1</span>
+        </div>
+        <div class="result">
+          <span class="icon">✓✓</span>
+          <span>AAA合格</span>
+        </div>
+      </div>
+
+      <div class="example-item fail">
+        <div class="color-box" style="background: #60a5fa; color: #93c5fd;">
+          <span class="text-sample">サンプルテキスト</span>
+          <span class="ratio">1.8:1</span>
+        </div>
+        <div class="result">
+          <span class="icon">❌</span>
+          <span>不合格</span>
+        </div>
+      </div>
+
+      <div class="example-item pass-aa">
+        <div class="color-box" style="background: #3b82f6; color: #ffffff;">
+          <span class="text-sample">サンプルテキスト</span>
+          <span class="ratio">4.5:1</span>
+        </div>
+        <div class="result">
+          <span class="icon">✓</span>
+          <span>AA合格</span>
+        </div>
+      </div>
+
+      <div class="example-item pass-aaa">
+        <div class="color-box" style="background: #1e40af; color: #ffffff;">
+          <span class="text-sample">サンプルテキスト</span>
+          <span class="ratio">8.6:1</span>
+        </div>
+        <div class="result">
+          <span class="icon">✓✓</span>
+          <span>AAA合格</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="interactive-section">
+    <h2>インタラクティブチェッカー</h2>
+    <div class="checker-container">
+      <div class="controls">
+        <div class="control-group">
+          <label for="bgColor">背景色</label>
+          <input type="color" id="bgColor" value="#1f2a37">
+        </div>
+        <div class="control-group">
+          <label for="fgColor">文字色</label>
+          <input type="color" id="fgColor" value="#e5edf4">
+        </div>
+      </div>
+
+      <div class="preview-box" id="previewBox">
+        <h3>プレビューテキスト</h3>
+        <p>これはコントラストのテストです。</p>
+      </div>
+
+      <div class="results" id="results">
+        <div class="result-item">
+          <span>コントラスト比:</span>
+          <strong id="ratioValue">-</strong>
+        </div>
+        <div class="result-item">
+          <span>通常テキスト (AA):</span>
+          <strong id="normalAA">-</strong>
+        </div>
+        <div class="result-item">
+          <span>通常テキスト (AAA):</span>
+          <strong id="normalAAA">-</strong>
+        </div>
+        <div class="result-item">
+          <span>大きなテキスト (AA):</span>
+          <strong id="largeAA">-</strong>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tips-section">
+    <h2>カラーパレット例</h2>
+    <div class="palette-grid">
+      <div class="palette-item">
+        <div class="palette-color" style="background: #0c1218;"></div>
+        <code>#0c1218</code>
+        <span class="palette-label">ダーク背景</span>
+      </div>
+      <div class="palette-item">
+        <div class="palette-color" style="background: #e5edf4;"></div>
+        <code>#e5edf4</code>
+        <span class="palette-label">プライマリテキスト</span>
+      </div>
+      <div class="palette-item">
+        <div class="palette-color" style="background: #9ca3af;"></div>
+        <code>#9ca3af</code>
+        <span class="palette-label">セカンダリテキスト</span>
+      </div>
+      <div class="palette-item">
+        <div class="palette-color" style="background: #60a5fa;"></div>
+        <code>#60a5fa</code>
+        <span class="palette-label">アクセント</span>
+      </div>
+    </div>
+  </section>
+</div>
+  `}
+  css={`
+    .contrast-demo {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .intro-section {
+      background: #1f2a37;
+      padding: 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      border: 2px solid #374151;
+    }
+
+    .intro-section h2 {
+      color: #60a5fa;
+      margin-bottom: 1rem;
+    }
+
+    .wcag-standards {
+      background: #1f2a37;
+      padding: 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      border: 1px solid #374151;
+    }
+
+    .wcag-standards h2 {
+      color: #60a5fa;
+      margin-bottom: 1.5rem;
+    }
+
+    .standards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .standard-card {
+      background: #0c1218;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 2px solid #374151;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+
+    .level-aa {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .level-aaa {
+      background: #10b981;
+      color: white;
+    }
+
+    .standard-card h3 {
+      font-size: 1.125rem;
+      margin-bottom: 1rem;
+    }
+
+    .standard-card ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .standard-card li {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #374151;
+    }
+
+    .standard-card li:last-child {
+      border-bottom: none;
+    }
+
+    .note {
+      font-size: 0.875rem;
+      color: #9ca3af;
+      margin-top: 1rem;
+      font-style: italic;
+    }
+
+    .examples-section {
+      background: #1f2a37;
+      padding: 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      border: 1px solid #374151;
+    }
+
+    .examples-section h2 {
+      color: #60a5fa;
+      margin-bottom: 1.5rem;
+    }
+
+    .example-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .example-item {
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid #374151;
+    }
+
+    .example-item.pass-aa {
+      border-color: #3b82f6;
+    }
+
+    .example-item.pass-aaa {
+      border-color: #10b981;
+    }
+
+    .example-item.fail {
+      border-color: #ef4444;
+    }
+
+    .color-box {
+      padding: 2rem 1rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-height: 120px;
+      justify-content: center;
+    }
+
+    .text-sample {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .ratio {
+      font-size: 0.875rem;
+      opacity: 0.8;
+    }
+
+    .result {
+      background: #0c1218;
+      padding: 0.75rem;
+      text-align: center;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .icon {
+      font-size: 1.25rem;
+    }
+
+    .interactive-section {
+      background: #1f2a37;
+      padding: 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      border: 1px solid #374151;
+    }
+
+    .interactive-section h2 {
+      color: #60a5fa;
+      margin-bottom: 1.5rem;
+    }
+
+    .checker-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .control-group {
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .control-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .control-group input[type="color"] {
+      width: 100%;
+      height: 50px;
+      border: 2px solid #374151;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .preview-box {
+      padding: 2rem;
+      border-radius: 8px;
+      border: 2px solid #374151;
+      transition: all 0.3s;
+    }
+
+    .preview-box h3 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .preview-box p {
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+
+    .results {
+      background: #0c1218;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 2px solid #374151;
+    }
+
+    .result-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #374151;
+    }
+
+    .result-item:last-child {
+      border-bottom: none;
+    }
+
+    .result-item strong {
+      font-size: 1.125rem;
+    }
+
+    .tips-section {
+      background: #1f2a37;
+      padding: 2rem;
+      border-radius: 12px;
+      border: 1px solid #374151;
+    }
+
+    .tips-section h2 {
+      color: #60a5fa;
+      margin-bottom: 1.5rem;
+    }
+
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+    }
+
+    .palette-item {
+      text-align: center;
+    }
+
+    .palette-color {
+      height: 80px;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      border: 2px solid #374151;
+    }
+
+    .palette-item code {
+      display: block;
+      font-size: 0.875rem;
+      color: #60a5fa;
+      margin-bottom: 0.25rem;
+    }
+
+    .palette-label {
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+  `}
+  js={`
+    // コントラスト比の計算
+    function getLuminance(r, g, b) {
+      const [rs, gs, bs] = [r, g, b].map(c => {
+        c = c / 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+    }
+
+    function getContrastRatio(rgb1, rgb2) {
+      const lum1 = getLuminance(...rgb1);
+      const lum2 = getLuminance(...rgb2);
+      const lighter = Math.max(lum1, lum2);
+      const darker = Math.min(lum1, lum2);
+      return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    function hexToRgb(hex) {
+      const result = /^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(hex);
+      return result ? [
+        parseInt(result[1], 16),
+        parseInt(result[2], 16),
+        parseInt(result[3], 16)
+      ] : null;
+    }
+
+    function updateChecker() {
+      const bgColor = document.getElementById('bgColor').value;
+      const fgColor = document.getElementById('fgColor').value;
+      const previewBox = document.getElementById('previewBox');
+
+      previewBox.style.backgroundColor = bgColor;
+      previewBox.style.color = fgColor;
+
+      const bgRgb = hexToRgb(bgColor);
+      const fgRgb = hexToRgb(fgColor);
+
+      if (bgRgb && fgRgb) {
+        const ratio = getContrastRatio(bgRgb, fgRgb);
+
+        document.getElementById('ratioValue').textContent = ratio.toFixed(2) + ':1';
+
+        const normalAA = ratio >= 4.5;
+        const normalAAA = ratio >= 7;
+        const largeAA = ratio >= 3;
+
+        document.getElementById('normalAA').textContent = normalAA ? '✓ 合格' : '❌ 不合格';
+        document.getElementById('normalAA').style.color = normalAA ? '#10b981' : '#ef4444';
+
+        document.getElementById('normalAAA').textContent = normalAAA ? '✓ 合格' : '❌ 不合格';
+        document.getElementById('normalAAA').style.color = normalAAA ? '#10b981' : '#ef4444';
+
+        document.getElementById('largeAA').textContent = largeAA ? '✓ 合格' : '❌ 不合格';
+        document.getElementById('largeAA').style.color = largeAA ? '#10b981' : '#ef4444';
+      }
+    }
+
+    document.getElementById('bgColor').addEventListener('input', updateChecker);
+    document.getElementById('fgColor').addEventListener('input', updateChecker);
+
+    // 初期化
+    updateChecker();
+  `}
+/>
+
+## カラーコントラストとは
+
+**コントラスト比**は、前景色（テキスト）と背景色の明るさの差を数値化したものです。視覚障害のあるユーザーや、明るい屋外での使用、高齢のユーザーにとって、適切なコントラストは読みやすさの鍵となります。
+
+### コントラスト比の範囲
+
+```
+1:1    最小（白と白、黒と黒）
+21:1   最大（黒と白）
+```
+
+### WCAG 2.1 基準
+
+**レベルAA（推奨）:**
+- 通常のテキスト: **4.5:1** 以上
+- 大きなテキスト: **3:1** 以上
+
+**レベルAAA（理想）:**
+- 通常のテキスト: **7:1** 以上
+- 大きなテキスト: **4.5:1** 以上
+
+**大きなテキストの定義:**
+- 18pt（24px）以上
+- または 14pt（18.66px）の太字以上
+
+## 実践的なカラー設計
+
+### ダークテーマの配色例
+
+```css
+:root {
+  /* 背景色 */
+  --bg-primary: #0c1218;    /* 最も濃い背景 */
+  --bg-secondary: #1f2a37;  /* カード背景 */
+  --bg-tertiary: #374151;   /* ホバー背景 */
+
+  /* テキスト色 */
+  --text-primary: #e5edf4;  /* メインテキスト: 14.2:1 (AAA) */
+  --text-secondary: #9ca3af; /* サブテキスト: 4.6:1 (AA) */
+  --text-tertiary: #6b7280;  /* 補助テキスト: 3.2:1 */
+
+  /* アクセント色 */
+  --accent-blue: #60a5fa;    /* プライマリ */
+  --accent-green: #10b981;   /* 成功 */
+  --accent-red: #ef4444;     /* エラー */
+  --accent-yellow: #fbbf24;  /* 警告 */
+}
+
+/* 使用例 */
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.card {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.muted-text {
+  color: var(--text-secondary);
+}
+```
+
+### ライトテーマの配色例
+
+```css
+:root {
+  /* 背景色 */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+
+  /* テキスト色 */
+  --text-primary: #111827;   /* メインテキスト: 16.4:1 (AAA) */
+  --text-secondary: #4b5563; /* サブテキスト: 8.6:1 (AAA) */
+  --text-tertiary: #6b7280;  /* 補助テキスト: 5.9:1 (AA) */
+
+  /* アクセント色 */
+  --accent-blue: #2563eb;    /* より濃いブルー */
+  --accent-green: #059669;   /* より濃いグリーン */
+  --accent-red: #dc2626;     /* より濃いレッド */
+}
+```
+
+## コントラスト比の計算
+
+### 手動計算（JavaScript）
+
+```javascript
+// RGB値から相対輝度を計算
+function getLuminance(r, g, b) {
+  // RGB値を0-1に正規化
+  const [rs, gs, bs] = [r, g, b].map(c => {
+    c = c / 255;
+    // sRGB色空間の変換
+    return c <= 0.03928
+      ? c / 12.92
+      : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+
+  // ITU-R BT.709の係数
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+}
+
+// コントラスト比を計算
+function getContrastRatio(rgb1, rgb2) {
+  const lum1 = getLuminance(...rgb1);
+  const lum2 = getLuminance(...rgb2);
+
+  const lighter = Math.max(lum1, lum2);
+  const darker = Math.min(lum1, lum2);
+
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+// Hex色をRGBに変換
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? [
+    parseInt(result[1], 16),
+    parseInt(result[2], 16),
+    parseInt(result[3], 16)
+  ] : null;
+}
+
+// 使用例
+const bg = hexToRgb('#0c1218');
+const fg = hexToRgb('#e5edf4');
+const ratio = getContrastRatio(bg, fg);
+
+console.log(`コントラスト比: ${ratio.toFixed(2)}:1`);
+
+// WCAG基準をチェック
+function checkWCAG(ratio) {
+  return {
+    normalAA: ratio >= 4.5,
+    normalAAA: ratio >= 7,
+    largeAA: ratio >= 3,
+    largeAAA: ratio >= 4.5
+  };
+}
+```
+
+## よくある問題と解決策
+
+### 1. リンクのコントラスト
+
+```html
+<!-- ❌ 悪い例: 背景とのコントラストが低い -->
+<p style="color: #6b7280;">
+  詳細は<a href="#" style="color: #9ca3af;">こちら</a>をご覧ください
+</p>
+
+<!-- ✅ 良い例: 十分なコントラスト -->
+<p style="color: #6b7280;">
+  詳細は<a href="#" style="color: #3b82f6;">こちら</a>をご覧ください
+</p>
+```
+
+### 2. ボタンの状態
+
+```css
+/* ❌ 悪い例: disabled状態のコントラストが低すぎる */
+.button:disabled {
+  background: #d1d5db;
+  color: #e5e7eb;
+  /* コントラスト比: 1.4:1 */
+}
+
+/* ✅ 良い例: 最低限のコントラストを確保 */
+.button:disabled {
+  background: #9ca3af;
+  color: #1f2a37;
+  /* コントラスト比: 4.8:1 */
+  opacity: 0.6; /* 視覚的に無効であることを示す */
+}
+```
+
+### 3. プレースホルダーテキスト
+
+```css
+/* ❌ 悪い例: 読みにくいプレースホルダー */
+input::placeholder {
+  color: #d1d5db;
+  /* コントラスト比: 1.8:1 */
+}
+
+/* ✅ 良い例: 読みやすいプレースホルダー */
+input::placeholder {
+  color: #6b7280;
+  /* コントラスト比: 4.8:1 */
+}
+```
+
+### 4. オーバーレイテキスト
+
+```css
+/* 画像上のテキストは背景を追加 */
+.hero-text {
+  color: #ffffff;
+  /* 半透明の背景でコントラストを確保 */
+  background: rgba(0, 0, 0, 0.7);
+  padding: 1rem;
+}
+
+/* またはテキストシャドウ */
+.hero-text-alt {
+  color: #ffffff;
+  text-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.8),
+    0 0 8px rgba(0, 0, 0, 0.6);
+}
+```
+
+## 色だけに頼らない設計
+
+**色覚異常のユーザー**（男性の約8%、女性の約0.5%）を考慮:
+
+### アイコンとラベルを併用
+
+```html
+<!-- ❌ 悪い例: 色だけで状態を表現 -->
+<span style="color: green;">成功</span>
+<span style="color: red;">エラー</span>
+
+<!-- ✅ 良い例: アイコンとラベルを追加 -->
+<span style="color: #10b981;">
+  <span aria-hidden="true">✓</span>
+  成功
+</span>
+<span style="color: #ef4444;">
+  <span aria-hidden="true">✗</span>
+  エラー
+</span>
+```
+
+### パターンとテクスチャ
+
+```css
+/* グラフやチャートで色以外の区別を追加 */
+.chart-bar-1 {
+  background: #3b82f6;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(255, 255, 255, 0.1) 10px,
+    rgba(255, 255, 255, 0.1) 20px
+  );
+}
+
+.chart-bar-2 {
+  background: #10b981;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 10px,
+    rgba(255, 255, 255, 0.1) 10px,
+    rgba(255, 255, 255, 0.1) 20px
+  );
+}
+```
+
+## 便利なツール
+
+### オンラインツール
+
+1. **WebAIM Contrast Checker**
+   - https://webaim.org/resources/contrastchecker/
+   - シンプルで使いやすい
+
+2. **Contrast Ratio**
+   - https://contrast-ratio.com/
+   - リアルタイムプレビュー
+
+3. **Colorable**
+   - https://colorable.jxnblk.com/
+   - カラーパレット全体をチェック
+
+4. **Accessible Colors**
+   - https://accessible-colors.com/
+   - 自動で代替色を提案
+
+### ブラウザ拡張機能
+
+```javascript
+// axe DevTools（Chrome/Firefox拡張機能）
+// 自動でコントラスト問題を検出
+
+// WAVE（Web Accessibility Evaluation Tool）
+// ページ全体のアクセシビリティをチェック
+```
+
+### デザインツール
+
+```
+Figma: A11y - Color Contrast Checker プラグイン
+Sketch: Stark プラグイン
+Adobe XD: Color Contrast Analyzer
+```
+
+## CSS変数で管理
+
+```css
+:root {
+  /* カラーパレット */
+  --color-bg-dark: #0c1218;
+  --color-bg-medium: #1f2a37;
+  --color-text-light: #e5edf4;
+  --color-text-medium: #9ca3af;
+
+  /* コントラストを保証したペア */
+  --pair-dark-bg-light-text: var(--color-bg-dark) var(--color-text-light); /* 14.2:1 */
+  --pair-medium-bg-light-text: var(--color-bg-medium) var(--color-text-light); /* 9.8:1 */
+  --pair-medium-bg-medium-text: var(--color-bg-medium) var(--color-text-medium); /* 4.6:1 */
+}
+
+/* 使用例 */
+.card {
+  background: var(--color-bg-medium);
+  color: var(--color-text-light);
+  /* 自動的に 9.8:1 のコントラスト比を確保 */
+}
+```
+
+## テストとバリデーション
+
+### Chrome DevTools
+
+```javascript
+// Lighthouse でテスト
+// DevTools > Lighthouse > Accessibility
+
+// Elements パネルでコントラスト比を確認
+// 要素を選択 > Styles パネル > 色の横にコントラスト比が表示
+```
+
+### 自動テスト
+
+```javascript
+// axe-core を使った自動テスト
+import { configure } from 'axe-core';
+
+async function testContrast() {
+  const results = await axe.run({
+    rules: {
+      'color-contrast': { enabled: true }
+    }
+  });
+
+  console.log('コントラストエラー:', results.violations);
+}
+```
+
+## チェックリスト
+
+アクセシブルなカラー設計:
+
+- [ ] すべてのテキストでAAレベル以上を達成
+- [ ] 重要なテキストでAAAレベルを目指す
+- [ ] リンクは背景と4.5:1以上のコントラスト
+- [ ] ボタンの全状態で十分なコントラスト
+- [ ] プレースホルダーも読みやすい色
+- [ ] 色だけでなくアイコンやラベルを併用
+- [ ] ダークモードとライトモード両方で確認
+- [ ] コントラストチェッカーでバリデーション
+- [ ] 実機でテスト（屋外・夜間含む）
+
+## まとめ
+
+カラーコントラストは、アクセシビリティの基本です:
+
+1. **WCAG基準を遵守** - AAレベル以上を目指す
+2. **ツールを活用** - 自動チェックで効率化
+3. **色だけに頼らない** - アイコンや形状も使用
+4. **CSS変数で管理** - 一貫性のあるカラーシステム
+5. **実機テスト** - 様々な環境で確認
+
+適切なコントラストにより、すべてのユーザーが快適にコンテンツを読めるようになります。
+
+## 参考リンク
+
+- [WCAG 2.1 Color Contrast](https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html)
+- [WebAIM: Contrast and Color Accessibility](https://webaim.org/articles/contrast/)
+- [Color Contrast Checker - MDN](https://developer.mozilla.org/en-US/docs/Web/Accessibility/Understanding_WCAG/Perceivable/Color_contrast)

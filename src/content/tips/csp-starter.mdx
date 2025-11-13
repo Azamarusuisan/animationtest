@@ -1,0 +1,710 @@
+---
+title: CSP/Trusted Typesの最小セット
+description: Content Security PolicyとTrusted Typesで本番環境のXSS攻撃を防ぐ実装ガイド
+tags: [security, csp, xss, trusted-types, headers]
+category: security
+level: advanced
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## Content Security Policyとは
+
+Content Security Policy(CSP)は、XSS攻撃を防ぐための強力なセキュリティレイヤーです。HTTPヘッダーまたはmetaタグで設定し、どのリソース(スクリプト、スタイル、画像など)の読み込みを許可するかを制御します。
+
+<LiveDemo
+  title="CSP & Trusted Types インタラクティブデモ"
+  height="700px"
+  html={`
+<div style="max-width: 900px; margin: 0 auto;">
+  <h3 style="margin-bottom: 1.5rem; color: #60a5fa;">Content Security Policy デモ</h3>
+
+  <!-- CSP Policy Configurator -->
+  <div style="padding: 1.5rem; background: #1f2a37; border-radius: 12px; margin-bottom: 2rem; border: 2px solid #374151;">
+    <h4 style="color: #60a5fa; margin-bottom: 1rem;">CSPポリシー設定</h4>
+
+    <div style="display: grid; gap: 0.75rem; margin-bottom: 1rem;">
+      <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+        <input type="checkbox" id="csp-enabled" checked style="width: 18px; height: 18px; cursor: pointer;">
+        <span style="color: #e5edf4;">CSPを有効化</span>
+      </label>
+
+      <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+        <input type="checkbox" id="allow-inline" style="width: 18px; height: 18px; cursor: pointer;">
+        <span style="color: #e5edf4;">インラインスクリプトを許可 ('unsafe-inline')</span>
+      </label>
+
+      <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+        <input type="checkbox" id="allow-eval" style="width: 18px; height: 18px; cursor: pointer;">
+        <span style="color: #e5edf4;">evalを許可 ('unsafe-eval')</span>
+      </label>
+
+      <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+        <input type="checkbox" id="trusted-types" checked style="width: 18px; height: 18px; cursor: pointer;">
+        <span style="color: #e5edf4;">Trusted Typesを有効化</span>
+      </label>
+    </div>
+
+    <div style="padding: 1rem; background: #0c1218; border-radius: 8px; font-family: monospace; font-size: 0.875rem; color: #10b981; line-height: 1.6; overflow-x: auto;">
+      <div id="csp-policy"></div>
+    </div>
+  </div>
+
+  <!-- Test Cases -->
+  <div style="display: grid; gap: 1rem; margin-bottom: 2rem;">
+    <!-- Inline Script Test -->
+    <div style="padding: 1.5rem; background: #1f2a37; border-radius: 12px; border-left: 4px solid #ef4444;">
+      <h4 style="color: #ef4444; margin-bottom: 1rem;">Test 1: インラインスクリプト</h4>
+      <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1rem;">
+        onclick属性などのインラインJavaScriptの実行をテスト
+      </p>
+      <button id="inline-test" style="padding: 0.75rem 1.5rem; background: #ef4444; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold;">
+        インラインスクリプトを実行
+      </button>
+      <div id="inline-result" style="margin-top: 1rem; padding: 1rem; background: #374151; border-radius: 8px; font-size: 0.875rem; color: #e5edf4;"></div>
+    </div>
+
+    <!-- XSS Attempt Test -->
+    <div style="padding: 1.5rem; background: #1f2a37; border-radius: 12px; border-left: 4px solid #f59e0b;">
+      <h4 style="color: #f59e0b; margin-bottom: 1rem;">Test 2: XSS攻撃シミュレーション</h4>
+      <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1rem;">
+        悪意のあるスクリプトインジェクションをテスト
+      </p>
+      <input
+        id="xss-input"
+        type="text"
+        placeholder='例: <img src=x onerror="alert(1)">'
+        style="width: 100%; padding: 0.75rem; background: #374151; border: 1px solid #4b5563; border-radius: 8px; color: #e5edf4; font-size: 0.875rem; margin-bottom: 1rem;"
+      >
+      <button id="xss-test" style="padding: 0.75rem 1.5rem; background: #f59e0b; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold;">
+        HTMLに挿入
+      </button>
+      <div id="xss-result" style="margin-top: 1rem; padding: 1rem; background: #374151; border-radius: 8px; font-size: 0.875rem; color: #e5edf4;"></div>
+      <div id="xss-output" style="margin-top: 1rem; padding: 1rem; background: #0c1218; border-radius: 8px;"></div>
+    </div>
+
+    <!-- Trusted Types Test -->
+    <div style="padding: 1.5rem; background: #1f2a37; border-radius: 12px; border-left: 4px solid #10b981;">
+      <h4 style="color: #10b981; margin-bottom: 1rem;">Test 3: Trusted Types</h4>
+      <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1rem;">
+        Trusted Typesを使用したinnerHTMLの安全な操作
+      </p>
+      <button id="trusted-test" style="padding: 0.75rem 1.5rem; background: #10b981; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold;">
+        Trusted Typesで挿入
+      </button>
+      <div id="trusted-result" style="margin-top: 1rem; padding: 1rem; background: #374151; border-radius: 8px; font-size: 0.875rem; color: #e5edf4;"></div>
+    </div>
+  </div>
+
+  <!-- Violation Log -->
+  <div style="padding: 1.5rem; background: #1f2a37; border-radius: 12px; border: 2px solid #374151;">
+    <h4 style="color: #ef4444; margin-bottom: 1rem;">CSP Violation Log</h4>
+    <div id="violation-log" style="max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.75rem; color: #9ca3af; line-height: 1.8;">
+      違反はまだ検出されていません...
+    </div>
+  </div>
+
+  <div style="margin-top: 1rem; padding: 1rem; background: #374151; border-radius: 8px; font-size: 0.875rem; color: #9ca3af;">
+    ⚠️ 警告: このデモは教育目的です。本番環境ではより厳格なCSPポリシーを設定してください。
+  </div>
+</div>
+  `}
+  css={`
+    button:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      transition: all 0.2s;
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    input:focus {
+      outline: none;
+      border-color: #60a5fa;
+    }
+  `}
+  js={`
+    let cspEnabled = true;
+    let allowInline = false;
+    let allowEval = false;
+    let trustedTypesEnabled = true;
+    const violations = [];
+
+    // CSPポリシーを更新
+    function updateCSPPolicy() {
+      const parts = [];
+
+      if (cspEnabled) {
+        const scriptSrc = ['script-src', "'self'"];
+        if (allowInline) scriptSrc.push("'unsafe-inline'");
+        if (allowEval) scriptSrc.push("'unsafe-eval'");
+        parts.push(scriptSrc.join(' '));
+
+        parts.push("default-src 'self'");
+        parts.push("style-src 'self' 'unsafe-inline'");
+        parts.push("img-src 'self' data:");
+
+        if (trustedTypesEnabled) {
+          parts.push("require-trusted-types-for 'script'");
+          parts.push("trusted-types default");
+        }
+      } else {
+        parts.push("CSP無効 - すべて許可");
+      }
+
+      const policy = parts.join('; ');
+      document.getElementById('csp-policy').textContent = policy;
+    }
+
+    // 違反をログに追加
+    function logViolation(message, type) {
+      const timestamp = new Date().toLocaleTimeString('ja-JP');
+      violations.push({ timestamp, message, type });
+
+      const logEl = document.getElementById('violation-log');
+      const entry = document.createElement('div');
+      entry.style.marginBottom = '0.5rem';
+      entry.style.color = type === 'blocked' ? '#ef4444' : '#10b981';
+      entry.innerHTML = \`[\${timestamp}] <strong>\${type.toUpperCase()}:</strong> \${message}\`;
+
+      if (violations.length === 1) {
+        logEl.innerHTML = '';
+      }
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // Trusted Types Policy
+    let sanitizerPolicy;
+    if (window.trustedTypes) {
+      try {
+        sanitizerPolicy = trustedTypes.createPolicy('default', {
+          createHTML: (input) => {
+            // 簡易的なサニタイゼーション
+            return input
+              .replace(/<script[^>]*>.*?<\\/script>/gi, '')
+              .replace(/on\\w+\\s*=\\s*["'][^"']*["']/gi, '')
+              .replace(/on\\w+\\s*=\\s*[^\\s>]*/gi, '');
+          }
+        });
+      } catch (e) {
+        console.log('Trusted Types not available');
+      }
+    }
+
+    // イベントリスナー
+    document.getElementById('csp-enabled').addEventListener('change', (e) => {
+      cspEnabled = e.target.checked;
+      updateCSPPolicy();
+      logViolation(
+        cspEnabled ? 'CSPを有効化しました' : 'CSPを無効化しました',
+        'info'
+      );
+    });
+
+    document.getElementById('allow-inline').addEventListener('change', (e) => {
+      allowInline = e.target.checked;
+      updateCSPPolicy();
+    });
+
+    document.getElementById('allow-eval').addEventListener('change', (e) => {
+      allowEval = e.target.checked;
+      updateCSPPolicy();
+    });
+
+    document.getElementById('trusted-types').addEventListener('change', (e) => {
+      trustedTypesEnabled = e.target.checked;
+      updateCSPPolicy();
+    });
+
+    // Test 1: インラインスクリプト
+    document.getElementById('inline-test').addEventListener('click', () => {
+      const resultEl = document.getElementById('inline-result');
+
+      if (cspEnabled && !allowInline) {
+        resultEl.innerHTML = '❌ <strong>ブロックされました!</strong> CSPによりインラインスクリプトの実行が禁止されています。';
+        resultEl.style.color = '#ef4444';
+        logViolation('インラインスクリプトの実行をブロック', 'blocked');
+      } else {
+        resultEl.innerHTML = '✅ <strong>実行されました!</strong> インラインスクリプトが許可されています（セキュリティリスク）。';
+        resultEl.style.color = '#10b981';
+        logViolation('インラインスクリプトの実行を許可', 'allowed');
+      }
+    });
+
+    // Test 2: XSS攻撃
+    document.getElementById('xss-test').addEventListener('click', () => {
+      const input = document.getElementById('xss-input').value;
+      const resultEl = document.getElementById('xss-result');
+      const outputEl = document.getElementById('xss-output');
+
+      if (!input) {
+        resultEl.textContent = '入力欄にXSSペイロードを入力してください';
+        return;
+      }
+
+      if (cspEnabled && !allowInline) {
+        // CSPが有効な場合でもinnerHTMLは設定できるが、スクリプトは実行されない
+        outputEl.innerHTML = input;
+        resultEl.innerHTML = '⚠️ HTMLは挿入されましたが、<strong>CSPによりスクリプトの実行はブロック</strong>されました。';
+        resultEl.style.color = '#f59e0b';
+        logViolation('XSS攻撃を検出してブロック: ' + input.substring(0, 50), 'blocked');
+      } else {
+        outputEl.innerHTML = input;
+        resultEl.innerHTML = '❌ <strong>危険!</strong> XSS攻撃が成功する可能性があります（CSP無効）。';
+        resultEl.style.color = '#ef4444';
+        logViolation('XSS攻撃が通過: ' + input.substring(0, 50), 'allowed');
+      }
+    });
+
+    // Test 3: Trusted Types
+    document.getElementById('trusted-test').addEventListener('click', () => {
+      const resultEl = document.getElementById('trusted-result');
+      const maliciousHTML = '<b>安全なコンテンツ</b><script>alert("XSS")</script>';
+
+      if (trustedTypesEnabled && sanitizerPolicy) {
+        try {
+          const sanitized = sanitizerPolicy.createHTML(maliciousHTML);
+          resultEl.innerHTML = \`✅ <strong>Trusted Typesで保護:</strong><br>
+            元の入力: \${maliciousHTML}<br>
+            サニタイズ後: \${sanitized.toString()}<br>
+            scriptタグが除去されました!\`;
+          resultEl.style.color = '#10b981';
+          logViolation('Trusted Typesでサニタイズ成功', 'blocked');
+        } catch (e) {
+          resultEl.textContent = 'Trusted Types: ' + e.message;
+          logViolation('Trusted Types violation: ' + e.message, 'blocked');
+        }
+      } else {
+        resultEl.innerHTML = '⚠️ Trusted Typesが無効です。このブラウザではサポートされていないか、設定で無効化されています。';
+        resultEl.style.color = '#f59e0b';
+      }
+    });
+
+    // 初期化
+    updateCSPPolicy();
+  `}
+/>
+
+## CSPの基本ディレクティブ
+
+### 主要なディレクティブ
+
+```text
+Content-Security-Policy:
+  default-src 'self';                    # デフォルトはすべて同一オリジンのみ
+  script-src 'self' 'nonce-{random}';    # スクリプトは同一オリジン + nonce付きのみ
+  style-src 'self' 'unsafe-inline';      # スタイルは同一オリジン + インライン許可
+  img-src 'self' data: https:;           # 画像は同一オリジン + data URI + HTTPS
+  font-src 'self' data:;                 # フォントは同一オリジン + data URI
+  connect-src 'self' https://api.example.com;  # API接続先を明示
+  frame-ancestors 'none';                # iframeへの埋め込みを禁止
+  base-uri 'self';                       # <base>タグのURIを制限
+  form-action 'self';                    # フォーム送信先を制限
+```
+
+### ディレクティブの詳細
+
+| ディレクティブ | 説明 | 推奨設定 |
+|--------------|------|---------|
+| `default-src` | 他のディレクティブのフォールバック | `'self'` |
+| `script-src` | JavaScript実行元 | `'self' 'nonce-{random}'` |
+| `style-src` | CSS読み込み元 | `'self'` |
+| `img-src` | 画像読み込み元 | `'self' data: https:` |
+| `connect-src` | fetch/XHR接続先 | `'self' https://api.example.com` |
+| `font-src` | フォント読み込み元 | `'self' data:` |
+| `frame-src` | iframe読み込み元 | `'self'` or `'none'` |
+| `object-src` | Flash等のプラグイン | `'none'` |
+| `base-uri` | `<base>`タグのURI | `'self'` |
+| `form-action` | フォーム送信先 | `'self'` |
+
+## CSPの実装レベル
+
+### Level 1: Report-Only Mode（学習モード）
+
+まずはレポートモードで違反を収集し、問題を特定します。
+
+```html
+<!-- HTML: meta tag -->
+<meta http-equiv="Content-Security-Policy-Report-Only"
+      content="default-src 'self'; report-uri /csp-violation-report">
+```
+
+```javascript
+// Node.js/Express
+app.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy-Report-Only',
+    "default-src 'self'; report-uri /csp-violation-report"
+  );
+  next();
+});
+
+// 違反レポートを受信
+app.post('/csp-violation-report', express.json({ type: 'application/csp-report' }), (req, res) => {
+  const violation = req.body['csp-report'];
+  console.log('CSP Violation:', {
+    documentUri: violation['document-uri'],
+    violatedDirective: violation['violated-directive'],
+    blockedUri: violation['blocked-uri'],
+    sourceFile: violation['source-file'],
+    lineNumber: violation['line-number']
+  });
+  res.status(204).end();
+});
+```
+
+### Level 2: Enforce Mode with Exceptions
+
+違反を修正しながら、徐々にポリシーを厳格化します。
+
+```javascript
+// Next.js: next.config.js
+const ContentSecurityPolicy = \`
+  default-src 'self';
+  script-src 'self' 'unsafe-eval' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: https:;
+  font-src 'self' data:;
+  connect-src 'self' https://api.example.com;
+  frame-ancestors 'none';
+\`;
+
+module.exports = {
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: ContentSecurityPolicy.replace(/\\s{2,}/g, ' ').trim()
+          }
+        ]
+      }
+    ];
+  }
+};
+```
+
+### Level 3: Strict CSP with Nonces
+
+最も安全な設定。nonceまたはhashを使用してインラインスクリプトを管理。
+
+```javascript
+// Express: ランダムnonceを生成
+const crypto = require('crypto');
+
+app.use((req, res, next) => {
+  // リクエストごとにランダムなnonceを生成
+  res.locals.cspNonce = crypto.randomBytes(16).toString('base64');
+
+  const csp = \`
+    default-src 'self';
+    script-src 'self' 'nonce-\${res.locals.cspNonce}';
+    style-src 'self' 'nonce-\${res.locals.cspNonce}';
+    img-src 'self' data: https:;
+    connect-src 'self' https://api.example.com;
+    frame-ancestors 'none';
+    base-uri 'self';
+    form-action 'self';
+  \`;
+
+  res.setHeader('Content-Security-Policy', csp.replace(/\\s{2,}/g, ' ').trim());
+  next();
+});
+
+// テンプレートでnonceを使用
+app.get('/', (req, res) => {
+  res.send(\`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <script nonce="\${res.locals.cspNonce}">
+        // このスクリプトは実行される
+        console.log('Nonce-protected script');
+      </script>
+      <script>
+        // このスクリプトはブロックされる（nonceなし）
+        console.log('Blocked!');
+      </script>
+    </head>
+    <body>
+      <h1>Strict CSP with Nonce</h1>
+    </body>
+    </html>
+  \`);
+});
+```
+
+## Trusted Types API
+
+Trusted Typesは、DOM XSS攻撃を防ぐための新しいWeb標準です。`innerHTML`、`document.write()`などの危険なシンク（sink）への入力を型レベルで制限します。
+
+### 基本的な使い方
+
+```javascript
+// Trusted Typesポリシーを作成
+const sanitizerPolicy = trustedTypes.createPolicy('sanitizer', {
+  createHTML: (input) => {
+    // 入力をサニタイズして返す
+    const div = document.createElement('div');
+    div.textContent = input; // textContentは安全
+    return div.innerHTML;
+  }
+});
+
+// 使用例
+const userInput = '<img src=x onerror=alert(1)>';
+
+// ❌ 直接使用はエラー（Trusted Types有効時）
+// element.innerHTML = userInput; // Error!
+
+// ✅ ポリシーを通して使用
+element.innerHTML = sanitizerPolicy.createHTML(userInput);
+// 結果: "&lt;img src=x onerror=alert(1)&gt;"
+```
+
+### DOMPurifyとの統合
+
+```javascript
+// DOMPurifyを使った実践的なサニタイゼーション
+import DOMPurify from 'dompurify';
+
+// Trusted Typesポリシーを作成
+const purifyPolicy = trustedTypes.createPolicy('dompurify', {
+  createHTML: (input) => {
+    return DOMPurify.sanitize(input, {
+      RETURN_TRUSTED_TYPE: true,
+      ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br'],
+      ALLOWED_ATTR: ['href']
+    });
+  }
+});
+
+// 使用例
+function renderUserContent(content) {
+  const container = document.getElementById('content');
+  container.innerHTML = purifyPolicy.createHTML(content);
+}
+
+// リッチテキストの安全な挿入
+renderUserContent(\`
+  <p>これは<b>安全な</b>コンテンツです</p>
+  <script>alert('XSS')</script> <!-- これは除去される -->
+\`);
+```
+
+### Trusted Typesの有効化
+
+```javascript
+// CSPヘッダーで有効化
+Content-Security-Policy:
+  require-trusted-types-for 'script';
+  trusted-types default sanitizer dompurify;
+
+// デフォルトポリシー（フォールバック）
+trustedTypes.createPolicy('default', {
+  createHTML: (input) => {
+    console.warn('Unsafe HTML detected:', input);
+    // 完全にエスケープ
+    return input
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;');
+  },
+  createScript: (input) => {
+    throw new Error('Script creation not allowed');
+  },
+  createScriptURL: (input) => {
+    throw new Error('Script URL creation not allowed');
+  }
+});
+```
+
+## Meta Tag vs HTTP Header
+
+### HTTP Header（推奨）
+
+```javascript
+// サーバー側で設定（推奨）
+res.setHeader('Content-Security-Policy', "default-src 'self'");
+
+// 利点:
+// - サーバー全体で一貫したポリシー
+// - metaタグの改ざんリスクなし
+// - report-uriが使用可能
+// - frame-ancestorsが機能する
+```
+
+### Meta Tag（代替手段）
+
+```html
+<!-- HTML内で設定（制限あり） -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'">
+
+<!-- 注意:
+  - frame-ancestorsディレクティブが使えない
+  - report-uriが動作しない場合がある
+  - HTMLの最初に配置する必要がある
+-->
+```
+
+## Common Issues and Debugging
+
+### 1. インライン スクリプト/スタイルの問題
+
+```javascript
+// ❌ 問題: インラインスクリプトがブロックされる
+<script>
+  console.log('Hello');
+</script>
+
+// ✅ 解決策1: Nonce使用
+// サーバー側
+const nonce = crypto.randomBytes(16).toString('base64');
+res.setHeader('Content-Security-Policy', \`script-src 'self' 'nonce-\${nonce}'\`);
+
+// HTML
+<script nonce="\${nonce}">
+  console.log('Hello');
+</script>
+
+// ✅ 解決策2: Hash使用
+// スクリプトのSHA-256ハッシュを計算
+const hash = crypto.createHash('sha256')
+  .update("console.log('Hello');")
+  .digest('base64');
+
+// CSP
+Content-Security-Policy: script-src 'self' 'sha256-{hash}'
+
+// ✅ 解決策3: 外部ファイル化
+<script src="/js/app.js"></script>
+```
+
+### 2. Third-Party スクリプトの許可
+
+```javascript
+// Google Analytics, Stripe等のサードパーティを許可
+const csp = \`
+  default-src 'self';
+  script-src 'self'
+    https://www.google-analytics.com
+    https://js.stripe.com
+    'nonce-\${nonce}';
+  connect-src 'self'
+    https://www.google-analytics.com
+    https://api.stripe.com;
+  frame-src https://js.stripe.com;
+\`;
+```
+
+### 3. 開発環境での調整
+
+```javascript
+// 開発環境では緩和、本番では厳格に
+const isDev = process.env.NODE_ENV === 'development';
+
+const csp = isDev
+  ? \`
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' 'unsafe-eval';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https:;
+  \`
+  : \`
+    default-src 'self';
+    script-src 'self' 'nonce-\${nonce}';
+    style-src 'self' 'nonce-\${nonce}';
+    img-src 'self' data: https:;
+    connect-src 'self' https://api.example.com;
+    frame-ancestors 'none';
+    base-uri 'self';
+    form-action 'self';
+    upgrade-insecure-requests;
+  \`;
+```
+
+### 4. Debugging Tools
+
+```javascript
+// ブラウザコンソールでCSP違反を確認
+document.addEventListener('securitypolicyviolation', (e) => {
+  console.log('CSP Violation:', {
+    violatedDirective: e.violatedDirective,
+    effectiveDirective: e.effectiveDirective,
+    originalPolicy: e.originalPolicy,
+    blockedURI: e.blockedURI,
+    sourceFile: e.sourceFile,
+    lineNumber: e.lineNumber,
+    columnNumber: e.columnNumber
+  });
+});
+
+// Reporting API（新しい標準）
+Content-Security-Policy:
+  default-src 'self';
+  report-to csp-endpoint;
+
+Report-To: {
+  "group": "csp-endpoint",
+  "max_age": 10886400,
+  "endpoints": [
+    { "url": "https://example.com/csp-reports" }
+  ]
+}
+```
+
+## Production Checklist
+
+- [ ] **CSPヘッダーを設定** (metaタグではなく)
+- [ ] **Report-Onlyモードでテスト** 最低1週間
+- [ ] **違反レポートを収集・分析**
+- [ ] **`default-src 'self'`から開始** 必要に応じて緩和
+- [ ] **インラインスクリプト/スタイルを排除** またはnonce/hash使用
+- [ ] **`'unsafe-inline'`と`'unsafe-eval'`を避ける**
+- [ ] **Trusted Typesを有効化** モダンブラウザで
+- [ ] **Third-Partyドメインを明示的に列挙**
+- [ ] **`frame-ancestors`でClickjacking防止**
+- [ ] **`upgrade-insecure-requests`でHTTPS強制**
+- [ ] **定期的にポリシーを見直し**
+
+## CSP Generator Tools
+
+便利なツール:
+
+- **CSP Evaluator**: https://csp-evaluator.withgoogle.com/
+- **Report URI**: https://report-uri.com/
+- **Mozilla Observatory**: https://observatory.mozilla.org/
+
+## まとめ
+
+### Content Security Policy
+
+- XSS攻撃に対する最も効果的な防御層
+- 段階的な導入が可能（Report-Only → Enforce）
+- Nonceまたはハッシュでインラインコードを管理
+- HTTPヘッダーでの設定を推奨
+
+### Trusted Types
+
+- DOM XSS攻撃を根本的に防ぐ
+- 危険なシンク（innerHTML等）への入力を型で制限
+- DOMPurifyとの統合で強力なサニタイゼーション
+- モダンブラウザで利用可能
+
+### セキュリティの多層防御
+
+CSPとTrusted Typesは、入力サニタイゼーション、出力エンコーディング、HTTPOnly Cookieなどの他のセキュリティ対策と組み合わせることで、最大の効果を発揮します。
+
+## 参考リンク
+
+- [MDN: Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
+- [MDN: Trusted Types API](https://developer.mozilla.org/en-US/docs/Web/API/Trusted_Types_API)
+- [OWASP: Content Security Policy Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html)
+- [web.dev: Trusted Types](https://web.dev/trusted-types/)
+- [CSP Level 3 Specification](https://www.w3.org/TR/CSP3/)

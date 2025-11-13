@@ -1,0 +1,391 @@
+---
+title: ドラッグ&ドロップソート（リスト並べ替え）
+description: マウス/タッチでリストアイテムを並べ替え。Vanilla JS実装。
+tags: [drag-drop, sort, reorder, ux]
+frameworks: [Vanilla, Any]
+level: intermediate
+prompt_template: |
+  目的: ドラッグ&ドロップでリストアイテムを並べ替え
+  前提: Vanilla JS、HTML5 Drag and Drop API使用
+  要件:
+  - draggable属性でドラッグ可能に
+  - ドラッグ中の視覚的フィードバック（半透明化、プレースホルダー表示）
+  - タッチデバイス対応（pointer events）
+  - ドロップ後に並び順変更イベント発火
+  - キーボード操作対応（Alt+↑/↓で移動）
+  - aria-grabbed、aria-dropeffect使用
+  - prefers-reduced-motion考慮
+  納品: HTML+CSS+最小限のJS
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo height="500px">
+{`<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0c1218; color: #e5edf4; padding: 2rem; }
+
+    h2 { margin-bottom: 0.5rem; }
+    .instructions { color: #9ca3af; margin-bottom: 1.5rem; line-height: 1.6; }
+
+    .sortable-list { display: flex; flex-direction: column; gap: 0.5rem; max-width: 400px; margin-bottom: 1.5rem; }
+    .sortable-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: #1f2a37; border: 1px solid #374151; border-radius: 8px;
+      padding: 1rem; cursor: move;
+      transition: transform 0.2s, opacity 0.2s, background 0.2s;
+      user-select: none;
+    }
+    .sortable-item:hover { background: #15202b; }
+    .sortable-item:focus { outline: 2px solid #60a5fa; outline-offset: 2px; }
+    .sortable-item.dragging { opacity: 0.4; cursor: grabbing; }
+    .sortable-item.over { border-color: #60a5fa; background: #1a2736; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .sortable-item { transition: none; }
+    }
+
+    .handle { color: #6b7280; font-size: 1.2rem; cursor: grab; }
+    .content { flex: 1; color: #e5edf4; font-size: 1rem; }
+    .output { padding: 1rem; background: #15202b; border: 1px solid #1f2a37; border-radius: 8px; color: #9ca3af; font-size: 0.9rem; max-width: 400px; }
+  </style>
+</head>
+<body>
+  <h2>ドラッグ&ドロップソート</h2>
+  <p class="instructions">
+    アイテムをドラッグして並べ替えることができます。<br>
+    キーボード操作: Alt + ↑/↓ でも移動可能です。
+  </p>
+
+  <div class="sortable-list" role="list" aria-label="並べ替え可能なリスト">
+    <div class="sortable-item" draggable="true" role="listitem" tabindex="0">
+      <span class="handle" aria-hidden="true">☰</span>
+      <span class="content">タスク 1: プロジェクト計画</span>
+    </div>
+    <div class="sortable-item" draggable="true" role="listitem" tabindex="0">
+      <span class="handle" aria-hidden="true">☰</span>
+      <span class="content">タスク 2: デザイン作成</span>
+    </div>
+    <div class="sortable-item" draggable="true" role="listitem" tabindex="0">
+      <span class="handle" aria-hidden="true">☰</span>
+      <span class="content">タスク 3: 開発実装</span>
+    </div>
+    <div class="sortable-item" draggable="true" role="listitem" tabindex="0">
+      <span class="handle" aria-hidden="true">☰</span>
+      <span class="content">タスク 4: テスト</span>
+    </div>
+    <div class="sortable-item" draggable="true" role="listitem" tabindex="0">
+      <span class="handle" aria-hidden="true">☰</span>
+      <span class="content">タスク 5: デプロイ</span>
+    </div>
+  </div>
+
+  <div class="output" role="status" aria-live="polite" id="output">並び順: タスク 1, タスク 2, タスク 3, タスク 4, タスク 5</div>
+
+  <script>
+    const list = document.querySelector('.sortable-list');
+    const output = document.getElementById('output');
+    let draggedItem = null;
+
+    function updateOutput() {
+      const items = Array.from(list.querySelectorAll('.sortable-item .content'));
+      const order = items.map(el => el.textContent).join(', ');
+      output.textContent = \`並び順: \${order}\`;
+    }
+
+    list.addEventListener('dragstart', (e) => {
+      const item = e.target.closest('.sortable-item');
+      if (!item) return;
+
+      draggedItem = item;
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+
+    list.addEventListener('dragend', (e) => {
+      const item = e.target.closest('.sortable-item');
+      if (!item) return;
+
+      item.classList.remove('dragging');
+      draggedItem = null;
+
+      list.querySelectorAll('.sortable-item').forEach(el => {
+        el.classList.remove('over');
+      });
+
+      updateOutput();
+    });
+
+    list.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const item = e.target.closest('.sortable-item');
+      if (!item || item === draggedItem) return;
+
+      e.dataTransfer.dropEffect = 'move';
+
+      list.querySelectorAll('.sortable-item').forEach(el => {
+        el.classList.remove('over');
+      });
+
+      item.classList.add('over');
+    });
+
+    list.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const item = e.target.closest('.sortable-item');
+      if (!item || item === draggedItem) return;
+
+      item.classList.remove('over');
+
+      const allItems = Array.from(list.querySelectorAll('.sortable-item'));
+      const draggedIndex = allItems.indexOf(draggedItem);
+      const targetIndex = allItems.indexOf(item);
+
+      if (draggedIndex < targetIndex) {
+        item.parentNode.insertBefore(draggedItem, item.nextSibling);
+      } else {
+        item.parentNode.insertBefore(draggedItem, item);
+      }
+    });
+
+    // キーボード操作
+    list.addEventListener('keydown', (e) => {
+      const item = e.target.closest('.sortable-item');
+      if (!item) return;
+
+      if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault();
+        const allItems = Array.from(list.querySelectorAll('.sortable-item'));
+        const currentIndex = allItems.indexOf(item);
+
+        if (e.key === 'ArrowUp' && currentIndex > 0) {
+          list.insertBefore(item, allItems[currentIndex - 1]);
+          item.focus();
+          updateOutput();
+        } else if (e.key === 'ArrowDown' && currentIndex < allItems.length - 1) {
+          list.insertBefore(item, allItems[currentIndex + 1].nextSibling);
+          item.focus();
+          updateOutput();
+        }
+      }
+    });
+  </script>
+</body>
+</html>`}
+</LiveDemo>
+
+**HTML**
+```html
+<div class="sortable-list" role="list" aria-label="並べ替え可能なリスト">
+  <div class="sortable-item" draggable="true" role="listitem" tabindex="0" aria-grabbed="false">
+    <span class="handle" aria-hidden="true">☰</span>
+    <span class="content">アイテム 1</span>
+  </div>
+  <div class="sortable-item" draggable="true" role="listitem" tabindex="0" aria-grabbed="false">
+    <span class="handle" aria-hidden="true">☰</span>
+    <span class="content">アイテム 2</span>
+  </div>
+  <div class="sortable-item" draggable="true" role="listitem" tabindex="0" aria-grabbed="false">
+    <span class="handle" aria-hidden="true">☰</span>
+    <span class="content">アイテム 3</span>
+  </div>
+  <div class="sortable-item" draggable="true" role="listitem" tabindex="0" aria-grabbed="false">
+    <span class="handle" aria-hidden="true">☰</span>
+    <span class="content">アイテム 4</span>
+  </div>
+</div>
+
+<div class="output" aria-live="polite" role="status">並び順: 1, 2, 3, 4</div>
+```
+
+**CSS**
+```css
+.sortable-list { display: flex; flex-direction: column; gap: .5rem; max-width: 400px; }
+.sortable-item {
+  display: flex; align-items: center; gap: .5rem;
+  background: #0c1218; border: 1px solid #1f2a37; border-radius: 8px;
+  padding: .8rem 1rem; cursor: move;
+  transition: transform .2s, opacity .2s, background .2s;
+  user-select: none;
+}
+.sortable-item:hover { background: #15202b; }
+.sortable-item:focus { outline: 2px solid #60a5fa; outline-offset: 2px; }
+.sortable-item.dragging { opacity: 0.4; cursor: grabbing; }
+.sortable-item.over { border-color: #60a5fa; background: #1a2736; }
+.sortable-item.placeholder { border-style: dashed; background: transparent; opacity: 0.5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sortable-item { transition: none; }
+}
+
+.handle { color: #6b7280; font-size: 1.2rem; cursor: grab; }
+.content { flex: 1; color: #e5edf4; }
+.output { margin-top: 1rem; padding: .5rem; background: #15202b; border: 1px solid #1f2a37; border-radius: 8px; color: #9ca3af; font-size: .9rem; }
+```
+
+**JS**
+```js
+(() => {
+  const list = document.querySelector('.sortable-list');
+  const output = document.querySelector('.output');
+  if (!list) return;
+
+  let draggedItem = null;
+  let draggedOverItem = null;
+
+  function updateOutput() {
+    const items = Array.from(list.querySelectorAll('.sortable-item .content'));
+    const order = items.map(el => el.textContent).join(', ');
+    output.textContent = `並び順: ${order}`;
+
+    // カスタムイベント発火
+    list.dispatchEvent(new CustomEvent('sortchange', {
+      detail: { order: items.map(el => el.textContent) }
+    }));
+  }
+
+  list.addEventListener('dragstart', (e) => {
+    const item = e.target.closest('.sortable-item');
+    if (!item) return;
+
+    draggedItem = item;
+    item.classList.add('dragging');
+    item.setAttribute('aria-grabbed', 'true');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', item.innerHTML);
+  });
+
+  list.addEventListener('dragend', (e) => {
+    const item = e.target.closest('.sortable-item');
+    if (!item) return;
+
+    item.classList.remove('dragging');
+    item.setAttribute('aria-grabbed', 'false');
+    draggedItem = null;
+
+    // すべてのover状態をクリア
+    list.querySelectorAll('.sortable-item').forEach(el => {
+      el.classList.remove('over');
+      el.setAttribute('aria-dropeffect', 'none');
+    });
+
+    updateOutput();
+  });
+
+  list.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    const item = e.target.closest('.sortable-item');
+    if (!item || item === draggedItem) return;
+
+    e.dataTransfer.dropEffect = 'move';
+
+    // 前回のoverを削除
+    if (draggedOverItem && draggedOverItem !== item) {
+      draggedOverItem.classList.remove('over');
+      draggedOverItem.setAttribute('aria-dropeffect', 'none');
+    }
+
+    item.classList.add('over');
+    item.setAttribute('aria-dropeffect', 'move');
+    draggedOverItem = item;
+  });
+
+  list.addEventListener('dragleave', (e) => {
+    const item = e.target.closest('.sortable-item');
+    if (!item) return;
+
+    item.classList.remove('over');
+    item.setAttribute('aria-dropeffect', 'none');
+  });
+
+  list.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const item = e.target.closest('.sortable-item');
+    if (!item || item === draggedItem) return;
+
+    item.classList.remove('over');
+    item.setAttribute('aria-dropeffect', 'none');
+
+    // ドラッグ元の位置とドロップ先の位置を比較して挿入
+    const allItems = Array.from(list.querySelectorAll('.sortable-item'));
+    const draggedIndex = allItems.indexOf(draggedItem);
+    const targetIndex = allItems.indexOf(item);
+
+    if (draggedIndex < targetIndex) {
+      item.parentNode.insertBefore(draggedItem, item.nextSibling);
+    } else {
+      item.parentNode.insertBefore(draggedItem, item);
+    }
+  });
+
+  // キーボード操作（Alt + 矢印キー）
+  list.addEventListener('keydown', (e) => {
+    const item = e.target.closest('.sortable-item');
+    if (!item) return;
+
+    if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault();
+      const allItems = Array.from(list.querySelectorAll('.sortable-item'));
+      const currentIndex = allItems.indexOf(item);
+
+      if (e.key === 'ArrowUp' && currentIndex > 0) {
+        list.insertBefore(item, allItems[currentIndex - 1]);
+        item.focus();
+        updateOutput();
+      } else if (e.key === 'ArrowDown' && currentIndex < allItems.length - 1) {
+        list.insertBefore(item, allItems[currentIndex + 1].nextSibling);
+        item.focus();
+        updateOutput();
+      }
+    }
+  });
+
+  // タッチデバイス対応（pointer events）
+  let touchStartY = 0;
+  let touchItem = null;
+
+  list.addEventListener('pointerdown', (e) => {
+    const item = e.target.closest('.sortable-item');
+    if (!item || e.pointerType !== 'touch') return;
+
+    touchStartY = e.clientY;
+    touchItem = item;
+    item.classList.add('dragging');
+  });
+
+  list.addEventListener('pointermove', (e) => {
+    if (!touchItem || e.pointerType !== 'touch') return;
+
+    const deltaY = e.clientY - touchStartY;
+    const allItems = Array.from(list.querySelectorAll('.sortable-item'));
+    const currentIndex = allItems.indexOf(touchItem);
+
+    // 上下の移動検出
+    if (Math.abs(deltaY) > 30) {
+      if (deltaY < 0 && currentIndex > 0) {
+        list.insertBefore(touchItem, allItems[currentIndex - 1]);
+        touchStartY = e.clientY;
+      } else if (deltaY > 0 && currentIndex < allItems.length - 1) {
+        list.insertBefore(touchItem, allItems[currentIndex + 1].nextSibling);
+        touchStartY = e.clientY;
+      }
+    }
+  });
+
+  list.addEventListener('pointerup', (e) => {
+    if (!touchItem) return;
+
+    touchItem.classList.remove('dragging');
+    touchItem = null;
+    updateOutput();
+  });
+
+  // 初期状態
+  updateOutput();
+})();
+```

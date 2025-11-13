@@ -1,0 +1,1080 @@
+---
+title: Service Worker戦略3種
+description: キャッシュ戦略を理解して、最適なオフライン体験を実現する
+tags: [service-worker, pwa, performance, caching, offline]
+category: performance
+level: advanced
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## Service Worker キャッシュ戦略とは
+
+Service Worker を使うと、ネットワークリクエストをインターセプトしてキャッシュを制御できます。適切な戦略を選ぶことで、パフォーマンスとデータの新鮮さのバランスを取ることができます。
+
+### 主な3つの戦略
+
+<LiveDemo
+  title="Service Worker キャッシュ戦略の比較"
+  height="700px"
+  html={`
+<div class="sw-strategies-demo">
+  <div class="strategy-selector">
+    <h3>キャッシュ戦略を選択</h3>
+    <div class="strategy-buttons">
+      <button class="strategy-btn active" data-strategy="network-first">
+        <span class="strategy-icon">🌐</span>
+        <span class="strategy-name">Network First</span>
+      </button>
+      <button class="strategy-btn" data-strategy="cache-first">
+        <span class="strategy-icon">💾</span>
+        <span class="strategy-name">Cache First</span>
+      </button>
+      <button class="strategy-btn" data-strategy="stale-while-revalidate">
+        <span class="strategy-icon">⚡</span>
+        <span class="strategy-name">Stale While Revalidate</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="strategy-info" id="strategyInfo">
+    <div class="info-content" data-strategy="network-first">
+      <h4>🌐 Network First</h4>
+      <p>ネットワークを優先、失敗時にキャッシュから取得</p>
+      <div class="use-case">
+        <strong>最適な用途:</strong> API リクエスト、ニュース記事など動的コンテンツ
+      </div>
+    </div>
+    <div class="info-content" data-strategy="cache-first" style="display:none;">
+      <h4>💾 Cache First</h4>
+      <p>キャッシュを優先、無ければネットワークから取得</p>
+      <div class="use-case">
+        <strong>最適な用途:</strong> CSS、JavaScript、画像などの静的アセット
+      </div>
+    </div>
+    <div class="info-content" data-strategy="stale-while-revalidate" style="display:none;">
+      <h4>⚡ Stale While Revalidate</h4>
+      <p>キャッシュから即座に返し、バックグラウンドで更新</p>
+      <div class="use-case">
+        <strong>最適な用途:</strong> アバター画像、設定ファイルなど、即座に表示したいが最新版も欲しいもの
+      </div>
+    </div>
+  </div>
+
+  <div class="control-panel">
+    <div class="network-toggle">
+      <label class="toggle-label">
+        <input type="checkbox" id="networkDelay" checked>
+        <span class="toggle-slider"></span>
+        <span class="toggle-text">ネットワーク遅延シミュレート（1.5秒）</span>
+      </label>
+    </div>
+    <button class="action-btn" id="fetchBtn">
+      <span>📥</span>
+      <span>リクエスト実行</span>
+    </button>
+    <button class="action-btn secondary" id="clearCacheBtn">
+      <span>🗑️</span>
+      <span>キャッシュをクリア</span>
+    </button>
+  </div>
+
+  <div class="metrics-panel">
+    <div class="metric-card">
+      <div class="metric-label">キャッシュ状態</div>
+      <div class="metric-value" id="cacheStatus">空</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">最終読み込み時間</div>
+      <div class="metric-value" id="loadTime">-</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">データソース</div>
+      <div class="metric-value" id="dataSource">-</div>
+    </div>
+  </div>
+
+  <div class="timeline" id="timeline">
+    <div class="timeline-header">リクエストタイムライン</div>
+    <div class="timeline-content" id="timelineContent">
+      <div class="timeline-empty">リクエストを実行してください</div>
+    </div>
+  </div>
+
+  <div class="response-viewer">
+    <div class="response-header">レスポンス内容</div>
+    <div class="response-content" id="responseContent">
+      <div class="response-empty">データを取得してください</div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.sw-strategies-demo {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.strategy-selector {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.strategy-selector h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: #e5edf4;
+}
+
+.strategy-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.strategy-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #0c1218;
+  border: 2px solid #374151;
+  border-radius: 8px;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+}
+
+.strategy-btn:hover {
+  border-color: #4b5563;
+  transform: translateY(-2px);
+}
+
+.strategy-btn.active {
+  border-color: #10b981;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
+  color: #10b981;
+}
+
+.strategy-icon {
+  font-size: 2rem;
+}
+
+.strategy-name {
+  font-weight: 600;
+}
+
+.strategy-info {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  min-height: 120px;
+}
+
+.info-content h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+  color: #e5edf4;
+}
+
+.info-content p {
+  margin: 0 0 0.75rem 0;
+  color: #9ca3af;
+  font-size: 0.9375rem;
+}
+
+.use-case {
+  background: #0c1218;
+  border-left: 3px solid #10b981;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #d1d5db;
+}
+
+.use-case strong {
+  color: #10b981;
+}
+
+.control-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.network-toggle {
+  flex: 1;
+  min-width: 200px;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  background: #1f2a37;
+  padding: 1rem;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.toggle-label:hover {
+  background: #374151;
+}
+
+.toggle-label input {
+  display: none;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: #374151;
+  border-radius: 12px;
+  transition: background 0.3s;
+}
+
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: #e5edf4;
+  border-radius: 50%;
+  transition: transform 0.3s;
+}
+
+.toggle-label input:checked + .toggle-slider {
+  background: #10b981;
+}
+
+.toggle-label input:checked + .toggle-slider::after {
+  transform: translateX(20px);
+}
+
+.toggle-text {
+  font-size: 0.875rem;
+  color: #e5edf4;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9375rem;
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.action-btn:active {
+  transform: translateY(0);
+}
+
+.action-btn.secondary {
+  background: #374151;
+}
+
+.action-btn.secondary:hover {
+  background: #4b5563;
+  box-shadow: 0 4px 12px rgba(55, 65, 81, 0.4);
+}
+
+.metrics-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.metric-card {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #10b981;
+}
+
+.timeline {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.timeline-header {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #e5edf4;
+  margin-bottom: 1rem;
+}
+
+.timeline-content {
+  background: #0c1218;
+  border-radius: 6px;
+  padding: 1rem;
+  min-height: 100px;
+}
+
+.timeline-empty {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+  padding: 1rem;
+}
+
+.timeline-event {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: #1f2a37;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.timeline-event .event-time {
+  font-weight: 600;
+  color: #10b981;
+  min-width: 60px;
+}
+
+.timeline-event .event-desc {
+  color: #d1d5db;
+}
+
+.response-viewer {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.response-header {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #e5edf4;
+  margin-bottom: 1rem;
+}
+
+.response-content {
+  background: #0c1218;
+  border-radius: 6px;
+  padding: 1rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  color: #e5edf4;
+  min-height: 80px;
+}
+
+.response-empty {
+  text-align: center;
+  color: #6b7280;
+  padding: 1rem;
+}
+
+.response-data {
+  color: #10b981;
+}
+  `}
+  js={`
+// シミュレーション用のキャッシュ
+let cache = null;
+let currentStrategy = 'network-first';
+let requestCount = 0;
+
+// DOM要素
+const strategyBtns = document.querySelectorAll('.strategy-btn');
+const strategyInfos = document.querySelectorAll('.info-content');
+const networkDelayCheckbox = document.getElementById('networkDelay');
+const fetchBtn = document.getElementById('fetchBtn');
+const clearCacheBtn = document.getElementById('clearCacheBtn');
+const cacheStatus = document.getElementById('cacheStatus');
+const loadTime = document.getElementById('loadTime');
+const dataSource = document.getElementById('dataSource');
+const timelineContent = document.getElementById('timelineContent');
+const responseContent = document.getElementById('responseContent');
+
+// 戦略切り替え
+strategyBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    strategyBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentStrategy = btn.dataset.strategy;
+
+    strategyInfos.forEach(info => {
+      info.style.display = info.dataset.strategy === currentStrategy ? 'block' : 'none';
+    });
+  });
+});
+
+// タイムラインに追加
+function addTimelineEvent(time, description) {
+  if (timelineContent.querySelector('.timeline-empty')) {
+    timelineContent.innerHTML = '';
+  }
+
+  const event = document.createElement('div');
+  event.className = 'timeline-event';
+  event.innerHTML = \`
+    <span class="event-time">\${time}ms</span>
+    <span class="event-desc">\${description}</span>
+  \`;
+  timelineContent.appendChild(event);
+}
+
+// ネットワークから取得（シミュレーション）
+async function fetchFromNetwork(delay) {
+  const start = Date.now();
+  addTimelineEvent(0, '🌐 ネットワークリクエスト開始...');
+
+  await new Promise(resolve => setTimeout(resolve, delay));
+
+  const elapsed = Date.now() - start;
+  const data = {
+    content: 'サーバーから取得したデータ',
+    timestamp: new Date().toLocaleTimeString('ja-JP'),
+    version: requestCount + 1
+  };
+
+  addTimelineEvent(elapsed, '✅ ネットワークから取得完了');
+  return { data, elapsed };
+}
+
+// キャッシュから取得
+async function fetchFromCache() {
+  const start = Date.now();
+  addTimelineEvent(0, '💾 キャッシュから取得...');
+
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  const elapsed = Date.now() - start;
+  addTimelineEvent(elapsed, '✅ キャッシュから取得完了');
+  return { data: cache, elapsed };
+}
+
+// Network First 戦略
+async function networkFirst(delay) {
+  try {
+    const result = await fetchFromNetwork(delay);
+    cache = result.data;
+    updateCacheStatus();
+    return { ...result, source: 'Network' };
+  } catch (error) {
+    addTimelineEvent(delay, '⚠️ ネットワークエラー、キャッシュにフォールバック');
+    if (cache) {
+      const result = await fetchFromCache();
+      return { ...result, source: 'Cache (Fallback)' };
+    }
+    throw new Error('ネットワークエラー、キャッシュなし');
+  }
+}
+
+// Cache First 戦略
+async function cacheFirst(delay) {
+  if (cache) {
+    const result = await fetchFromCache();
+    return { ...result, source: 'Cache' };
+  }
+
+  addTimelineEvent(0, 'ℹ️ キャッシュなし、ネットワークから取得');
+  const result = await fetchFromNetwork(delay);
+  cache = result.data;
+  updateCacheStatus();
+  return { ...result, source: 'Network (First time)' };
+}
+
+// Stale While Revalidate 戦略
+async function staleWhileRevalidate(delay) {
+  if (cache) {
+    const cacheResult = await fetchFromCache();
+
+    // バックグラウンドで更新
+    addTimelineEvent(cacheResult.elapsed + 50, '🔄 バックグラウンドで更新中...');
+    fetchFromNetwork(delay).then(result => {
+      cache = result.data;
+      updateCacheStatus();
+      const totalTime = cacheResult.elapsed + result.elapsed;
+      addTimelineEvent(totalTime, '✅ キャッシュを更新完了');
+    });
+
+    return { ...cacheResult, source: 'Cache (更新中)' };
+  }
+
+  addTimelineEvent(0, 'ℹ️ 初回取得、ネットワークから');
+  const result = await fetchFromNetwork(delay);
+  cache = result.data;
+  updateCacheStatus();
+  return { ...result, source: 'Network (First time)' };
+}
+
+// リクエスト実行
+fetchBtn.addEventListener('click', async () => {
+  requestCount++;
+  timelineContent.innerHTML = '';
+  fetchBtn.disabled = true;
+  fetchBtn.style.opacity = '0.6';
+  responseContent.innerHTML = '<div class="response-empty">読み込み中...</div>';
+
+  const delay = networkDelayCheckbox.checked ? 1500 : 100;
+  const startTime = Date.now();
+
+  let result;
+  try {
+    switch (currentStrategy) {
+      case 'network-first':
+        result = await networkFirst(delay);
+        break;
+      case 'cache-first':
+        result = await cacheFirst(delay);
+        break;
+      case 'stale-while-revalidate':
+        result = await staleWhileRevalidate(delay);
+        break;
+    }
+
+    loadTime.textContent = result.elapsed + 'ms';
+    dataSource.textContent = result.source;
+
+    responseContent.innerHTML = \`
+      <div class="response-data">
+        <div>内容: \${result.data.content}</div>
+        <div>取得時刻: \${result.data.timestamp}</div>
+        <div>バージョン: v\${result.data.version}</div>
+      </div>
+    \`;
+  } catch (error) {
+    responseContent.innerHTML = \`<div style="color: #ef4444;">\${error.message}</div>\`;
+    loadTime.textContent = '-';
+    dataSource.textContent = 'Error';
+  }
+
+  fetchBtn.disabled = false;
+  fetchBtn.style.opacity = '1';
+});
+
+// キャッシュクリア
+clearCacheBtn.addEventListener('click', () => {
+  cache = null;
+  updateCacheStatus();
+  addTimelineEvent(0, '🗑️ キャッシュをクリアしました');
+  responseContent.innerHTML = '<div class="response-empty">キャッシュをクリアしました</div>';
+  loadTime.textContent = '-';
+  dataSource.textContent = '-';
+});
+
+function updateCacheStatus() {
+  cacheStatus.textContent = cache ? 'あり' : '空';
+  cacheStatus.style.color = cache ? '#10b981' : '#9ca3af';
+}
+  `}
+/>
+
+## 戦略1: Network First（ネットワーク優先）
+
+### 仕組み
+
+1. まずネットワークからデータを取得
+2. 成功したらレスポンスを返し、キャッシュに保存
+3. 失敗したらキャッシュから取得
+
+### コード実装
+
+```javascript
+// Service Worker での Network First 実装
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        // レスポンスをクローンしてキャッシュに保存
+        const responseToCache = response.clone();
+        caches.open('my-cache-v1').then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+        return response;
+      })
+      .catch(() => {
+        // ネットワーク失敗時はキャッシュから
+        return caches.match(event.request);
+      })
+  );
+});
+```
+
+### 最適な用途
+
+- **API リクエスト**: ユーザー情報、設定データなど
+- **ニュース記事**: 常に最新版を取得したいコンテンツ
+- **ダッシュボードデータ**: リアルタイム性が重要なデータ
+
+### メリット・デメリット
+
+**メリット:**
+- 常に最新のデータを取得できる
+- オフライン時でも古いデータを表示可能
+
+**デメリット:**
+- ネットワークが遅いと表示も遅くなる
+- オンライン時は常にネットワークリクエストが発生
+
+## 戦略2: Cache First（キャッシュ優先）
+
+### 仕組み
+
+1. まずキャッシュを確認
+2. キャッシュにあればそれを返す
+3. なければネットワークから取得してキャッシュに保存
+
+### コード実装
+
+```javascript
+// Service Worker での Cache First 実装
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+
+      return fetch(event.request).then((response) => {
+        // キャッシュに保存
+        const responseToCache = response.clone();
+        caches.open('my-cache-v1').then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+        return response;
+      });
+    })
+  );
+});
+```
+
+### 最適な用途
+
+- **静的アセット**: CSS、JavaScript、フォントファイル
+- **画像**: ロゴ、アイコン、製品画像
+- **変更頻度の低いコンテンツ**: 利用規約、FAQ など
+
+### メリット・デメリット
+
+**メリット:**
+- 超高速（キャッシュから即座に返す）
+- オフラインでも完全に動作
+- ネットワークトラフィックを削減
+
+**デメリット:**
+- 古いコンテンツが表示される可能性
+- キャッシュを更新するまで変更が反映されない
+
+## 戦略3: Stale While Revalidate（古いものを返して更新）
+
+### 仕組み
+
+1. キャッシュから即座にレスポンスを返す
+2. 同時にネットワークからも取得
+3. 取得したデータでキャッシュを更新（次回用）
+
+### コード実装
+
+```javascript
+// Service Worker での Stale While Revalidate 実装
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.open('my-cache-v1').then((cache) => {
+      return cache.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          // バックグラウンドでキャッシュを更新
+          cache.put(event.request, networkResponse.clone());
+          return networkResponse;
+        });
+
+        // キャッシュがあれば即座に返す
+        return cachedResponse || fetchPromise;
+      });
+    })
+  );
+});
+```
+
+### 最適な用途
+
+- **アバター画像**: すぐ表示したいが、最新版も欲しい
+- **設定ファイル**: 古い設定で起動して、バックグラウンドで更新
+- **頻繁に変わるが即座に表示したいコンテンツ**
+
+### メリット・デメリット
+
+**メリット:**
+- 超高速（キャッシュから即座に返す）
+- 自動的に最新版に更新される
+- 最高の UX（速度と新鮮さの両立）
+
+**デメリット:**
+- 初回表示は古いデータの可能性
+- バックグラウンド更新でバッテリー消費
+
+## Service Worker の登録
+
+### 基本的な登録コード
+
+```javascript
+// main.js
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then((registration) => {
+        console.log('Service Worker 登録成功:', registration.scope);
+      })
+      .catch((error) => {
+        console.log('Service Worker 登録失敗:', error);
+      });
+  });
+}
+```
+
+### Service Worker の基本構造
+
+```javascript
+// sw.js
+const CACHE_VERSION = 'v1';
+const CACHE_NAME = 'my-app-' + CACHE_VERSION;
+
+// インストール時にキャッシュ
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll([
+        '/',
+        '/index.html',
+        '/styles.css',
+        '/app.js',
+        '/offline.html'
+      ]);
+    })
+  );
+});
+
+// 古いキャッシュを削除
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME)
+          .map((name) => caches.delete(name))
+      );
+    })
+  );
+});
+
+// fetch イベントで戦略を適用
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // 静的ファイルは Cache First
+  if (url.pathname.match(/\.(css|js|png|jpg|svg|woff2?)$/)) {
+    event.respondWith(cacheFirst(event.request));
+  }
+  // API は Network First
+  else if (url.pathname.startsWith('/api/')) {
+    event.respondWith(networkFirst(event.request));
+  }
+  // その他は Stale While Revalidate
+  else {
+    event.respondWith(staleWhileRevalidate(event.request));
+  }
+});
+
+function cacheFirst(request) {
+  return caches.match(request).then((cachedResponse) => {
+    return cachedResponse || fetch(request).then((response) => {
+      return caches.open(CACHE_NAME).then((cache) => {
+        cache.put(request, response.clone());
+        return response;
+      });
+    });
+  });
+}
+
+function networkFirst(request) {
+  return fetch(request)
+    .then((response) => {
+      return caches.open(CACHE_NAME).then((cache) => {
+        cache.put(request, response.clone());
+        return response;
+      });
+    })
+    .catch(() => caches.match(request));
+}
+
+function staleWhileRevalidate(request) {
+  return caches.open(CACHE_NAME).then((cache) => {
+    return cache.match(request).then((cachedResponse) => {
+      const fetchPromise = fetch(request).then((networkResponse) => {
+        cache.put(request, networkResponse.clone());
+        return networkResponse;
+      });
+      return cachedResponse || fetchPromise;
+    });
+  });
+}
+```
+
+## キャッシュのバージョン管理
+
+### バージョンアップ時の処理
+
+```javascript
+const CACHE_VERSION = 'v2'; // バージョンを上げる
+const CACHE_NAME = 'my-app-' + CACHE_VERSION;
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((name) => {
+            // 現在のバージョン以外を削除
+            return name.startsWith('my-app-') && name !== CACHE_NAME;
+          })
+          .map((name) => {
+            console.log('古いキャッシュを削除:', name);
+            return caches.delete(name);
+          })
+      );
+    })
+  );
+});
+```
+
+## オフラインフォールバック
+
+### オフライン専用ページの用意
+
+```javascript
+// sw.js
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    fetch(event.request)
+      .catch(() => {
+        // ネットワークエラー時
+        return caches.match(event.request)
+          .then((cachedResponse) => {
+            // キャッシュもない場合はオフラインページ
+            return cachedResponse || caches.match('/offline.html');
+          });
+      })
+  );
+});
+```
+
+```html
+<!-- offline.html -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>オフライン</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: sans-serif;
+      background: #0c1218;
+      color: #e5edf4;
+    }
+    h1 { font-size: 3rem; margin: 0; }
+    p { font-size: 1.25rem; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <h1>📡</h1>
+  <h1>オフラインです</h1>
+  <p>インターネット接続を確認してください</p>
+</body>
+</html>
+```
+
+## Chrome DevTools でのデバッグ
+
+### Application タブの活用
+
+1. **Service Workers セクション**
+   - 登録状態の確認
+   - Update on reload オプション
+   - Unregister で削除
+
+2. **Cache Storage**
+   - キャッシュの中身を確認
+   - 個別削除や一括削除
+
+3. **Offline モード**
+   - ネットワークを無効化してテスト
+
+### デバッグTips
+
+```javascript
+// sw.js でのログ出力
+self.addEventListener('fetch', (event) => {
+  console.log('Fetch:', event.request.url);
+
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      console.log('Cache hit:', !!response);
+      return response || fetch(event.request);
+    })
+  );
+});
+```
+
+## 実践的な設定例
+
+### 静的サイト向け
+
+```javascript
+// 静的ファイルは Cache First、HTML は Network First
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // 画像、CSS、JS は Cache First
+  if (request.destination === 'image' ||
+      request.destination === 'style' ||
+      request.destination === 'script') {
+    event.respondWith(cacheFirst(request));
+  }
+  // HTML は Network First
+  else if (request.destination === 'document') {
+    event.respondWith(networkFirst(request));
+  }
+});
+```
+
+### SPA（Single Page Application）向け
+
+```javascript
+// SPA は Stale While Revalidate がベスト
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+
+  // API 以外は Stale While Revalidate
+  if (!request.url.includes('/api/')) {
+    event.respondWith(staleWhileRevalidate(request));
+  }
+  // API は Network First
+  else {
+    event.respondWith(networkFirst(request));
+  }
+});
+```
+
+## よくある問題と解決策
+
+### 1. キャッシュが更新されない
+
+**原因:** Service Worker がアップデートされていない
+
+**解決策:**
+```javascript
+// Update ボタンを追加
+navigator.serviceWorker.register('/sw.js').then((registration) => {
+  // 24時間ごとに更新チェック
+  setInterval(() => {
+    registration.update();
+  }, 24 * 60 * 60 * 1000);
+});
+```
+
+### 2. 開発中にキャッシュが邪魔
+
+**解決策:** DevTools で "Update on reload" を有効化
+
+### 3. HTTPS でしか動かない
+
+**原因:** Service Worker は HTTPS 必須（localhost は例外）
+
+**解決策:** 本番環境では必ず HTTPS を使用
+
+## ベストプラクティス
+
+### チェックリスト
+
+- [ ] リソースタイプごとに適切な戦略を選択
+- [ ] キャッシュバージョン管理を実装
+- [ ] オフラインフォールバックページを用意
+- [ ] Chrome DevTools でテスト
+- [ ] キャッシュサイズに注意（ブラウザ制限あり）
+- [ ] 古いキャッシュは activate 時に削除
+- [ ] update() で定期的に Service Worker を更新
+
+### パフォーマンス指標
+
+| 戦略 | 初回読み込み | 2回目以降 | オフライン | 新鮮さ |
+|------|-------------|-----------|----------|--------|
+| Network First | 遅い | 遅い | 可能 | 常に最新 |
+| Cache First | 遅い | 超高速 | 可能 | 古い可能性 |
+| Stale While Revalidate | 遅い | 超高速 | 可能 | 次回最新 |
+
+## まとめ
+
+1. **Network First** - API や動的コンテンツに最適
+2. **Cache First** - 静的アセットで超高速表示
+3. **Stale While Revalidate** - 速度と新鮮さの両立
+
+リソースタイプに応じて適切な戦略を組み合わせることで、最高のパフォーマンスとユーザー体験を実現できます。
+
+## 参考リンク
+
+- [Service Worker API - MDN](https://developer.mozilla.org/ja/docs/Web/API/Service_Worker_API)
+- [The Offline Cookbook - web.dev](https://web.dev/offline-cookbook/)
+- [Workbox - Google](https://developers.google.com/web/tools/workbox)
+- [Service Worker のライフサイクル](https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle)

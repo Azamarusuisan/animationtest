@@ -1,0 +1,760 @@
+---
+title: イージング関数の選び方と使い分け
+description: cubic-bezier、steps、カスタムイージングで自然で心地よいアニメーションを実現する方法
+tags: [animation, easing, cubic-bezier, timing-function]
+category: animation
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## イージング関数とは
+
+イージング関数は、アニメーションの**速度変化**を制御する数学的な関数です。直線的な動きではなく、加速・減速を加えることで、より自然で心地よいアニメーションを実現できます。
+
+### 基本的なイージング関数
+
+CSS には5つの基本的なイージング関数が用意されています：
+
+- **linear**: 一定速度（変化なし）
+- **ease**: 開始と終了が緩やか（デフォルト）
+- **ease-in**: 徐々に加速
+- **ease-out**: 徐々に減速
+- **ease-in-out**: 加速してから減速
+
+<LiveDemo
+  title="基本的なイージング関数の比較"
+  height="600px"
+  html={`
+<div class="easing-demo">
+  <div class="demo-header">
+    <h3>各イージング関数の動きを比較</h3>
+    <button id="startBtn" class="control-btn">再生</button>
+  </div>
+
+  <div class="easing-row">
+    <div class="label">linear</div>
+    <div class="track">
+      <div class="ball ball-linear"></div>
+    </div>
+    <div class="description">一定速度</div>
+  </div>
+
+  <div class="easing-row">
+    <div class="label">ease</div>
+    <div class="track">
+      <div class="ball ball-ease"></div>
+    </div>
+    <div class="description">開始・終了が緩やか</div>
+  </div>
+
+  <div class="easing-row">
+    <div class="label">ease-in</div>
+    <div class="track">
+      <div class="ball ball-ease-in"></div>
+    </div>
+    <div class="description">徐々に加速</div>
+  </div>
+
+  <div class="easing-row">
+    <div class="label">ease-out</div>
+    <div class="track">
+      <div class="ball ball-ease-out"></div>
+    </div>
+    <div class="description">徐々に減速</div>
+  </div>
+
+  <div class="easing-row">
+    <div class="label">ease-in-out</div>
+    <div class="track">
+      <div class="ball ball-ease-in-out"></div>
+    </div>
+    <div class="description">加速して減速</div>
+  </div>
+</div>
+  `}
+  css={`
+.easing-demo {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.demo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.demo-header h3 {
+  font-size: 1.125rem;
+  color: #e5edf4;
+  margin: 0;
+}
+
+.control-btn {
+  padding: 0.5rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.control-btn:hover {
+  transform: scale(1.05);
+}
+
+.control-btn:active {
+  transform: scale(0.95);
+}
+
+.easing-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 150px;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 0.75rem;
+  background: #1f2a37;
+  border-radius: 8px;
+}
+
+.label {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #10b981;
+  font-size: 0.875rem;
+}
+
+.track {
+  position: relative;
+  height: 40px;
+  background: #0c1218;
+  border-radius: 20px;
+  overflow: visible;
+}
+
+.ball {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  top: 4px;
+  left: 4px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.ball.animate {
+  animation: slide 2s forwards;
+}
+
+.ball-linear.animate { animation-timing-function: linear; }
+.ball-ease.animate { animation-timing-function: ease; }
+.ball-ease-in.animate { animation-timing-function: ease-in; }
+.ball-ease-out.animate { animation-timing-function: ease-out; }
+.ball-ease-in-out.animate { animation-timing-function: ease-in-out; }
+
+@keyframes slide {
+  to {
+    left: calc(100% - 36px);
+  }
+}
+
+.description {
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+  `}
+  js={`
+const startBtn = document.getElementById('startBtn');
+const balls = document.querySelectorAll('.ball');
+
+startBtn.addEventListener('click', () => {
+  balls.forEach(ball => {
+    ball.classList.remove('animate');
+    void ball.offsetWidth; // リフロー強制
+    ball.classList.add('animate');
+  });
+});
+
+// 初期表示時に自動実行
+setTimeout(() => {
+  startBtn.click();
+}, 500);
+  `}
+/>
+
+## cubic-bezier でカスタムイージング
+
+より細かい制御が必要な場合は、`cubic-bezier()` 関数を使って独自のイージングカーブを作成できます。
+
+### cubic-bezier の仕組み
+
+`cubic-bezier(x1, y1, x2, y2)` は4つの制御点で曲線を定義します：
+
+- **P0 (0, 0)**: 開始点（固定）
+- **P1 (x1, y1)**: 最初の制御点
+- **P2 (x2, y2)**: 2つ目の制御点
+- **P3 (1, 1)**: 終了点（固定）
+
+<LiveDemo
+  title="人気のcubic-bezierカーブ"
+  height="650px"
+  html={`
+<div class="bezier-demo">
+  <div class="header">
+    <h3>Material Design & iOS の標準イージング</h3>
+    <button id="playBtn" class="play-btn">全て再生</button>
+  </div>
+
+  <div class="bezier-row">
+    <div class="info">
+      <div class="name">Material Standard</div>
+      <code>cubic-bezier(0.4, 0.0, 0.2, 1)</code>
+    </div>
+    <div class="track">
+      <div class="box material-standard"></div>
+    </div>
+  </div>
+
+  <div class="bezier-row">
+    <div class="info">
+      <div class="name">Material Decelerate</div>
+      <code>cubic-bezier(0.0, 0.0, 0.2, 1)</code>
+    </div>
+    <div class="track">
+      <div class="box material-decelerate"></div>
+    </div>
+  </div>
+
+  <div class="bezier-row">
+    <div class="info">
+      <div class="name">Material Accelerate</div>
+      <code>cubic-bezier(0.4, 0.0, 1, 1)</code>
+    </div>
+    <div class="track">
+      <div class="box material-accelerate"></div>
+    </div>
+  </div>
+
+  <div class="bezier-row">
+    <div class="info">
+      <div class="name">iOS Standard</div>
+      <code>cubic-bezier(0.25, 0.1, 0.25, 1)</code>
+    </div>
+    <div class="track">
+      <div class="box ios-standard"></div>
+    </div>
+  </div>
+
+  <div class="bezier-row">
+    <div class="info">
+      <div class="name">Bounce</div>
+      <code>cubic-bezier(0.68, -0.55, 0.265, 1.55)</code>
+    </div>
+    <div class="track">
+      <div class="box bounce"></div>
+    </div>
+  </div>
+
+  <div class="tip">
+    💡 ツール: <a href="https://cubic-bezier.com" target="_blank">cubic-bezier.com</a> で
+    視覚的にカーブを作成できます
+  </div>
+</div>
+  `}
+  css={`
+.bezier-demo {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.header h3 {
+  font-size: 1.125rem;
+  color: #e5edf4;
+  margin: 0;
+}
+
+.play-btn {
+  padding: 0.5rem 1.5rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.play-btn:hover {
+  transform: scale(1.05);
+}
+
+.bezier-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #1f2a37;
+  border-radius: 8px;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.name {
+  font-weight: 600;
+  color: #e5edf4;
+  font-size: 0.875rem;
+}
+
+code {
+  display: block;
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: #10b981;
+  background: #0c1218;
+  padding: 0.5rem;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.track {
+  position: relative;
+  height: 50px;
+  background: #0c1218;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.box {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border-radius: 8px;
+  top: 5px;
+  left: 5px;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+.box.animate {
+  animation: move 1.5s forwards;
+}
+
+.material-standard.animate {
+  animation-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.material-decelerate.animate {
+  animation-timing-function: cubic-bezier(0.0, 0.0, 0.2, 1);
+}
+
+.material-accelerate.animate {
+  animation-timing-function: cubic-bezier(0.4, 0.0, 1, 1);
+}
+
+.ios-standard.animate {
+  animation-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.bounce.animate {
+  animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes move {
+  to {
+    left: calc(100% - 45px);
+  }
+}
+
+.tip {
+  background: #374151;
+  border-left: 4px solid #3b82f6;
+  border-radius: 6px;
+  padding: 1rem;
+  font-size: 0.875rem;
+  color: #e5edf4;
+  margin-top: 1.5rem;
+}
+
+.tip a {
+  color: #60a5fa;
+  text-decoration: underline;
+}
+  `}
+  js={`
+const playBtn = document.getElementById('playBtn');
+const boxes = document.querySelectorAll('.box');
+
+playBtn.addEventListener('click', () => {
+  boxes.forEach(box => {
+    box.classList.remove('animate');
+    void box.offsetWidth;
+    box.classList.add('animate');
+  });
+});
+
+// 初期表示時に自動実行
+setTimeout(() => {
+  playBtn.click();
+}, 500);
+  `}
+/>
+
+### よく使われる cubic-bezier パターン
+
+```css
+/* Material Design */
+.material-standard {
+  transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.material-decelerate {
+  /* 画面に入る要素 */
+  transition-timing-function: cubic-bezier(0.0, 0.0, 0.2, 1);
+}
+
+.material-accelerate {
+  /* 画面から出る要素 */
+  transition-timing-function: cubic-bezier(0.4, 0.0, 1, 1);
+}
+
+/* iOS */
+.ios-standard {
+  transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* カスタム */
+.bounce {
+  /* バウンス効果 */
+  transition-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.snap {
+  /* スナップ効果 */
+  transition-timing-function: cubic-bezier(0.85, 0, 0.15, 1);
+}
+```
+
+## steps() - 段階的なアニメーション
+
+`steps()` 関数を使うと、スムーズではなく段階的（カクカク）したアニメーションを作成できます。スプライトアニメーションやタイピング効果に最適です。
+
+<LiveDemo
+  title="steps() イージング関数"
+  height="550px"
+  html={`
+<div class="steps-demo">
+  <div class="demo-section">
+    <h3>タイピングエフェクト</h3>
+    <div class="typing-container">
+      <div class="typing-text" id="typingText">Hello, World! ようこそ</div>
+    </div>
+    <p class="description">steps() を使った文字の表示</p>
+  </div>
+
+  <div class="demo-section">
+    <h3>スプライトアニメーション</h3>
+    <div class="sprite-container">
+      <div class="sprite"></div>
+    </div>
+    <p class="description">8フレームのスプライトシートを steps(8) で表示</p>
+  </div>
+
+  <div class="demo-section">
+    <h3>ローディングドット</h3>
+    <div class="dots-container">
+      <span class="dot"></span>
+      <span class="dot"></span>
+      <span class="dot"></span>
+    </div>
+    <p class="description">steps(3) で段階的な点滅</p>
+  </div>
+</div>
+  `}
+  css={`
+.steps-demo {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.demo-section {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.demo-section h3 {
+  font-size: 1rem;
+  color: #e5edf4;
+  margin: 0 0 1rem 0;
+}
+
+.typing-container {
+  background: #0c1218;
+  border-radius: 6px;
+  padding: 1.5rem;
+  font-family: 'Courier New', monospace;
+  margin-bottom: 0.75rem;
+}
+
+.typing-text {
+  color: #10b981;
+  font-size: 1.125rem;
+  border-right: 2px solid #10b981;
+  white-space: nowrap;
+  overflow: hidden;
+  width: 0;
+  animation: typing 4s steps(22) infinite;
+}
+
+@keyframes typing {
+  0%, 100% {
+    width: 0;
+  }
+  50%, 90% {
+    width: 100%;
+  }
+}
+
+.sprite-container {
+  background: #0c1218;
+  border-radius: 6px;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.sprite {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  animation: spriteMove 2s steps(8) infinite;
+}
+
+@keyframes spriteMove {
+  to {
+    transform: translateX(400px);
+  }
+}
+
+.dots-container {
+  background: #0c1218;
+  border-radius: 6px;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.dot {
+  width: 16px;
+  height: 16px;
+  background: #10b981;
+  border-radius: 50%;
+  animation: dotPulse 1.5s steps(3) infinite;
+}
+
+.dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes dotPulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.description {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin: 0;
+}
+  `}
+/>
+
+### steps() の使い方
+
+```css
+/* steps(n, jump-term) */
+
+/* タイピングエフェクト */
+.typing {
+  animation: typing 3s steps(20) forwards;
+}
+
+/* jump-start: アニメーション開始時に最初のステップを表示 */
+.jump-start {
+  animation-timing-function: steps(4, jump-start);
+}
+
+/* jump-end: アニメーション終了まで最後のステップを待つ（デフォルト） */
+.jump-end {
+  animation-timing-function: steps(4, jump-end);
+}
+
+/* jump-none: 最初と最後のステップを含まない */
+.jump-none {
+  animation-timing-function: steps(4, jump-none);
+}
+
+/* jump-both: 最初と最後のステップを含む */
+.jump-both {
+  animation-timing-function: steps(4, jump-both);
+}
+```
+
+## 用途別イージング関数の選び方
+
+### UI要素の表示・非表示
+
+```css
+/* モーダル・ドロワーの表示 */
+.modal-enter {
+  animation: fadeIn 0.3s cubic-bezier(0.0, 0.0, 0.2, 1);
+}
+
+/* モーダルの非表示 */
+.modal-exit {
+  animation: fadeOut 0.2s cubic-bezier(0.4, 0.0, 1, 1);
+}
+
+/* ドロップダウンメニュー */
+.dropdown {
+  transition: opacity 0.15s ease-out,
+              transform 0.15s cubic-bezier(0.0, 0.0, 0.2, 1);
+}
+```
+
+### インタラクティブ要素
+
+```css
+/* ボタンのホバー */
+.button {
+  transition: transform 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.button:hover {
+  transform: scale(1.05);
+}
+
+/* スイッチのトグル */
+.toggle {
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+```
+
+### スクロールアニメーション
+
+```css
+/* 要素のフェードイン */
+.fade-in {
+  animation: fadeInUp 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* パララックス効果 */
+.parallax {
+  transition: transform 0.1s linear;
+}
+```
+
+## パフォーマンスへの影響
+
+イージング関数自体はパフォーマンスにほとんど影響しませんが、アニメーションさせるプロパティが重要です：
+
+```css
+/* ✅ 高速: transform と opacity のみ */
+.element {
+  transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1),
+              opacity 0.3s ease-out;
+}
+
+/* ❌ 低速: layout に影響するプロパティ */
+.element {
+  transition: width 0.3s ease-out,  /* 遅い */
+              height 0.3s ease-out; /* 遅い */
+}
+```
+
+## ベストプラクティス
+
+### 1. 用途に応じて選択
+
+- **画面に入る要素**: `ease-out` または `cubic-bezier(0.0, 0.0, 0.2, 1)`
+- **画面から出る要素**: `ease-in` または `cubic-bezier(0.4, 0.0, 1, 1)`
+- **ホバー効果**: `ease-out` または `cubic-bezier(0.25, 0.1, 0.25, 1)`
+- **バウンス効果**: `cubic-bezier(0.68, -0.55, 0.265, 1.55)`
+
+### 2. 一貫性を保つ
+
+```css
+/* プロジェクト全体で統一したイージング関数を使用 */
+:root {
+  --ease-standard: cubic-bezier(0.4, 0.0, 0.2, 1);
+  --ease-decelerate: cubic-bezier(0.0, 0.0, 0.2, 1);
+  --ease-accelerate: cubic-bezier(0.4, 0.0, 1, 1);
+}
+
+.element {
+  transition: transform 0.3s var(--ease-standard);
+}
+```
+
+### 3. アクセシビリティへの配慮
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+## まとめ
+
+1. **基本イージング**: `ease-out` は万能、`ease-in-out` は長めのアニメーションに
+2. **cubic-bezier**: 細かい制御が必要な場合に使用、Material Design や iOS の標準値を参考に
+3. **steps()**: タイピング効果やスプライトアニメーションに最適
+4. **一貫性**: プロジェクト全体で統一したイージング関数を使う
+5. **パフォーマンス**: イージング関数自体より、アニメーションさせるプロパティが重要
+
+## 参考リンク
+
+- [cubic-bezier.com](https://cubic-bezier.com) - イージング関数の可視化ツール
+- [easings.net](https://easings.net) - イージング関数のサンプル集
+- [Material Design Motion](https://material.io/design/motion) - Google の Motion ガイドライン

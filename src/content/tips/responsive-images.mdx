@@ -1,0 +1,1081 @@
+---
+title: レスポンシブ画像の最適化
+description: srcset、picture要素、lazy loadingを使った効率的な画像配信
+tags: [responsive, images, performance, optimization]
+category: responsive
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="レスポンシブ画像テクニック デモ"
+  height="900px"
+  html={`
+<div class="responsive-images-demo">
+  <section class="demo-section">
+    <h2>1. srcset による解像度対応</h2>
+    <div class="image-container">
+      <div class="mock-image resolution-demo">
+        <div class="image-placeholder">
+          <span class="icon">🖼️</span>
+          <p><strong>srcset</strong> デモ</p>
+          <p class="detail">画面密度に応じた画像</p>
+          <code class="active-src" id="srcsetActive">1x画像</code>
+        </div>
+      </div>
+      <div class="code-example">
+        <pre><code>&lt;img
+  src="image-1x.jpg"
+  srcset="
+    image-1x.jpg 1x,
+    image-2x.jpg 2x,
+    image-3x.jpg 3x
+  "
+  alt="レスポンシブ画像"
+/&gt;</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="demo-section">
+    <h2>2. サイズベースの srcset</h2>
+    <div class="image-container">
+      <div class="mock-image size-demo">
+        <div class="image-placeholder">
+          <span class="icon">📐</span>
+          <p><strong>sizes</strong> デモ</p>
+          <p class="detail">ビューポート幅に応じた画像</p>
+          <div class="viewport-info">
+            <span id="viewportWidth">-</span>px
+          </div>
+        </div>
+      </div>
+      <div class="code-example">
+        <pre><code>&lt;img
+  srcset="
+    small.jpg 400w,
+    medium.jpg 800w,
+    large.jpg 1200w
+  "
+  sizes="
+    (max-width: 640px) 100vw,
+    (max-width: 1024px) 50vw,
+    33vw
+  "
+  src="medium.jpg"
+  alt="サイズ指定"
+/&gt;</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="demo-section">
+    <h2>3. picture要素によるアートディレクション</h2>
+    <div class="image-container">
+      <div class="art-direction-demo">
+        <div class="viewport-simulator mobile">
+          <div class="mock-image small">
+            <span class="icon">📱</span>
+            <p>モバイル版</p>
+            <p class="detail">縦長・ポートレート</p>
+          </div>
+        </div>
+        <div class="viewport-simulator tablet">
+          <div class="mock-image medium">
+            <span class="icon">💻</span>
+            <p>タブレット版</p>
+            <p class="detail">正方形</p>
+          </div>
+        </div>
+        <div class="viewport-simulator desktop">
+          <div class="mock-image large">
+            <span class="icon">🖥️</span>
+            <p>デスクトップ版</p>
+            <p class="detail">横長・ランドスケープ</p>
+          </div>
+        </div>
+      </div>
+      <div class="code-example">
+        <pre><code>&lt;picture&gt;
+  &lt;source
+    media="(max-width: 640px)"
+    srcset="mobile.jpg"
+  /&gt;
+  &lt;source
+    media="(max-width: 1024px)"
+    srcset="tablet.jpg"
+  /&gt;
+  &lt;img
+    src="desktop.jpg"
+    alt="アートディレクション"
+  /&gt;
+&lt;/picture&gt;</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="demo-section">
+    <h2>4. WebP・AVIF対応</h2>
+    <div class="format-comparison">
+      <div class="format-card">
+        <div class="format-icon">🖼️</div>
+        <h3>JPEG</h3>
+        <div class="format-details">
+          <span class="size">100 KB</span>
+          <span class="support">✓ 全ブラウザ</span>
+        </div>
+      </div>
+      <div class="format-card webp">
+        <div class="format-icon">⚡</div>
+        <h3>WebP</h3>
+        <div class="format-details">
+          <span class="size">65 KB (-35%)</span>
+          <span class="support">✓ モダンブラウザ</span>
+        </div>
+      </div>
+      <div class="format-card avif">
+        <div class="format-icon">🚀</div>
+        <h3>AVIF</h3>
+        <div class="format-details">
+          <span class="size">45 KB (-55%)</span>
+          <span class="support">✓ 最新ブラウザ</span>
+        </div>
+      </div>
+    </div>
+    <div class="code-example">
+      <pre><code>&lt;picture&gt;
+  &lt;source srcset="image.avif" type="image/avif" /&gt;
+  &lt;source srcset="image.webp" type="image/webp" /&gt;
+  &lt;img src="image.jpg" alt="フォールバック" /&gt;
+&lt;/picture&gt;</code></pre>
+    </div>
+  </section>
+
+  <section class="demo-section">
+    <h2>5. Lazy Loading デモ</h2>
+    <div class="lazy-demo-container">
+      <div class="scroll-indicator">
+        スクロールして確認 ↓
+      </div>
+      <div class="lazy-images">
+        <div class="lazy-image-item" data-loaded="false">
+          <div class="loading-placeholder">読み込み中...</div>
+          <span class="lazy-status">未読み込み</span>
+        </div>
+        <div class="lazy-image-item" data-loaded="false">
+          <div class="loading-placeholder">読み込み中...</div>
+          <span class="lazy-status">未読み込み</span>
+        </div>
+        <div class="lazy-image-item" data-loaded="false">
+          <div class="loading-placeholder">読み込み中...</div>
+          <span class="lazy-status">未読み込み</span>
+        </div>
+      </div>
+    </div>
+    <div class="code-example">
+      <pre><code>&lt;img
+  src="image.jpg"
+  loading="lazy"
+  alt="遅延読み込み"
+/&gt;</code></pre>
+    </div>
+  </section>
+
+  <section class="demo-section stats-section">
+    <h2>パフォーマンス比較</h2>
+    <div class="stats-grid">
+      <div class="stat-card bad">
+        <div class="stat-icon">❌</div>
+        <div class="stat-label">最適化なし</div>
+        <div class="stat-value">2.5 MB</div>
+        <div class="stat-time">5.2秒</div>
+      </div>
+      <div class="stat-card good">
+        <div class="stat-icon">✓</div>
+        <div class="stat-label">srcset + WebP</div>
+        <div class="stat-value">450 KB</div>
+        <div class="stat-time">0.9秒</div>
+      </div>
+      <div class="stat-card excellent">
+        <div class="stat-icon">🚀</div>
+        <div class="stat-label">完全最適化</div>
+        <div class="stat-value">180 KB</div>
+        <div class="stat-time">0.4秒</div>
+      </div>
+    </div>
+  </section>
+</div>
+  `}
+  css={`
+    .responsive-images-demo {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .demo-section {
+      background: #1f2a37;
+      padding: 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      border: 1px solid #374151;
+    }
+
+    .demo-section h2 {
+      color: #60a5fa;
+      font-size: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .image-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .mock-image {
+      background: #0c1218;
+      border: 2px solid #374151;
+      border-radius: 8px;
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+
+    .image-placeholder {
+      padding: 3rem 2rem;
+      text-align: center;
+    }
+
+    .icon {
+      font-size: 3rem;
+      display: block;
+      margin-bottom: 1rem;
+    }
+
+    .image-placeholder p {
+      margin: 0.5rem 0;
+    }
+
+    .detail {
+      color: #9ca3af;
+      font-size: 0.875rem;
+    }
+
+    .active-src {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      background: #374151;
+      border-radius: 6px;
+      color: #10b981;
+      font-size: 0.875rem;
+    }
+
+    .viewport-info {
+      margin-top: 1rem;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #60a5fa;
+    }
+
+    .code-example {
+      background: #0c1218;
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid #374151;
+    }
+
+    .code-example pre {
+      margin: 0;
+      overflow-x: auto;
+    }
+
+    .code-example code {
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      line-height: 1.6;
+      color: #e5edf4;
+    }
+
+    .art-direction-demo {
+      display: flex;
+      gap: 1rem;
+      justify-content: space-around;
+      flex-wrap: wrap;
+    }
+
+    .viewport-simulator {
+      flex: 1;
+      min-width: 150px;
+      padding: 1rem;
+      background: #0c1218;
+      border-radius: 8px;
+      border: 2px solid #374151;
+    }
+
+    .viewport-simulator .mock-image {
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .mobile .mock-image {
+      aspect-ratio: 9/16;
+    }
+
+    .tablet .mock-image {
+      aspect-ratio: 1;
+    }
+
+    .desktop .mock-image {
+      aspect-ratio: 16/9;
+    }
+
+    .format-comparison {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .format-card {
+      background: #0c1218;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 2px solid #374151;
+      text-align: center;
+      transition: all 0.3s;
+    }
+
+    .format-card:hover {
+      transform: translateY(-4px);
+      border-color: #4b5563;
+    }
+
+    .format-card.webp {
+      border-color: #3b82f6;
+    }
+
+    .format-card.avif {
+      border-color: #10b981;
+    }
+
+    .format-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .format-card h3 {
+      font-size: 1.125rem;
+      margin-bottom: 1rem;
+    }
+
+    .format-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .format-details .size {
+      font-weight: 700;
+      color: #60a5fa;
+    }
+
+    .format-details .support {
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+
+    .lazy-demo-container {
+      background: #0c1218;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .scroll-indicator {
+      text-align: center;
+      padding: 1rem;
+      color: #9ca3af;
+      font-size: 0.875rem;
+      border-bottom: 1px solid #374151;
+      margin-bottom: 1rem;
+    }
+
+    .lazy-images {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .lazy-image-item {
+      background: #1f2a37;
+      border: 2px solid #374151;
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      min-height: 150px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      transition: all 0.3s;
+    }
+
+    .lazy-image-item[data-loaded="true"] {
+      border-color: #10b981;
+      background: linear-gradient(135deg, #1f2a37 0%, #374151 100%);
+    }
+
+    .loading-placeholder {
+      font-size: 1rem;
+      color: #9ca3af;
+    }
+
+    .lazy-image-item[data-loaded="true"] .loading-placeholder {
+      color: #10b981;
+    }
+
+    .lazy-image-item[data-loaded="true"] .loading-placeholder::before {
+      content: "✓ ";
+    }
+
+    .lazy-status {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.75rem;
+      background: #374151;
+      border-radius: 4px;
+      color: #9ca3af;
+    }
+
+    .lazy-image-item[data-loaded="true"] .lazy-status {
+      background: #10b981;
+      color: white;
+    }
+
+    .stats-section {
+      background: linear-gradient(135deg, #1f2a37 0%, #374151 100%);
+      border: 2px solid #60a5fa;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .stat-card {
+      background: #0c1218;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 2px solid #374151;
+      text-align: center;
+    }
+
+    .stat-card.bad {
+      border-color: #ef4444;
+    }
+
+    .stat-card.good {
+      border-color: #3b82f6;
+    }
+
+    .stat-card.excellent {
+      border-color: #10b981;
+    }
+
+    .stat-icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: #9ca3af;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #60a5fa;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-time {
+      font-size: 0.875rem;
+      color: #9ca3af;
+    }
+
+    @media (max-width: 640px) {
+      .art-direction-demo {
+        flex-direction: column;
+      }
+
+      .format-comparison {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  `}
+  js={`
+    // ビューポート幅の表示
+    function updateViewportWidth() {
+      const width = window.innerWidth;
+      const display = document.getElementById('viewportWidth');
+      if (display) {
+        display.textContent = width;
+      }
+    }
+
+    updateViewportWidth();
+    window.addEventListener('resize', updateViewportWidth);
+
+    // デバイスピクセル比の表示
+    const dpr = window.devicePixelRatio || 1;
+    const srcsetDisplay = document.getElementById('srcsetActive');
+    if (srcsetDisplay) {
+      if (dpr >= 3) {
+        srcsetDisplay.textContent = '3x画像（高解像度）';
+      } else if (dpr >= 2) {
+        srcsetDisplay.textContent = '2x画像（Retina）';
+      } else {
+        srcsetDisplay.textContent = '1x画像（標準）';
+      }
+    }
+
+    // Lazy Loading のシミュレーション
+    const lazyContainer = document.querySelector('.lazy-demo-container');
+    const lazyItems = document.querySelectorAll('.lazy-image-item');
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const item = entry.target;
+          setTimeout(() => {
+            item.setAttribute('data-loaded', 'true');
+            const placeholder = item.querySelector('.loading-placeholder');
+            const status = item.querySelector('.lazy-status');
+            if (placeholder) placeholder.textContent = '読み込み完了';
+            if (status) status.textContent = '読み込み済み';
+          }, 500);
+          observer.unobserve(item);
+        }
+      });
+    }, {
+      root: lazyContainer,
+      threshold: 0.1
+    });
+
+    lazyItems.forEach(item => observer.observe(item));
+  `}
+/>
+
+## レスポンシブ画像とは
+
+レスポンシブ画像は、デバイスの画面サイズ、解像度、ネットワーク速度に応じて最適な画像を配信する技術です。これにより:
+
+- **パフォーマンス向上**: 不要に大きな画像を避ける
+- **帯域幅の節約**: モバイルユーザーのデータ使用量を削減
+- **ユーザー体験向上**: 高解像度ディスプレイで美しく表示
+- **SEO改善**: ページの読み込み速度が向上
+
+## srcset と sizes 属性
+
+### 解像度ベースの srcset
+
+デバイスピクセル比（DPR）に応じた画像配信:
+
+```html
+<img
+  src="image-1x.jpg"
+  srcset="
+    image-1x.jpg 1x,
+    image-2x.jpg 2x,
+    image-3x.jpg 3x
+  "
+  alt="レスポンシブ画像"
+>
+```
+
+**動作:**
+- 標準ディスプレイ（1x）: `image-1x.jpg` を使用
+- Retinaディスプレイ（2x）: `image-2x.jpg` を使用
+- 高解像度ディスプレイ（3x）: `image-3x.jpg` を使用
+
+### 幅ベースの srcset
+
+ビューポート幅に応じた画像配信:
+
+```html
+<img
+  srcset="
+    small-400.jpg 400w,
+    medium-800.jpg 800w,
+    large-1200.jpg 1200w,
+    xlarge-1600.jpg 1600w
+  "
+  sizes="
+    (max-width: 640px) 100vw,
+    (max-width: 1024px) 50vw,
+    800px
+  "
+  src="medium-800.jpg"
+  alt="レスポンシブ画像"
+>
+```
+
+**sizes属性の読み方:**
+1. 画面幅が640px以下 → 画像は100vw（画面幅全体）
+2. 画面幅が1024px以下 → 画像は50vw（画面幅の半分）
+3. それ以上 → 画像は800px固定
+
+ブラウザはこの情報を使って最適な画像を選択します。
+
+### 実践例
+
+```html
+<!-- ヒーロー画像 -->
+<img
+  srcset="
+    hero-mobile-600.jpg 600w,
+    hero-tablet-1024.jpg 1024w,
+    hero-desktop-1920.jpg 1920w,
+    hero-wide-2560.jpg 2560w
+  "
+  sizes="100vw"
+  src="hero-desktop-1920.jpg"
+  alt="ヒーローイメージ"
+  loading="eager"
+>
+
+<!-- カード画像（グリッド内） -->
+<img
+  srcset="
+    card-small-300.jpg 300w,
+    card-medium-600.jpg 600w,
+    card-large-900.jpg 900w
+  "
+  sizes="
+    (max-width: 640px) 100vw,
+    (max-width: 1024px) 50vw,
+    33vw
+  "
+  src="card-medium-600.jpg"
+  alt="カード画像"
+  loading="lazy"
+>
+```
+
+## picture 要素
+
+異なる画面サイズで異なる画像を表示（アートディレクション）:
+
+```html
+<picture>
+  <!-- モバイル: 縦長の画像 -->
+  <source
+    media="(max-width: 640px)"
+    srcset="
+      portrait-mobile-400.jpg 400w,
+      portrait-mobile-800.jpg 800w
+    "
+    sizes="100vw"
+  >
+
+  <!-- タブレット: 正方形の画像 -->
+  <source
+    media="(max-width: 1024px)"
+    srcset="
+      square-tablet-600.jpg 600w,
+      square-tablet-1200.jpg 1200w
+    "
+    sizes="100vw"
+  >
+
+  <!-- デスクトップ: 横長の画像 -->
+  <img
+    srcset="
+      landscape-desktop-1200.jpg 1200w,
+      landscape-desktop-2400.jpg 2400w
+    "
+    sizes="100vw"
+    src="landscape-desktop-1200.jpg"
+    alt="レスポンシブアートディレクション"
+  >
+</picture>
+```
+
+### 実用例: 人物写真
+
+```html
+<!-- モバイルでは顔をクローズアップ、デスクトップでは全身 -->
+<picture>
+  <source
+    media="(max-width: 640px)"
+    srcset="portrait-closeup.jpg"
+  >
+  <source
+    media="(max-width: 1024px)"
+    srcset="portrait-medium.jpg"
+  >
+  <img
+    src="portrait-full.jpg"
+    alt="社員の写真"
+  >
+</picture>
+```
+
+## 次世代画像フォーマット
+
+### WebP と AVIF
+
+```html
+<picture>
+  <!-- AVIF: 最新フォーマット（最小サイズ） -->
+  <source
+    srcset="
+      image-400.avif 400w,
+      image-800.avif 800w,
+      image-1200.avif 1200w
+    "
+    sizes="(max-width: 640px) 100vw, 800px"
+    type="image/avif"
+  >
+
+  <!-- WebP: 広くサポート -->
+  <source
+    srcset="
+      image-400.webp 400w,
+      image-800.webp 800w,
+      image-1200.webp 1200w
+    "
+    sizes="(max-width: 640px) 100vw, 800px"
+    type="image/webp"
+  >
+
+  <!-- JPEG: フォールバック -->
+  <img
+    srcset="
+      image-400.jpg 400w,
+      image-800.jpg 800w,
+      image-1200.jpg 1200w
+    "
+    sizes="(max-width: 640px) 100vw, 800px"
+    src="image-800.jpg"
+    alt="最適化された画像"
+  >
+</picture>
+```
+
+### フォーマット比較
+
+```
+ファイルサイズ比較（同品質）:
+JPEG (100%): 150 KB
+WebP (65%):   97 KB  (-35%)
+AVIF (45%):   67 KB  (-55%)
+
+ブラウザサポート:
+JPEG: 100% ✓
+WebP: 96%  ✓（IE除く）
+AVIF: 85%  ✓（最新ブラウザ）
+```
+
+## Lazy Loading（遅延読み込み）
+
+### ネイティブ Lazy Loading
+
+```html
+<!-- 最もシンプルな実装 -->
+<img
+  src="image.jpg"
+  alt="遅延読み込み"
+  loading="lazy"
+>
+
+<!-- 画面外の画像はすべて lazy -->
+<img src="image1.jpg" alt="画像1" loading="lazy">
+<img src="image2.jpg" alt="画像2" loading="lazy">
+<img src="image3.jpg" alt="画像3" loading="lazy">
+
+<!-- ファーストビューの画像は eager -->
+<img src="hero.jpg" alt="ヒーロー" loading="eager">
+```
+
+### Intersection Observer による実装
+
+より細かい制御が必要な場合:
+
+```html
+<img
+  data-src="image.jpg"
+  alt="遅延読み込み"
+  class="lazy-image"
+>
+```
+
+```javascript
+// 遅延読み込みの実装
+const lazyImages = document.querySelectorAll('.lazy-image');
+
+const imageObserver = new IntersectionObserver(
+  (entries, observer) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const img = entry.target;
+
+        // data-src から src に画像URLを移動
+        img.src = img.dataset.src;
+
+        // srcset がある場合
+        if (img.dataset.srcset) {
+          img.srcset = img.dataset.srcset;
+        }
+
+        // 読み込み完了後
+        img.addEventListener('load', () => {
+          img.classList.add('loaded');
+        });
+
+        // 監視を解除
+        observer.unobserve(img);
+      }
+    });
+  },
+  {
+    rootMargin: '50px', // 画面に入る50px前に読み込み開始
+    threshold: 0.01
+  }
+);
+
+// すべての画像を監視
+lazyImages.forEach(img => imageObserver.observe(img));
+```
+
+### プレースホルダー付き Lazy Loading
+
+```html
+<div class="image-wrapper">
+  <!-- 低解像度プレースホルダー（LQIP） -->
+  <img
+    src="placeholder-tiny.jpg"
+    data-src="image-full.jpg"
+    alt="画像"
+    class="lazy-image blurred"
+  >
+</div>
+```
+
+```css
+.image-wrapper {
+  position: relative;
+  overflow: hidden;
+}
+
+.lazy-image {
+  width: 100%;
+  height: auto;
+  transition: filter 0.3s;
+}
+
+.lazy-image.blurred {
+  filter: blur(20px);
+  transform: scale(1.1);
+}
+
+.lazy-image.loaded {
+  filter: blur(0);
+  transform: scale(1);
+}
+```
+
+## パフォーマンス最適化テクニック
+
+### 1. 適切な画像サイズ
+
+```javascript
+// 必要な画像サイズを計算
+function calculateImageSize(element) {
+  const dpr = window.devicePixelRatio || 1;
+  const width = element.clientWidth;
+  const height = element.clientHeight;
+
+  return {
+    width: Math.ceil(width * dpr),
+    height: Math.ceil(height * dpr)
+  };
+}
+
+// 使用例
+const img = document.querySelector('.hero-image');
+const size = calculateImageSize(img);
+console.log(`必要なサイズ: ${size.width}x${size.height}`);
+```
+
+### 2. 画像の圧縮
+
+```bash
+# ImageMagick で画像を最適化
+magick convert input.jpg -quality 85 -strip output.jpg
+
+# WebP 変換
+magick convert input.jpg -quality 80 output.webp
+
+# AVIF 変換
+avifenc --min 0 --max 63 -a end-usage=q -a cq-level=30 input.jpg output.avif
+```
+
+### 3. CSS での最適化
+
+```css
+/* 画像の読み込み前のレイアウトシフトを防ぐ */
+img {
+  max-width: 100%;
+  height: auto;
+  /* アスペクト比を維持 */
+  aspect-ratio: 16 / 9;
+}
+
+/* 読み込み中のスタイル */
+img:not([src]) {
+  background: #1f2a37;
+}
+
+/* 読み込み失敗時 */
+img[alt] {
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+```
+
+### 4. プリロード
+
+重要な画像を先読み:
+
+```html
+<head>
+  <!-- LCP（Largest Contentful Paint）画像をプリロード -->
+  <link
+    rel="preload"
+    as="image"
+    href="hero-1920.jpg"
+    imagesrcset="
+      hero-600.jpg 600w,
+      hero-1024.jpg 1024w,
+      hero-1920.jpg 1920w
+    "
+    imagesizes="100vw"
+  >
+</head>
+```
+
+## 実装チェックリスト
+
+- [ ] すべての画像に `alt` 属性
+- [ ] `srcset` で複数サイズを用意
+- [ ] `sizes` 属性で表示サイズを指定
+- [ ] WebP/AVIF フォーマットを使用
+- [ ] `loading="lazy"` で遅延読み込み
+- [ ] ファーストビューは `loading="eager"`
+- [ ] `aspect-ratio` でレイアウトシフト防止
+- [ ] 重要な画像は `preload`
+- [ ] 画質を適切に圧縮（80-85%推奨）
+- [ ] DevTools でパフォーマンス確認
+
+## テストとデバッグ
+
+### Chrome DevTools
+
+```javascript
+// ネットワークパネルで画像の読み込みを確認
+// Network > Img でフィルター
+
+// どの画像が読み込まれたか確認
+const images = document.querySelectorAll('img');
+images.forEach(img => {
+  console.log({
+    src: img.currentSrc, // 実際に読み込まれた画像
+    originalSrc: img.src,
+    naturalWidth: img.naturalWidth,
+    displayWidth: img.offsetWidth
+  });
+});
+```
+
+### Lighthouse でチェック
+
+```
+DevTools > Lighthouse > Performance
+
+確認項目:
+- Properly size images
+- Serve images in next-gen formats
+- Efficiently encode images
+- Defer offscreen images
+```
+
+## ツールとライブラリ
+
+### 画像最適化ツール
+
+```bash
+# Sharp（Node.js）
+npm install sharp
+
+# 画像のリサイズと最適化
+const sharp = require('sharp');
+
+sharp('input.jpg')
+  .resize(800, 600, { fit: 'cover' })
+  .webp({ quality: 80 })
+  .toFile('output.webp');
+```
+
+### ビルドツール統合
+
+```javascript
+// Vite での設定
+import { defineConfig } from 'vite';
+import imagemin from 'vite-plugin-imagemin';
+
+export default defineConfig({
+  plugins: [
+    imagemin({
+      gifsicle: { optimizationLevel: 3 },
+      mozjpeg: { quality: 85 },
+      pngquant: { quality: [0.8, 0.9] },
+      webp: { quality: 80 }
+    })
+  ]
+});
+```
+
+## まとめ
+
+レスポンシブ画像は、モダンなWeb開発の必須技術です:
+
+1. **srcset と sizes** - デバイスに最適な画像を自動配信
+2. **picture要素** - アートディレクションで柔軟に対応
+3. **次世代フォーマット** - WebP/AVIFで大幅にサイズ削減
+4. **Lazy Loading** - 初期読み込みを高速化
+5. **適切な最適化** - 品質とサイズのバランス
+
+これらを実装することで、パフォーマンスが向上し、ユーザー体験が大幅に改善されます。
+
+## 参考リンク
+
+- [Responsive Images - MDN](https://developer.mozilla.org/ja/docs/Learn/HTML/Multimedia_and_embedding/Responsive_images)
+- [Image Optimization - web.dev](https://web.dev/fast/#optimize-your-images)
+- [Native Lazy Loading - web.dev](https://web.dev/browser-level-image-lazy-loading/)
+- [WebP Image Format](https://developers.google.com/speed/webp)

@@ -1,0 +1,157 @@
+---
+title: スクロールリビールの設計指針
+description: IntersectionObserver でパフォーマンスを落とさずに演出する要点
+tags: [animation, performance, best-practices]
+category: animation
+level: intermediate
+date: 2025-11-11
+---
+
+## スクロールアニメーションで避けるべきこと
+
+### 1. スクロールイベントの直接監視
+
+❌ 悪い例:
+```javascript
+window.addEventListener('scroll', () => {
+  // 要素の位置をチェック
+  const element = document.querySelector('.target');
+  const rect = element.getBoundingClientRect();
+  // ... アニメーション処理
+});
+```
+
+**問題点:**
+- スクロールごとに大量の処理が実行される
+- レイアウトの再計算（reflow）が頻繁に発生
+- パフォーマンスが著しく低下
+
+✅ 良い例:
+```javascript
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('is-visible');
+    }
+  });
+});
+
+observer.observe(element);
+```
+
+### 2. 重いプロパティのアニメーション
+
+避けるべきプロパティ:
+- `width`, `height` → リフローを引き起こす
+- `top`, `left` → 同様にリフロー
+- `margin`, `padding` → レイアウトの再計算
+
+推奨プロパティ:
+- `transform` → GPU アクセラレーション
+- `opacity` → 同上
+- `filter` → 場合によって GPU 対応
+
+### 3. will-change の濫用
+
+```css
+/* ❌ 悪い例: すべての要素に適用 */
+.reveal {
+  will-change: transform, opacity;
+}
+
+/* ✅ 良い例: アニメーション直前のみ */
+.reveal.is-animating {
+  will-change: transform, opacity;
+}
+
+.reveal.is-visible {
+  will-change: auto; /* 完了後に解除 */
+}
+```
+
+## パフォーマンスチェックリスト
+
+- [ ] IntersectionObserver を使用
+- [ ] transform と opacity のみでアニメーション
+- [ ] 1度表示した要素は監視解除
+- [ ] prefers-reduced-motion に対応
+- [ ] will-change は必要な時だけ
+- [ ] DevTools の Performance タブで確認
+
+## モバイルでの注意点
+
+### バッテリー消費
+
+アニメーションはバッテリーを消費します。特にモバイルデバイスでは:
+- 必要最小限のアニメーションに留める
+- 長時間のループアニメーションは避ける
+- ユーザーの操作がない場合は停止
+
+### タッチデバイスの考慮
+
+```javascript
+// タッチデバイスではアニメーションを簡略化
+const isTouchDevice = 'ontouchstart' in window;
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      // タッチデバイスでは即座に表示
+      if (isTouchDevice) {
+        entry.target.style.transition = 'none';
+      }
+      entry.target.classList.add('is-visible');
+    }
+  });
+});
+```
+
+## デバッグのヒント
+
+### Chrome DevTools
+
+1. **Performance タブ**
+   - Record でスクロール操作を記録
+   - FPS（フレームレート）をチェック
+   - 60fps を維持できているか確認
+
+2. **Layers タブ**
+   - どの要素がレイヤー化されているか確認
+   - 不要なレイヤーがないかチェック
+
+3. **Rendering タブ**
+   - "Paint flashing" で再描画をチェック
+   - "Layout Shift Regions" でレイアウトシフトを確認
+
+### 簡単なパフォーマンステスト
+
+```javascript
+// FPS カウンター（簡易版）
+let lastTime = performance.now();
+let fps = 0;
+
+function measureFPS() {
+  const now = performance.now();
+  fps = Math.round(1000 / (now - lastTime));
+  lastTime = now;
+  console.log('FPS:', fps);
+  requestAnimationFrame(measureFPS);
+}
+
+measureFPS();
+```
+
+## おすすめライブラリ
+
+自前実装が難しい場合:
+- **AOS (Animate On Scroll)**: 軽量で簡単
+- **GSAP ScrollTrigger**: 高機能でパフォーマンス良好
+- **Framer Motion**: React 専用、宣言的で使いやすい
+
+## まとめ
+
+1. IntersectionObserver を使う
+2. GPU アクセラレーションを活用（transform, opacity）
+3. 不要な監視を解除してメモリ節約
+4. prefers-reduced-motion に必ず対応
+5. DevTools でパフォーマンスを確認

@@ -1,0 +1,553 @@
+---
+title: パララックススクロール
+description: 視差効果を使った奥行きのあるスクロールアニメーション
+tags: [animation, scroll, parallax, 3d-effect]
+frameworks: [Vanilla JS, GSAP]
+level: advanced
+demo_url: ""
+code_url: ""
+prompt_template: |
+  次の要件でパララックススクロールを実装してください。
+
+  フレームワーク: {{framework}}（デフォルト: Vanilla JS）
+
+  要件:
+  - レイヤーごとに異なるスクロール速度
+  - スムーズな動き（requestAnimationFrame 使用）
+  - パフォーマンス重視（GPU アクセラレーション）
+  - prefers-reduced-motion で無効化
+  - モバイルでは簡略化または無効化
+  - カスタマイズ可能な速度係数
+
+  対象要素:
+  - {{targets}}（例: ヒーローセクションの背景画像）
+
+  納品物:
+  - 実装コード
+  - CSS（transform を使った実装）
+  - 使用例とデモ
+---
+
+## 概要
+
+パララックス（視差）効果を使って、スクロール時に要素ごとに異なる速度で移動させることで、
+奥行き感のある3D的な演出を実現します。
+
+## 実装のポイント
+
+### 1. パララックスの基本原理
+
+- 前景の要素は速く移動
+- 背景の要素は遅く移動
+- この速度差で奥行きを表現
+
+### 2. パフォーマンス最適化
+
+```javascript
+// ❌ 悪い例: スクロールイベントで直接操作
+window.addEventListener('scroll', () => {
+  element.style.transform = `translateY(${window.scrollY * 0.5}px)`;
+});
+
+// ✅ 良い例: requestAnimationFrame を使用
+let ticking = false;
+let scrollY = 0;
+
+window.addEventListener('scroll', () => {
+  scrollY = window.scrollY;
+  if (!ticking) {
+    requestAnimationFrame(updateParallax);
+    ticking = true;
+  }
+});
+
+function updateParallax() {
+  element.style.transform = `translateY(${scrollY * 0.5}px)`;
+  ticking = false;
+}
+```
+
+### 3. GPU アクセラレーション
+
+```css
+.parallax-layer {
+  /* GPU アクセラレーションを有効化 */
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+/* アニメーション完了後 */
+.parallax-layer.static {
+  will-change: auto;
+}
+```
+
+<LiveDemo title="Parallax Scroll Demo" height="600px">
+{`
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0c1218;
+      color: #e5edf4;
+      overflow-x: hidden;
+    }
+
+    .hero {
+      position: relative;
+      height: 120vh;
+      overflow: hidden;
+      background: linear-gradient(to bottom, #0c1218 0%, #1f2a37 100%);
+    }
+
+    .parallax {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 120%;
+      will-change: transform;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .parallax-bg {
+      z-index: 1;
+    }
+
+    .parallax-bg .element {
+      width: 400px;
+      height: 400px;
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+      border-radius: 50%;
+      opacity: 0.2;
+      filter: blur(40px);
+    }
+
+    .parallax-mid {
+      z-index: 2;
+    }
+
+    .parallax-mid .element {
+      width: 300px;
+      height: 300px;
+      background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+      border-radius: 30%;
+      opacity: 0.3;
+      filter: blur(20px);
+      transform: rotate(45deg);
+    }
+
+    .parallax-front {
+      z-index: 3;
+    }
+
+    .parallax-front .element {
+      width: 200px;
+      height: 200px;
+      background: linear-gradient(135deg, #db2777 0%, #f472b6 100%);
+      border-radius: 20px;
+      opacity: 0.4;
+      filter: blur(10px);
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 10;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .hero-content h1 {
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: #60a5fa;
+      text-shadow: 2px 2px 12px rgba(0, 0, 0, 0.8);
+    }
+
+    .hero-content p {
+      font-size: clamp(1.125rem, 2.5vw, 1.75rem);
+      color: #e5edf4;
+      text-shadow: 1px 1px 6px rgba(0, 0, 0, 0.8);
+      margin-bottom: 0.5rem;
+    }
+
+    .speed-indicator {
+      font-size: 0.875rem;
+      opacity: 0.6;
+      margin-top: 2rem;
+    }
+
+    .content-sections {
+      position: relative;
+      z-index: 10;
+      background: #0c1218;
+    }
+
+    .content-box {
+      min-height: 50vh;
+      padding: 4rem 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .content-box h2 {
+      font-size: 2rem;
+      color: #60a5fa;
+      margin-bottom: 1rem;
+    }
+
+    .content-box p {
+      font-size: 1.125rem;
+      line-height: 1.6;
+      max-width: 600px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .parallax {
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <section class="hero">
+    <div class="parallax parallax-bg" data-speed="0.2">
+      <div class="element"></div>
+    </div>
+
+    <div class="parallax parallax-mid" data-speed="0.5">
+      <div class="element"></div>
+    </div>
+
+    <div class="parallax parallax-front" data-speed="0.8">
+      <div class="element"></div>
+    </div>
+
+    <div class="hero-content">
+      <h1>Parallax Scroll</h1>
+      <p>Multi-layer depth effect</p>
+      <div class="speed-indicator">Background: 0.2x | Middle: 0.5x | Front: 0.8x</div>
+    </div>
+  </section>
+
+  <div class="content-sections">
+    <div class="content-box">
+      <h2>Optimized Performance</h2>
+      <p>
+        Using requestAnimationFrame for smooth animations.
+        GPU acceleration with translate3d. Respects prefers-reduced-motion.
+      </p>
+    </div>
+
+    <div class="content-box">
+      <h2>Multiple Layers</h2>
+      <p>
+        Each layer moves at a different speed to create depth perception.
+        Scroll up to see the parallax effect in action.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    class ParallaxScroll {
+      constructor(selector, options = {}) {
+        this.elements = document.querySelectorAll(selector);
+        this.speed = options.speed || 0.5;
+        this.ticking = false;
+        this.scrollY = 0;
+
+        this.prefersReducedMotion = window.matchMedia(
+          '(prefers-reduced-motion: reduce)'
+        ).matches;
+
+        if (!this.prefersReducedMotion) {
+          this.init();
+        }
+      }
+
+      init() {
+        window.addEventListener('scroll', () => {
+          this.scrollY = window.scrollY;
+          this.requestTick();
+        });
+
+        this.update();
+      }
+
+      requestTick() {
+        if (!this.ticking) {
+          requestAnimationFrame(() => this.update());
+          this.ticking = true;
+        }
+      }
+
+      update() {
+        this.elements.forEach((element) => {
+          const speed = parseFloat(element.dataset.speed) || this.speed;
+          const yPos = -(this.scrollY * speed);
+          element.style.transform = \`translate3d(0, \${yPos}px, 0)\`;
+        });
+
+        this.ticking = false;
+      }
+    }
+
+    new ParallaxScroll('.parallax', { speed: 0.5 });
+  </script>
+</body>
+</html>
+`}
+</LiveDemo>
+
+## コード例
+
+### Vanilla JavaScript（シンプル版）
+
+```javascript
+class ParallaxScroll {
+  constructor(selector, options = {}) {
+    this.elements = document.querySelectorAll(selector);
+    this.speed = options.speed || 0.5;
+    this.ticking = false;
+    this.scrollY = 0;
+
+    // prefers-reduced-motion チェック
+    this.prefersReducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches;
+
+    if (!this.prefersReducedMotion) {
+      this.init();
+    }
+  }
+
+  init() {
+    window.addEventListener('scroll', () => {
+      this.scrollY = window.scrollY;
+      this.requestTick();
+    });
+
+    // 初回実行
+    this.update();
+  }
+
+  requestTick() {
+    if (!this.ticking) {
+      requestAnimationFrame(() => this.update());
+      this.ticking = true;
+    }
+  }
+
+  update() {
+    this.elements.forEach((element) => {
+      const speed = parseFloat(element.dataset.speed) || this.speed;
+      const yPos = -(this.scrollY * speed);
+      element.style.transform = `translate3d(0, ${yPos}px, 0)`;
+    });
+
+    this.ticking = false;
+  }
+}
+
+// 使用例
+new ParallaxScroll('.parallax', { speed: 0.5 });
+```
+
+### HTML 構造
+
+```html
+<section class="hero">
+  <!-- 背景レイヤー（遅く動く） -->
+  <div class="parallax" data-speed="0.2">
+    <img src="background.jpg" alt="背景">
+  </div>
+
+  <!-- 中間レイヤー -->
+  <div class="parallax" data-speed="0.5">
+    <img src="midground.png" alt="中景">
+  </div>
+
+  <!-- 前景レイヤー（速く動く） -->
+  <div class="parallax" data-speed="0.8">
+    <h1>タイトル</h1>
+  </div>
+</section>
+```
+
+### CSS
+
+```css
+.hero {
+  position: relative;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.parallax {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 120%; /* スクロール余白 */
+  will-change: transform;
+}
+
+.parallax img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* prefers-reduced-motion 対応 */
+@media (prefers-reduced-motion: reduce) {
+  .parallax {
+    transform: none !important;
+  }
+}
+```
+
+### GSAP ScrollTrigger 版（高機能）
+
+```javascript
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
+
+// パララックス設定
+gsap.utils.toArray('.parallax').forEach((layer) => {
+  const speed = layer.dataset.speed || 0.5;
+  const movement = -(layer.offsetHeight * speed);
+
+  gsap.to(layer, {
+    y: movement,
+    ease: 'none',
+    scrollTrigger: {
+      trigger: layer.parentElement,
+      start: 'top top',
+      end: 'bottom top',
+      scrub: true, // スクロールに同期
+    },
+  });
+});
+```
+
+## 応用テクニック
+
+### 1. 水平パララックス
+
+```javascript
+// 横方向のパララックス
+element.style.transform = `translate3d(${scrollY * speed}px, 0, 0)`;
+```
+
+### 2. スケールアニメーション
+
+```javascript
+// ズームイン・アウト効果
+const scale = 1 + (scrollY * 0.0005);
+element.style.transform = `scale(${scale})`;
+```
+
+### 3. 回転効果
+
+```javascript
+// 回転しながらスクロール
+const rotation = scrollY * 0.1;
+element.style.transform = `rotate(${rotation}deg)`;
+```
+
+## 注意点
+
+### パフォーマンス
+
+- **モバイルでは無効化を検討**: バッテリー消費とパフォーマンスへの影響
+- **レイヤー数を制限**: 3-5レイヤーまでが推奨
+- **画像の最適化**: 大きな背景画像は適切に圧縮
+
+### アクセシビリティ
+
+```javascript
+// モバイルやタッチデバイスでは無効化
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+const isTouchDevice = 'ontouchstart' in window;
+
+if (isMobile || isTouchDevice) {
+  // パララックスを無効化
+  return;
+}
+```
+
+### レイアウトシフト
+
+- パララックス要素は絶対配置を使用
+- 親要素に適切な高さを設定
+- CLS（Cumulative Layout Shift）に注意
+
+## デバッグのヒント
+
+```javascript
+// FPS カウンター付き
+class ParallaxScrollDebug extends ParallaxScroll {
+  constructor(selector, options) {
+    super(selector, options);
+    this.fps = 0;
+    this.lastTime = performance.now();
+  }
+
+  update() {
+    super.update();
+
+    // FPS 計測
+    const now = performance.now();
+    this.fps = Math.round(1000 / (now - this.lastTime));
+    this.lastTime = now;
+
+    if (this.fps < 50) {
+      console.warn('パフォーマンス低下: FPS', this.fps);
+    }
+  }
+}
+```
+
+## おすすめライブラリ
+
+- **GSAP ScrollTrigger**: 最も機能が豊富
+- **Rellax.js**: 軽量でシンプル
+- **Locomotive Scroll**: スムーススクロール付き
+
+## まとめ
+
+1. requestAnimationFrame でスムーズに
+2. transform と translate3d で GPU アクセラレーション
+3. prefers-reduced-motion に必ず対応
+4. モバイルでは無効化または簡略化
+5. レイヤー数は3-5個まで
+6. 画像は適切に最適化
+
+## 参考リンク
+
+- [GSAP ScrollTrigger](https://greensock.com/scrolltrigger/)
+- [Rellax.js](https://dixonandmoe.com/rellax/)
+- [Parallax Best Practices](https://web.dev/optimize-scrolling/)

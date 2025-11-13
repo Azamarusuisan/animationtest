@@ -1,0 +1,986 @@
+---
+title: コンテナクエリで作るコンポーネント駆動デザイン
+description: ビューポートではなくコンテナサイズに応じて変化する、真のコンポーネント志向レスポンシブデザイン
+tags: [css, container-queries, responsive, components]
+category: css
+level: advanced
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## コンテナクエリがもたらすパラダイムシフト
+
+従来のメディアクエリは「ビューポート（画面全体）のサイズ」に応じてスタイルを変更するものでした。しかし、実際の Web 開発では「このカードコンポーネントが狭いサイドバーに配置された場合は縦並びに、広いメインエリアに配置された場合は横並びにしたい」といったニーズが頻繁にあります。
+
+CSS Container Queries（コンテナクエリ）は、この問題を根本的に解決します。コンポーネントが「配置された場所のサイズ」に応じて自動的にレイアウトを変更できるため、真のコンポーネント駆動デザインが実現できます。同じカードコンポーネントを、サイドバーでもメインエリアでも使い回せるのです。
+
+このガイドでは、コンテナクエリの基本から実践的な活用法まで、実際に動くデモとともに解説します。
+
+<LiveDemo
+  title="基本 - メディアクエリ vs コンテナクエリ"
+  height="600px"
+  html={`
+<div class="comparison-demo">
+  <div class="demo-column">
+    <h3>メディアクエリ（従来）</h3>
+    <p class="demo-note">画面幅に応じて変化</p>
+
+    <div class="sidebar-context">
+      <div class="media-query-card">
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='150'%3E%3Crect fill='%23374151' width='200' height='150'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='monospace' font-size='16' fill='%239ca3af'%3EImage%3C/text%3E%3C/svg%3E" alt="Demo">
+        <div class="card-content">
+          <h4>製品タイトル</h4>
+          <p>狭い場所でも横並びのまま...</p>
+          <button>詳細</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="demo-column">
+    <h3>コンテナクエリ（新）</h3>
+    <p class="demo-note">親要素の幅に応じて変化</p>
+
+    <div class="sidebar-context">
+      <div class="container-query-card">
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='150'%3E%3Crect fill='%23374151' width='200' height='150'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='monospace' font-size='16' fill='%239ca3af'%3EImage%3C/text%3E%3C/svg%3E" alt="Demo">
+        <div class="card-content">
+          <h4>製品タイトル</h4>
+          <p>親が狭ければ自動的に縦並びに!</p>
+          <button>詳細</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wide-context">
+  <h3 style="margin: 2rem 0 1rem 0; color: #9ca3af; font-size: 0.875rem; text-transform: uppercase;">
+    広いエリアでは両方とも横並び
+  </h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+    <div class="media-query-card">
+      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='150'%3E%3Crect fill='%23374151' width='200' height='150'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='monospace' font-size='16' fill='%239ca3af'%3EImage%3C/text%3E%3C/svg%3E" alt="Demo">
+      <div class="card-content">
+        <h4>メディアクエリカード</h4>
+        <p>画面が広ければ横並び</p>
+        <button>詳細</button>
+      </div>
+    </div>
+
+    <div class="container-query-card">
+      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='150'%3E%3Crect fill='%23374151' width='200' height='150'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='monospace' font-size='16' fill='%239ca3af'%3EImage%3C/text%3E%3C/svg%3E" alt="Demo">
+      <div class="card-content">
+        <h4>コンテナクエリカード</h4>
+        <p>親が広ければ横並び</p>
+        <button>詳細</button>
+      </div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.comparison-demo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.demo-column h3 {
+  margin: 0 0 0.5rem 0;
+  color: #e5edf4;
+  font-size: 1rem;
+}
+
+.demo-note {
+  margin: 0 0 1rem 0;
+  color: #9ca3af;
+  font-size: 0.75rem;
+}
+
+.sidebar-context {
+  width: 100%;
+  max-width: 250px;
+  background: #1f2a37;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 2px solid #374151;
+}
+
+.wide-context {
+  background: #1f2a37;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 2px solid #374151;
+}
+
+/* メディアクエリカード（従来の方法） */
+.media-query-card {
+  background: #374151;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.media-query-card img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.media-query-card .card-content {
+  padding: 1rem;
+}
+
+.media-query-card h4 {
+  margin: 0 0 0.5rem 0;
+  color: #e5edf4;
+  font-size: 0.875rem;
+}
+
+.media-query-card p {
+  margin: 0 0 0.75rem 0;
+  color: #9ca3af;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.media-query-card button {
+  background: #60a5fa;
+  color: #0c1218;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
+
+/* 画面が広い場合のみ横並び */
+@media (min-width: 768px) {
+  .wide-context .media-query-card {
+    flex-direction: row;
+  }
+
+  .wide-context .media-query-card img {
+    width: 150px;
+    height: auto;
+  }
+
+  .wide-context .media-query-card button {
+    width: auto;
+  }
+}
+
+/* コンテナクエリカード（新しい方法） */
+.sidebar-context,
+.wide-context {
+  container-type: inline-size;
+  container-name: card-container;
+}
+
+.container-query-card {
+  background: #374151;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.container-query-card img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.container-query-card .card-content {
+  padding: 1rem;
+}
+
+.container-query-card h4 {
+  margin: 0 0 0.5rem 0;
+  color: #e5edf4;
+  font-size: 0.875rem;
+}
+
+.container-query-card p {
+  margin: 0 0 0.75rem 0;
+  color: #9ca3af;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.container-query-card button {
+  background: #60a5fa;
+  color: #0c1218;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
+
+/* コンテナが400px以上なら横並び */
+@container card-container (min-width: 400px) {
+  .container-query-card {
+    flex-direction: row;
+  }
+
+  .container-query-card img {
+    width: 150px;
+    height: auto;
+  }
+
+  .container-query-card button {
+    width: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .comparison-demo {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-context {
+    max-width: 100%;
+  }
+}
+  `}
+/>
+
+### コンテナクエリの基本構文
+
+```css
+/* 親要素をコンテナとして定義 */
+.container {
+  container-type: inline-size; /* 幅を基準 */
+  container-name: card; /* 名前付け（オプション） */
+}
+
+/* コンテナのサイズに応じてスタイル変更 */
+@container (min-width: 400px) {
+  .card {
+    flex-direction: row;
+  }
+}
+
+/* 名前付きコンテナを指定 */
+@container card (min-width: 400px) {
+  .card-content {
+    padding: 2rem;
+  }
+}
+```
+
+**container-type の値:**
+- `inline-size`: 幅のみを監視（最も一般的）
+- `size`: 幅と高さを監視
+- `normal`: コンテナではない（デフォルト）
+
+<LiveDemo
+  title="実践例 - 適応型カードコンポーネント"
+  height="600px"
+  html={`
+<div class="adaptive-demo">
+  <div class="layout-grid">
+    <!-- サイドバー -->
+    <aside class="sidebar">
+      <h3>サイドバー</h3>
+      <div class="card-wrapper">
+        <article class="adaptive-card">
+          <div class="card-image">📱</div>
+          <div class="card-body">
+            <h4>モバイル最適化</h4>
+            <p>狭いエリアでは縦型レイアウト</p>
+            <div class="card-meta">
+              <span class="tag">CSS</span>
+              <span class="date">2025/11/11</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </aside>
+
+    <!-- メインエリア -->
+    <main class="main-area">
+      <h3>メインエリア</h3>
+      <div class="card-wrapper">
+        <article class="adaptive-card">
+          <div class="card-image">💻</div>
+          <div class="card-body">
+            <h4>デスクトップ最適化</h4>
+            <p>広いエリアでは横型レイアウトに自動変換。同じHTMLとCSSでコンテキストに応じて最適な表示を実現します。</p>
+            <div class="card-meta">
+              <span class="tag">Container Query</span>
+              <span class="date">2025/11/11</span>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="card-grid">
+        <div class="card-wrapper">
+          <article class="adaptive-card">
+            <div class="card-image">🎨</div>
+            <div class="card-body">
+              <h4>デザイン</h4>
+              <p>グリッド内では中型レイアウト</p>
+              <div class="card-meta">
+                <span class="tag">UI</span>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="card-wrapper">
+          <article class="adaptive-card">
+            <div class="card-image">⚡</div>
+            <div class="card-body">
+              <h4>パフォーマンス</h4>
+              <p>効率的なレンダリング</p>
+              <div class="card-meta">
+                <span class="tag">Speed</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+  `}
+  css={`
+.adaptive-demo {
+  background: #0c1218;
+  padding: 1rem;
+  border-radius: 10px;
+}
+
+.layout-grid {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 1.5rem;
+}
+
+.sidebar,
+.main-area {
+  background: #1f2a37;
+  padding: 1.5rem;
+  border-radius: 10px;
+}
+
+.sidebar h3,
+.main-area h3 {
+  margin: 0 0 1rem 0;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* カードラッパーをコンテナに */
+.card-wrapper {
+  container-type: inline-size;
+  container-name: card;
+  margin-bottom: 1rem;
+}
+
+.card-wrapper:last-child {
+  margin-bottom: 0;
+}
+
+/* 適応型カード */
+.adaptive-card {
+  background: linear-gradient(135deg, #374151, #1f2a37);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid #374151;
+  transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
+}
+
+.adaptive-card:hover {
+  border-color: #60a5fa;
+  transform: translateY(-2px);
+}
+
+.card-image {
+  background: #374151;
+  padding: 2rem;
+  text-align: center;
+  font-size: 3rem;
+}
+
+.card-body {
+  padding: 1.5rem;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-body h4 {
+  margin: 0 0 0.5rem 0;
+  color: #e5edf4;
+  font-size: 1.125rem;
+}
+
+.card-body p {
+  margin: 0 0 1rem 0;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  flex-grow: 1;
+}
+
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tag {
+  background: #60a5fa;
+  color: #0c1218;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.date {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+/* コンテナが300px以上: 中型レイアウト */
+@container card (min-width: 300px) {
+  .card-image {
+    padding: 1.5rem;
+    font-size: 2.5rem;
+  }
+
+  .card-body h4 {
+    font-size: 1rem;
+  }
+}
+
+/* コンテナが450px以上: 横型レイアウト */
+@container card (min-width: 450px) {
+  .adaptive-card {
+    flex-direction: row;
+  }
+
+  .card-image {
+    width: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.5rem;
+  }
+
+  .card-body {
+    padding: 2rem;
+  }
+
+  .card-body h4 {
+    font-size: 1.25rem;
+  }
+
+  .card-body p {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .layout-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+  `}
+/>
+
+### 実践的なブレークポイント設定
+
+```css
+.card-wrapper {
+  container-type: inline-size;
+}
+
+/* 小: 縦型レイアウト */
+.card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 中: 少し余裕のある縦型 */
+@container (min-width: 300px) {
+  .card {
+    padding: 1.5rem;
+  }
+}
+
+/* 大: 横型レイアウト */
+@container (min-width: 500px) {
+  .card {
+    flex-direction: row;
+  }
+
+  .card-image {
+    width: 200px;
+  }
+}
+
+/* 特大: より豪華なレイアウト */
+@container (min-width: 700px) {
+  .card {
+    padding: 2.5rem;
+  }
+
+  .card-image {
+    width: 300px;
+  }
+}
+```
+
+<LiveDemo
+  title="コンテナクエリユニット - 動的なサイジング"
+  height="500px"
+  html={`
+<div class="units-demo">
+  <div class="container-small">
+    <div class="responsive-box">
+      <h4>小コンテナ</h4>
+      <p>フォントサイズがコンテナの5%</p>
+      <div class="metric">幅: 300px</div>
+    </div>
+  </div>
+
+  <div class="container-large">
+    <div class="responsive-box">
+      <h4>大コンテナ</h4>
+      <p>同じCSSでもコンテナが大きいので文字も大きく</p>
+      <div class="metric">幅: 600px</div>
+    </div>
+  </div>
+</div>
+
+<div class="units-reference">
+  <h4>コンテナクエリユニット一覧</h4>
+  <div class="unit-list">
+    <div class="unit-item">
+      <code>cqw</code>
+      <span>コンテナ幅の1%</span>
+    </div>
+    <div class="unit-item">
+      <code>cqh</code>
+      <span>コンテナ高さの1%</span>
+    </div>
+    <div class="unit-item">
+      <code>cqi</code>
+      <span>インライン方向の1%</span>
+    </div>
+    <div class="unit-item">
+      <code>cqb</code>
+      <span>ブロック方向の1%</span>
+    </div>
+    <div class="unit-item">
+      <code>cqmin</code>
+      <span>cqi と cqb の小さい方</span>
+    </div>
+    <div class="unit-item">
+      <code>cqmax</code>
+      <span>cqi と cqb の大きい方</span>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.units-demo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.container-small,
+.container-large {
+  container-type: inline-size;
+  background: #1f2a37;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 2px solid #374151;
+}
+
+.container-small {
+  max-width: 300px;
+}
+
+.container-large {
+  max-width: 600px;
+}
+
+.responsive-box {
+  background: linear-gradient(135deg, #374151, #1f2a37);
+  padding: 5cqw; /* コンテナ幅の5% */
+  border-radius: 2cqw; /* コンテナ幅の2% */
+  border: 0.5cqw solid #60a5fa;
+}
+
+.responsive-box h4 {
+  margin: 0 0 2cqh 0;
+  color: #60a5fa;
+  font-size: 5cqw; /* コンテナ幅の5% */
+}
+
+.responsive-box p {
+  margin: 0 0 2cqh 0;
+  color: #d1d5db;
+  font-size: 3cqw; /* コンテナ幅の3% */
+  line-height: 1.6;
+}
+
+.metric {
+  background: #0c1218;
+  padding: 1cqw 2cqw;
+  border-radius: 1cqw;
+  display: inline-block;
+  color: #9ca3af;
+  font-size: 2.5cqw;
+  font-weight: 600;
+}
+
+/* ユニット一覧 */
+.units-reference {
+  background: #1f2a37;
+  padding: 1.5rem;
+  border-radius: 10px;
+}
+
+.units-reference h4 {
+  margin: 0 0 1rem 0;
+  color: #e5edf4;
+  font-size: 1rem;
+}
+
+.unit-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.unit-item {
+  background: #374151;
+  padding: 1rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.unit-item code {
+  background: #60a5fa;
+  color: #0c1218;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.unit-item span {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 640px) {
+  .units-demo {
+    grid-template-columns: 1fr;
+  }
+
+  .container-small,
+  .container-large {
+    max-width: 100%;
+  }
+}
+  `}
+/>
+
+### コンテナクエリユニットの活用
+
+```css
+.container {
+  container-type: inline-size;
+}
+
+.element {
+  /* コンテナ幅の5% */
+  font-size: 5cqw;
+
+  /* コンテナ幅の3% */
+  padding: 3cqw;
+
+  /* コンテナ幅の2% */
+  border-radius: 2cqw;
+
+  /* clamp() と組み合わせ */
+  font-size: clamp(1rem, 5cqw, 3rem);
+}
+```
+
+**実用例:**
+```css
+/* ロゴのサイズをコンテナに応じて調整 */
+.logo {
+  width: 30cqw;
+  height: 30cqw;
+}
+
+/* ボタンのパディング */
+.button {
+  padding: 2cqh 5cqw;
+  font-size: 3cqw;
+}
+```
+
+## Tips & Gotchas
+
+### ✅ 実践的なテクニック
+
+1. **適切な container-type の選択**
+   ```css
+   /* ほとんどの場合は inline-size で十分 */
+   .card-wrapper {
+     container-type: inline-size;
+   }
+
+   /* 幅と高さ両方を監視したい場合のみ */
+   .modal-wrapper {
+     container-type: size;
+   }
+   ```
+
+2. **名前付きコンテナで明示的に**
+   ```css
+   .sidebar {
+     container-type: inline-size;
+     container-name: sidebar;
+   }
+
+   .main {
+     container-type: inline-size;
+     container-name: main;
+   }
+
+   /* 特定のコンテナを対象に */
+   @container sidebar (min-width: 300px) {
+     .widget {
+       padding: 1rem;
+     }
+   }
+   ```
+
+3. **既存のメディアクエリと併用**
+   ```css
+   /* モバイルファースト */
+   .element {
+     font-size: 1rem;
+   }
+
+   /* コンテナクエリ */
+   @container (min-width: 400px) {
+     .element {
+       font-size: 1.25rem;
+     }
+   }
+
+   /* グローバルなレイアウト変更はメディアクエリ */
+   @media (min-width: 1024px) {
+     .grid {
+       grid-template-columns: 250px 1fr;
+     }
+   }
+   ```
+
+4. **ネストしたコンテナ**
+   ```css
+   .outer-container {
+     container-type: inline-size;
+     container-name: outer;
+   }
+
+   .inner-container {
+     container-type: inline-size;
+     container-name: inner;
+   }
+
+   @container outer (min-width: 800px) {
+     .layout {
+       display: grid;
+     }
+   }
+
+   @container inner (min-width: 400px) {
+     .card {
+       flex-direction: row;
+     }
+   }
+   ```
+
+### ⚠️ 注意点
+
+1. **ブラウザサポート**
+   ```css
+   /* フォールバック戦略 */
+   .card {
+     display: block; /* デフォルト */
+   }
+
+   /* コンテナクエリ対応ブラウザのみ */
+   @supports (container-type: inline-size) {
+     .card-wrapper {
+       container-type: inline-size;
+     }
+
+     @container (min-width: 400px) {
+       .card {
+         display: flex;
+       }
+     }
+   }
+   ```
+
+2. **container-type: size のパフォーマンス**
+   ```css
+   /* ⚠️ size は幅と高さ両方を監視するため重い */
+   .element {
+     container-type: size;
+   }
+
+   /* ✅ 必要なければ inline-size を使用 */
+   .element {
+     container-type: inline-size;
+   }
+   ```
+
+3. **循環参照に注意**
+   ```css
+   /* ❌ 無限ループの可能性 */
+   .container {
+     container-type: inline-size;
+     width: 100cqw; /* 自身を参照 */
+   }
+
+   /* ✅ 子要素で使用 */
+   .child {
+     width: 50cqw; /* 親コンテナを参照 */
+   }
+   ```
+
+4. **アクセシビリティ**
+   ```css
+   /* フォントサイズを小さくしすぎない */
+   @container (min-width: 300px) {
+     .text {
+       font-size: clamp(0.875rem, 3cqw, 1.125rem);
+       /* 最小値を設定して読みやすさを確保 */
+     }
+   }
+   ```
+
+## 実用的なユースケース
+
+### 1. 再利用可能なカードコンポーネント
+
+```css
+.card-container {
+  container-type: inline-size;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+}
+
+@container (min-width: 400px) {
+  .card {
+    flex-direction: row;
+  }
+}
+```
+
+### 2. レスポンシブなナビゲーション
+
+```css
+.nav-container {
+  container-type: inline-size;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+}
+
+@container (min-width: 600px) {
+  .nav {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}
+```
+
+### 3. グリッドレイアウトの調整
+
+```css
+.grid-container {
+  container-type: inline-size;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@container (min-width: 500px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@container (min-width: 800px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+```
+
+## まとめ
+
+コンテナクエリにより:
+
+- **真のコンポーネント志向**: 配置場所に応じて自動調整
+- **再利用性の向上**: 同じコンポーネントをどこでも使える
+- **保守性**: レイアウトロジックをコンポーネント内に集約
+- **柔軟性**: ビューポートとコンテナの両方で制御可能
+
+コンテナクエリは、モダンなコンポーネント駆動開発に不可欠なツールです。メディアクエリと併用することで、より柔軟で保守性の高いレスポンシブデザインを実現できます。

@@ -1,0 +1,243 @@
+---
+title: コードブロック（シンタックスハイライト + コピーボタン）
+description: 言語表示・行番号・1クリックコピー機能付き。
+tags: [code, syntax, copy, developer-tools]
+frameworks: [Vanilla, Any]
+level: basic
+prompt_template: |
+  目的: コードスニペット表示とコピー機能の実装
+  前提: Vanilla JS（任意のフレームワークに移植可）
+  要件:
+  - 言語ラベル表示（data-lang属性）
+  - 行番号表示（CSSカウンター使用）
+  - コピーボタン（Clipboard API）
+  - コピー成功フィードバック（✓表示）
+  - prefers-color-schemeでダーク/ライトモード
+  - シンタックスハイライトは外部ライブラリ不要（基本スタイルのみ）
+  - アクセシビリティ対応
+  - パフォーマンス考慮
+  納品: コンポーネント+CSS+最小限のJS
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo height="500px">
+{`<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0c1218; color: #e5edf4; padding: 2rem; }
+
+    h2 { margin-bottom: 0.5rem; }
+    .instructions { color: #9ca3af; margin-bottom: 1.5rem; line-height: 1.6; }
+
+    .code-block {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #1e1e1e;
+      margin-bottom: 1.5rem;
+      border: 1px solid #374151;
+    }
+
+    .code-block[data-lang]::before {
+      content: attr(data-lang);
+      position: absolute;
+      top: 0;
+      left: 0;
+      padding: 0.4rem 0.75rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.1);
+      color: #9ca3af;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    .code-block pre {
+      margin: 0;
+      padding: 2.5rem 1rem 1rem;
+      overflow-x: auto;
+    }
+
+    .code-block code {
+      display: block;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: #d4d4d4;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      color: #e5edf4;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: background 0.2s;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .copy-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .copy-btn.copied {
+      background: #10b981;
+      border-color: #10b981;
+    }
+
+    /* Syntax highlighting styles */
+    .keyword { color: #c586c0; }
+    .string { color: #ce9178; }
+    .function { color: #dcdcaa; }
+    .comment { color: #6a9955; font-style: italic; }
+    .number { color: #b5cea8; }
+  </style>
+</head>
+<body>
+  <h2>コードブロック</h2>
+  <p class="instructions">
+    右上のコピーボタンをクリックしてコードをクリップボードにコピーできます。
+  </p>
+
+  <div class="code-block" data-lang="javascript">
+    <pre><code><span class="keyword">function</span> <span class="function">greet</span>(name) {
+  <span class="keyword">return</span> <span class="string">\\\`Hello, \${name}!\\\`</span>;
+}
+
+<span class="comment">// 関数を呼び出す</span>
+<span class="keyword">const</span> message = <span class="function">greet</span>(<span class="string">'World'</span>);
+console.<span class="function">log</span>(message);</code></pre>
+  </div>
+
+  <div class="code-block" data-lang="python">
+    <pre><code><span class="keyword">def</span> <span class="function">fibonacci</span>(n):
+    <span class="string">"""フィボナッチ数列を生成"""</span>
+    <span class="keyword">if</span> n <= <span class="number">0</span>:
+        <span class="keyword">return</span> []
+    <span class="keyword">elif</span> n == <span class="number">1</span>:
+        <span class="keyword">return</span> [<span class="number">0</span>]
+
+    fib = [<span class="number">0</span>, <span class="number">1</span>]
+    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="function">range</span>(<span class="number">2</span>, n):
+        fib.<span class="function">append</span>(fib[i<span class="number">-1</span>] + fib[i<span class="number">-2</span>])
+
+    <span class="keyword">return</span> fib
+
+<span class="comment"># 最初の10個のフィボナッチ数</span>
+<span class="function">print</span>(<span class="function">fibonacci</span>(<span class="number">10</span>))</code></pre>
+  </div>
+
+  <div class="code-block" data-lang="css">
+    <pre><code><span class="comment">/* グラデーション背景 */</span>
+<span class="keyword">.container</span> {
+  <span class="keyword">background</span>: <span class="function">linear-gradient</span>(<span class="number">135deg</span>, <span class="string">#667eea</span> <span class="number">0%</span>, <span class="string">#764ba2</span> <span class="number">100%</span>);
+  <span class="keyword">border-radius</span>: <span class="number">8px</span>;
+  <span class="keyword">padding</span>: <span class="number">2rem</span>;
+  <span class="keyword">box-shadow</span>: <span class="number">0</span> <span class="number">4px</span> <span class="number">6px</span> <span class="function">rgba</span>(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0.1</span>);
+}</code></pre>
+  </div>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      btn.setAttribute('aria-label', 'Copy code to clipboard');
+
+      const code = block.querySelector('code');
+      const text = code.textContent;
+
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          btn.textContent = '✓ Copied';
+          btn.classList.add('copied');
+          setTimeout(() => {
+            btn.textContent = 'Copy';
+            btn.classList.remove('copied');
+          }, 2000);
+        } catch (err) {
+          btn.textContent = '✗ Failed';
+          setTimeout(() => btn.textContent = 'Copy', 2000);
+        }
+      });
+
+      block.appendChild(btn);
+    });
+  </script>
+</body>
+</html>`}
+</LiveDemo>
+
+**HTML**
+```html
+<div class="code-block" data-lang="javascript">
+  <pre><code>function greet(name) {
+  return `Hello, ${name}!`;
+}
+
+console.log(greet('World'));</code></pre>
+</div>
+```
+
+**CSS**
+```css
+.code-block { position: relative; border-radius: 8px; overflow: hidden; background: #1e1e1e; margin: 1rem 0; }
+.code-block[data-lang]::before { content: attr(data-lang); position: absolute; top: 0; right: 0; padding: .25rem .75rem; font-size: .75rem; text-transform: uppercase; background: rgba(255,255,255,.1); color: #fff; font-weight: 600; }
+.code-block pre { margin: 0; padding: 2.5rem 1rem 1rem; overflow-x: auto; counter-reset: line; }
+.code-block code { display: block; font-family: 'Consolas', 'Monaco', monospace; font-size: .875rem; line-height: 1.6; color: #d4d4d4; }
+.code-block code::before { counter-increment: line; content: counter(line); display: inline-block; width: 2rem; margin-right: 1rem; text-align: right; color: #858585; user-select: none; }
+.code-block .copy-btn { position: absolute; top: .5rem; right: .5rem; padding: .4rem .75rem; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); border-radius: 4px; color: #fff; cursor: pointer; font-size: .8rem; transition: background .2s; }
+.code-block .copy-btn:hover { background: rgba(255,255,255,.2); }
+.code-block .copy-btn.copied { background: #10b981; border-color: #10b981; }
+@media (prefers-color-scheme: light) {
+  .code-block { background: #f5f5f5; border: 1px solid #e0e0e0; }
+  .code-block[data-lang]::before { background: rgba(0,0,0,.1); color: #333; }
+  .code-block code { color: #333; }
+  .code-block code::before { color: #999; }
+  .code-block .copy-btn { background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.1); color: #333; }
+  .code-block .copy-btn:hover { background: rgba(0,0,0,.1); }
+}
+```
+
+**JS**
+```js
+(() => {
+  document.querySelectorAll('.code-block').forEach(block => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.setAttribute('aria-label', 'Copy code to clipboard');
+
+    const code = block.querySelector('code');
+    const text = code.textContent;
+
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = '✓ Copied';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'Copy';
+          btn.classList.remove('copied');
+        }, 2000);
+      } catch (err) {
+        btn.textContent = '✗ Failed';
+        setTimeout(() => btn.textContent = 'Copy', 2000);
+      }
+    });
+
+    block.appendChild(btn);
+  });
+})();
+```

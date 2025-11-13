@@ -1,0 +1,1154 @@
+---
+title: 命名規約・タグ規約
+description: プロジェクト全体で一貫性のある命名とタグ付けのための包括的な規約ガイド
+tags: [documentation, conventions, standards, naming, best-practices]
+category: documentation
+level: basic
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="命名規約インタラクティブデモ"
+  height="700px"
+  html={`
+<div class="demo-container">
+  <div class="header">
+    <h2>命名規約チェッカー</h2>
+    <p class="subtitle">ファイル名やクラス名が規約に準拠しているか確認しましょう</p>
+  </div>
+
+  <div class="main-content">
+    <div class="validator-section">
+      <div class="validator-card">
+        <h3>ファイル名バリデーター</h3>
+        <label for="filename-input">
+          ファイル名を入力してください
+          <span class="hint">(例: search-autocomplete.mdx)</span>
+        </label>
+        <input
+          type="text"
+          id="filename-input"
+          placeholder="例: my-component.tsx"
+          class="validator-input"
+        />
+        <div id="filename-result" class="validation-result"></div>
+      </div>
+
+      <div class="validator-card">
+        <h3>コンポーネント名バリデーター</h3>
+        <label for="component-input">
+          コンポーネント名を入力してください
+          <span class="hint">(例: SearchBar)</span>
+        </label>
+        <input
+          type="text"
+          id="component-input"
+          placeholder="例: DataTable"
+          class="validator-input"
+        />
+        <div id="component-result" class="validation-result"></div>
+      </div>
+
+      <div class="validator-card">
+        <h3>CSS クラス名バリデーター</h3>
+        <label for="css-input">
+          CSS クラス名を入力してください
+          <span class="hint">(例: btn--primary)</span>
+        </label>
+        <input
+          type="text"
+          id="css-input"
+          placeholder="例: card__header--active"
+          class="validator-input"
+        />
+        <div id="css-result" class="validation-result"></div>
+      </div>
+
+      <div class="validator-card">
+        <h3>定数名バリデーター</h3>
+        <label for="constant-input">
+          定数名を入力してください
+          <span class="hint">(例: API_BASE_URL)</span>
+        </label>
+        <input
+          type="text"
+          id="constant-input"
+          placeholder="例: MAX_RETRY_COUNT"
+          class="validator-input"
+        />
+        <div id="constant-result" class="validation-result"></div>
+      </div>
+    </div>
+
+    <div class="examples-section">
+      <h3>規約の比較</h3>
+
+      <div class="comparison-table">
+        <div class="comparison-header">
+          <div class="col-type">タイプ</div>
+          <div class="col-bad">悪い例</div>
+          <div class="col-good">良い例</div>
+        </div>
+
+        <div class="comparison-row">
+          <div class="col-type">ファイル名</div>
+          <div class="col-bad">
+            <code class="bad">SearchBar.mdx</code>
+            <code class="bad">data_table.tsx</code>
+          </div>
+          <div class="col-good">
+            <code class="good">search-bar.mdx</code>
+            <code class="good">data-table.tsx</code>
+          </div>
+        </div>
+
+        <div class="comparison-row">
+          <div class="col-type">コンポーネント</div>
+          <div class="col-bad">
+            <code class="bad">searchBar</code>
+            <code class="bad">data_table</code>
+          </div>
+          <div class="col-good">
+            <code class="good">SearchBar</code>
+            <code class="good">DataTable</code>
+          </div>
+        </div>
+
+        <div class="comparison-row">
+          <div class="col-type">CSS (BEM)</div>
+          <div class="col-bad">
+            <code class="bad">btnPrimary</code>
+            <code class="bad">card-header-active</code>
+          </div>
+          <div class="col-good">
+            <code class="good">btn--primary</code>
+            <code class="good">card__header--active</code>
+          </div>
+        </div>
+
+        <div class="comparison-row">
+          <div class="col-type">変数</div>
+          <div class="col-bad">
+            <code class="bad">UserName</code>
+            <code class="bad">current_page</code>
+          </div>
+          <div class="col-good">
+            <code class="good">userName</code>
+            <code class="good">currentPage</code>
+          </div>
+        </div>
+
+        <div class="comparison-row">
+          <div class="col-type">定数</div>
+          <div class="col-bad">
+            <code class="bad">apiBaseUrl</code>
+            <code class="bad">max-retries</code>
+          </div>
+          <div class="col-good">
+            <code class="good">API_BASE_URL</code>
+            <code class="good">MAX_RETRIES</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="tag-selector">
+        <h3>タグセレクター（最大5個）</h3>
+        <div id="tag-count" class="tag-count">選択中: 0 / 5</div>
+        <div class="tag-grid">
+          <button class="tag-btn" data-tag="ui">ui</button>
+          <button class="tag-btn" data-tag="form">form</button>
+          <button class="tag-btn" data-tag="animation">animation</button>
+          <button class="tag-btn" data-tag="performance">performance</button>
+          <button class="tag-btn" data-tag="accessibility">accessibility</button>
+          <button class="tag-btn" data-tag="responsive">responsive</button>
+          <button class="tag-btn" data-tag="javascript">javascript</button>
+          <button class="tag-btn" data-tag="css">css</button>
+          <button class="tag-btn" data-tag="typescript">typescript</button>
+          <button class="tag-btn" data-tag="react">react</button>
+        </div>
+        <div id="selected-tags" class="selected-tags"></div>
+      </div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+    .demo-container {
+      background: #0c1218;
+      border-radius: 12px;
+      overflow: hidden;
+      min-height: 100%;
+    }
+
+    .header {
+      background: #1f2a37;
+      padding: 1.5rem;
+      border-bottom: 2px solid #374151;
+    }
+
+    .header h2 {
+      margin: 0 0 0.5rem 0;
+      color: #e5edf4;
+      font-size: 1.5rem;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: #9ca3af;
+      font-size: 0.875rem;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      padding: 2rem;
+    }
+
+    @media (max-width: 1024px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .validator-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .validator-card {
+      background: #1f2a37;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #374151;
+    }
+
+    .validator-card h3 {
+      margin: 0 0 1rem 0;
+      color: #60a5fa;
+      font-size: 1.125rem;
+    }
+
+    .validator-card label {
+      display: block;
+      color: #e5edf4;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .hint {
+      display: block;
+      color: #6b7280;
+      font-size: 0.75rem;
+      font-weight: normal;
+      margin-top: 0.25rem;
+    }
+
+    .validator-input {
+      width: 100%;
+      padding: 0.75rem;
+      background: #0c1218;
+      border: 2px solid #374151;
+      border-radius: 6px;
+      color: #e5edf4;
+      font-size: 0.875rem;
+      font-family: 'Monaco', 'Menlo', monospace;
+      transition: all 0.2s;
+    }
+
+    .validator-input:focus {
+      outline: none;
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+    }
+
+    .validation-result {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      min-height: 60px;
+    }
+
+    .validation-result.pass {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid #10b981;
+      color: #10b981;
+    }
+
+    .validation-result.fail {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid #ef4444;
+      color: #ef4444;
+    }
+
+    .validation-result.empty {
+      background: transparent;
+      border: 1px dashed #374151;
+      color: #6b7280;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .examples-section {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .examples-section > h3 {
+      color: #e5edf4;
+      font-size: 1.25rem;
+      margin: 0;
+    }
+
+    .comparison-table {
+      background: #1f2a37;
+      border-radius: 8px;
+      border: 1px solid #374151;
+      overflow: hidden;
+    }
+
+    .comparison-header,
+    .comparison-row {
+      display: grid;
+      grid-template-columns: 100px 1fr 1fr;
+      gap: 1rem;
+      padding: 0.75rem 1rem;
+    }
+
+    .comparison-header {
+      background: #374151;
+      font-weight: 600;
+      color: #e5edf4;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+    }
+
+    .comparison-row {
+      border-bottom: 1px solid #374151;
+    }
+
+    .comparison-row:last-child {
+      border-bottom: none;
+    }
+
+    .col-type {
+      color: #60a5fa;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    code {
+      display: block;
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.75rem;
+      margin-bottom: 0.25rem;
+    }
+
+    code:last-child {
+      margin-bottom: 0;
+    }
+
+    code.bad {
+      background: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    code.good {
+      background: rgba(16, 185, 129, 0.1);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .tag-selector {
+      background: #1f2a37;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #374151;
+    }
+
+    .tag-selector h3 {
+      margin: 0 0 1rem 0;
+      color: #60a5fa;
+      font-size: 1.125rem;
+    }
+
+    .tag-count {
+      color: #9ca3af;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+
+    .tag-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .tag-btn {
+      padding: 0.5rem 1rem;
+      background: #374151;
+      color: #e5edf4;
+      border: 2px solid #4b5563;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+
+    .tag-btn:hover {
+      background: #4b5563;
+      transform: translateY(-2px);
+    }
+
+    .tag-btn.selected {
+      background: #3b82f6;
+      border-color: #3b82f6;
+      color: white;
+    }
+
+    .tag-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .selected-tags {
+      min-height: 60px;
+      padding: 1rem;
+      background: #0c1218;
+      border: 2px solid #374151;
+      border-radius: 6px;
+      color: #e5edf4;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.875rem;
+    }
+
+    .selected-tags.empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6b7280;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+  `}
+  js={`
+    // Filename validator
+    const filenameInput = document.getElementById('filename-input');
+    const filenameResult = document.getElementById('filename-result');
+
+    filenameInput.addEventListener('input', (e) => {
+      const value = e.target.value.trim();
+      if (!value) {
+        filenameResult.className = 'validation-result empty';
+        filenameResult.textContent = '入力待ち...';
+        return;
+      }
+
+      const kebabCaseRegex = /^[a-z0-9]+(-[a-z0-9]+)*\.(mdx?|tsx?|jsx?|css|scss)$/;
+      const isValid = kebabCaseRegex.test(value);
+
+      if (isValid) {
+        filenameResult.className = 'validation-result pass';
+        filenameResult.innerHTML = '✓ 規約に準拠しています<br><small>kebab-case形式で正しく命名されています</small>';
+      } else {
+        filenameResult.className = 'validation-result fail';
+        filenameResult.innerHTML = '✗ 規約違反です<br><small>小文字とハイフンのみ使用してください (例: my-component.tsx)</small>';
+      }
+    });
+
+    // Component validator
+    const componentInput = document.getElementById('component-input');
+    const componentResult = document.getElementById('component-result');
+
+    componentInput.addEventListener('input', (e) => {
+      const value = e.target.value.trim();
+      if (!value) {
+        componentResult.className = 'validation-result empty';
+        componentResult.textContent = '入力待ち...';
+        return;
+      }
+
+      const pascalCaseRegex = /^[A-Z][a-zA-Z0-9]*$/;
+      const isValid = pascalCaseRegex.test(value);
+
+      if (isValid) {
+        componentResult.className = 'validation-result pass';
+        componentResult.innerHTML = '✓ 規約に準拠しています<br><small>PascalCase形式で正しく命名されています</small>';
+      } else {
+        componentResult.className = 'validation-result fail';
+        componentResult.innerHTML = '✗ 規約違反です<br><small>大文字で始まるPascalCaseを使用してください (例: MyComponent)</small>';
+      }
+    });
+
+    // CSS class validator
+    const cssInput = document.getElementById('css-input');
+    const cssResult = document.getElementById('css-result');
+
+    cssInput.addEventListener('input', (e) => {
+      const value = e.target.value.trim();
+      if (!value) {
+        cssResult.className = 'validation-result empty';
+        cssResult.textContent = '入力待ち...';
+        return;
+      }
+
+      const bemRegex = /^[a-z][a-z0-9-]*(__[a-z][a-z0-9-]*)?(--[a-z][a-z0-9-]*)?$/;
+      const utilityRegex = /^[a-z][a-z0-9-]*$/;
+      const isValid = bemRegex.test(value) || utilityRegex.test(value);
+
+      if (isValid) {
+        cssResult.className = 'validation-result pass';
+        cssResult.innerHTML = '✓ 規約に準拠しています<br><small>BEM形式またはユーティリティクラスとして正しく命名されています</small>';
+      } else {
+        cssResult.className = 'validation-result fail';
+        cssResult.innerHTML = '✗ 規約違反です<br><small>BEM形式 (block__element--modifier) またはkebab-caseを使用してください</small>';
+      }
+    });
+
+    // Constant validator
+    const constantInput = document.getElementById('constant-input');
+    const constantResult = document.getElementById('constant-result');
+
+    constantInput.addEventListener('input', (e) => {
+      const value = e.target.value.trim();
+      if (!value) {
+        constantResult.className = 'validation-result empty';
+        constantResult.textContent = '入力待ち...';
+        return;
+      }
+
+      const upperSnakeCaseRegex = /^[A-Z][A-Z0-9_]*$/;
+      const isValid = upperSnakeCaseRegex.test(value);
+
+      if (isValid) {
+        constantResult.className = 'validation-result pass';
+        constantResult.innerHTML = '✓ 規約に準拠しています<br><small>UPPER_SNAKE_CASE形式で正しく命名されています</small>';
+      } else {
+        constantResult.className = 'validation-result fail';
+        constantResult.innerHTML = '✗ 規約違反です<br><small>大文字とアンダースコアのみ使用してください (例: API_BASE_URL)</small>';
+      }
+    });
+
+    // Tag selector
+    const tagButtons = document.querySelectorAll('.tag-btn');
+    const selectedTagsDiv = document.getElementById('selected-tags');
+    const tagCountDiv = document.getElementById('tag-count');
+    let selectedTags = [];
+
+    function updateTagDisplay() {
+      tagCountDiv.textContent = \`選択中: \${selectedTags.length} / 5\`;
+
+      if (selectedTags.length === 0) {
+        selectedTagsDiv.className = 'selected-tags empty';
+        selectedTagsDiv.textContent = 'タグを選択してください';
+      } else {
+        selectedTagsDiv.className = 'selected-tags';
+        selectedTagsDiv.textContent = 'tags: [' + selectedTags.sort().join(', ') + ']';
+      }
+
+      // Disable buttons if limit reached
+      tagButtons.forEach(btn => {
+        const isSelected = btn.classList.contains('selected');
+        btn.disabled = !isSelected && selectedTags.length >= 5;
+      });
+    }
+
+    tagButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tag = btn.dataset.tag;
+
+        if (btn.classList.contains('selected')) {
+          btn.classList.remove('selected');
+          selectedTags = selectedTags.filter(t => t !== tag);
+        } else if (selectedTags.length < 5) {
+          btn.classList.add('selected');
+          selectedTags.push(tag);
+        }
+
+        updateTagDisplay();
+      });
+    });
+
+    updateTagDisplay();
+
+    // Set initial state
+    filenameResult.className = 'validation-result empty';
+    filenameResult.textContent = '入力待ち...';
+    componentResult.className = 'validation-result empty';
+    componentResult.textContent = '入力待ち...';
+    cssResult.className = 'validation-result empty';
+    cssResult.textContent = '入力待ち...';
+    constantResult.className = 'validation-result empty';
+    constantResult.textContent = '入力待ち...';
+  `}
+/>
+
+## 命名規約・タグ規約とは
+
+プロジェクト全体で一貫性のある命名規則とタグ付けルールを定めることで、コードの可読性・保守性・検索性を向上させます。すべてのファイル、コンポーネント、変数、タグは以下の規約に従う必要があります。
+
+## なぜ規約が必要か
+
+1. **チーム開発の効率化** - 誰が書いても同じスタイルで統一される
+2. **検索性の向上** - 命名パターンが決まっているため、すぐに見つかる
+3. **バグの削減** - 一貫性があることでタイプミスや混乱を防ぐ
+4. **オンボーディングの高速化** - 新メンバーがルールを学びやすい
+
+---
+
+## ファイル命名規約
+
+すべてのファイル名は **kebab-case** (小文字 + ハイフン) を使用します。
+
+### ルール
+
+| 対象 | 規約 | 例 |
+|------|------|-----|
+| **MDXファイル** | kebab-case.mdx | `search-autocomplete.mdx`, `data-table.mdx` |
+| **TypeScript/JavaScript** | kebab-case.ts(x) | `use-local-storage.ts`, `api-client.tsx` |
+| **CSSファイル** | kebab-case.css | `global-styles.css`, `button-variants.css` |
+| **設定ファイル** | kebab-case.json | `tsconfig.json`, `package.json` |
+
+### 良い例
+
+```
+✓ search-autocomplete.mdx
+✓ data-table.tsx
+✓ use-debounce.ts
+✓ global-styles.css
+✓ api-client.js
+```
+
+### 悪い例
+
+```
+✗ SearchAutocomplete.mdx  (PascalCase)
+✗ data_table.tsx          (snake_case)
+✗ useDebounce.ts          (camelCase)
+✗ GlobalStyles.css        (PascalCase)
+✗ APIClient.js            (PascalCase)
+```
+
+---
+
+## コンポーネント命名規約
+
+コンポーネント名は **PascalCase** を使用します。
+
+### ルール
+
+```typescript
+// ✓ 良い例: PascalCase
+export function SearchBar() { }
+export const DataTable = () => { }
+export class UserProfile extends Component { }
+
+// ✗ 悪い例: camelCase, snake_case
+export function searchBar() { }
+export const data_table = () => { }
+export class user_profile extends Component { }
+```
+
+### コンポーネントとファイル名の対応
+
+| ファイル名 | コンポーネント名 |
+|-----------|----------------|
+| `search-bar.tsx` | `SearchBar` |
+| `data-table.tsx` | `DataTable` |
+| `user-profile.tsx` | `UserProfile` |
+
+---
+
+## CSS クラス命名規約
+
+CSS クラス名は **BEM** (Block Element Modifier) またはユーティリティベースを推奨します。
+
+### BEM 記法
+
+```
+Block__Element--Modifier
+```
+
+#### 例
+
+```css
+/* Block */
+.card { }
+
+/* Element */
+.card__header { }
+.card__body { }
+.card__footer { }
+
+/* Modifier */
+.card--highlighted { }
+.card__header--large { }
+```
+
+### ✓ 良い例
+
+```html
+<div class="card card--highlighted">
+  <div class="card__header card__header--large">
+    タイトル
+  </div>
+  <div class="card__body">
+    コンテンツ
+  </div>
+</div>
+```
+
+### ユーティリティクラス
+
+```css
+/* ✓ 良い例: kebab-case */
+.text-center { text-align: center; }
+.flex-col { flex-direction: column; }
+.bg-primary { background: #3b82f6; }
+
+/* ✗ 悪い例: camelCase */
+.textCenter { text-align: center; }
+.flexCol { flex-direction: column; }
+```
+
+---
+
+## JavaScript/TypeScript 変数・関数命名規約
+
+### 変数・関数: camelCase
+
+```typescript
+// ✓ 良い例
+const userName = "John";
+let currentPage = 1;
+function getUserData() { }
+const handleClick = () => { };
+
+// ✗ 悪い例
+const UserName = "John";      // PascalCase
+let current_page = 1;         // snake_case
+function GetUserData() { }    // PascalCase
+```
+
+### クラス: PascalCase
+
+```typescript
+// ✓ 良い例
+class ApiClient { }
+class UserManager { }
+
+// ✗ 悪い例
+class apiClient { }
+class user_manager { }
+```
+
+### 定数: UPPER_SNAKE_CASE
+
+```typescript
+// ✓ 良い例
+const API_BASE_URL = "https://api.example.com";
+const MAX_RETRIES = 3;
+const DEFAULT_TIMEOUT = 5000;
+
+// ✗ 悪い例
+const apiBaseUrl = "https://api.example.com";
+const maxRetries = 3;
+const defaultTimeout = 5000;
+```
+
+### 型・インターフェース: PascalCase
+
+```typescript
+// ✓ 良い例
+interface UserData { }
+type ApiResponse = { };
+enum Status { }
+
+// ✗ 悪い例
+interface userData { }
+type apiResponse = { };
+enum status { }
+```
+
+---
+
+## タグ規約
+
+すべてのコンテンツには適切なタグを付与します。
+
+### タグ付けルール
+
+| ルール | 説明 |
+|--------|------|
+| **必須** | すべてのMDXファイルに tags フィールドが必須 |
+| **最大5個** | 1つのファイルに最大5個まで |
+| **小文字のみ** | すべて小文字 (ui, form, animation) |
+| **ハイフン可** | 複合語はハイフン区切り (css-grid, web-animations) |
+| **アルファベット順** | 配列内は必ずアルファベット順にソート |
+| **重複禁止** | 同じタグを重複して記載しない |
+
+### 統制語彙 (推奨タグリスト)
+
+#### カテゴリタグ
+
+```yaml
+- ui              # UIコンポーネント
+- form            # フォーム関連
+- animation       # アニメーション
+- performance     # パフォーマンス最適化
+- accessibility   # アクセシビリティ
+- responsive      # レスポンシブデザイン
+- documentation   # ドキュメント
+- testing         # テスト
+```
+
+#### 技術タグ
+
+```yaml
+- javascript
+- typescript
+- css
+- html
+- react
+- vue
+- astro
+```
+
+#### 機能タグ
+
+```yaml
+- navigation
+- modal
+- dropdown
+- tooltip
+- tabs
+- accordion
+- carousel
+```
+
+### ✓ 良い例
+
+```yaml
+---
+title: データテーブル
+tags: [accessibility, react, table, typescript, ui]  # アルファベット順、5個以内
+---
+```
+
+### ✗ 悪い例
+
+```yaml
+---
+title: データテーブル
+tags: [UI, React, Table, TypeScript, Accessibility, Performance]  # 6個（多すぎ）
+---
+
+---
+title: データテーブル
+tags: [React, UI, TypeScript, Table]  # アルファベット順でない
+---
+
+---
+title: データテーブル
+tags: [UI, ui, React]  # 重複・大文字使用
+---
+```
+
+---
+
+## Frontmatter スキーマ
+
+すべてのMDXファイルは以下のfrontmatterスキーマに従います。
+
+### 必須フィールド
+
+```yaml
+---
+title: string           # タイトル（必須）
+description: string     # 説明（必須、100文字程度）
+tags: string[]         # タグ配列（必須、最大5個）
+category: string       # カテゴリ（必須）
+---
+```
+
+### オプションフィールド
+
+```yaml
+---
+level: basic | intermediate | advanced  # 難易度
+frameworks: string[]                    # 対応フレームワーク
+date: YYYY-MM-DD                       # 作成日
+author: string                         # 作成者
+---
+```
+
+### 完全な例
+
+```yaml
+---
+title: データテーブルコンポーネント
+description: ソート・フィルタリング・ページネーション機能を備えた高性能なデータテーブル
+tags: [react, table, typescript, ui, virtualization]
+category: components
+level: intermediate
+frameworks: [react, vue, astro]
+date: 2025-11-11
+author: Your Name
+---
+```
+
+---
+
+## ディレクトリ構造規約
+
+プロジェクトは以下のディレクトリ構造に従います。
+
+```
+src/
+├── content/
+│   ├── modules/           # 再利用可能なモジュール
+│   │   ├── search-autocomplete.mdx
+│   │   └── data-table.mdx
+│   ├── tips/              # 開発Tips
+│   │   ├── css-grid-layouts.mdx
+│   │   └── debounce-throttle.mdx
+│   ├── recipes/           # 実装レシピ
+│   │   ├── form-validation.mdx
+│   │   └── api-integration.mdx
+│   └── integrations/      # 外部統合
+│       ├── stripe-checkout.mdx
+│       └── auth0-setup.mdx
+├── components/
+│   ├── LiveDemo.astro
+│   └── CodeBlock.astro
+└── styles/
+    ├── global.css
+    └── variables.css
+```
+
+### ルール
+
+1. **フラット構造** - サブディレクトリは作らない
+2. **カテゴリ分け** - modules, tips, recipes, integrations の4カテゴリのみ
+3. **1ファイル1コンポーネント** - 複数のコンポーネントを1ファイルに含めない
+
+---
+
+## 新規コンテンツ追加チェックリスト
+
+新しいファイルを追加する前に、以下をチェックしてください。
+
+```
+□ ファイル名が kebab-case になっているか
+□ コンポーネント名が PascalCase になっているか
+□ frontmatter に必須フィールドがすべて含まれているか
+  □ title
+  □ description
+  □ tags
+  □ category
+□ tags は5個以内か
+□ tags はアルファベット順にソートされているか
+□ tags に重複がないか
+□ tags はすべて小文字か
+□ 適切なカテゴリディレクトリに配置されているか
+□ CSS クラスが BEM またはユーティリティ形式か
+□ 定数が UPPER_SNAKE_CASE になっているか
+```
+
+---
+
+## 自動チェックツール
+
+### ESLint / Prettier
+
+```json
+// .eslintrc.json
+{
+  "rules": {
+    "camelcase": ["error", { "properties": "never" }],
+    "@typescript-eslint/naming-convention": [
+      "error",
+      {
+        "selector": "variable",
+        "format": ["camelCase", "UPPER_CASE"]
+      },
+      {
+        "selector": "function",
+        "format": ["camelCase", "PascalCase"]
+      },
+      {
+        "selector": "typeLike",
+        "format": ["PascalCase"]
+      }
+    ]
+  }
+}
+```
+
+### Stylelint
+
+```json
+// .stylelintrc.json
+{
+  "rules": {
+    "selector-class-pattern": "^[a-z][a-z0-9-]*(__[a-z0-9-]+)?(--[a-z0-9-]+)?$",
+    "selector-id-pattern": "^[a-z][a-z0-9-]*$"
+  }
+}
+```
+
+### カスタムバリデーションスクリプト
+
+```javascript
+// scripts/validate-naming.js
+const fs = require('fs');
+const path = require('path');
+
+function validateFileName(filePath) {
+  const fileName = path.basename(filePath, path.extname(filePath));
+  const kebabCaseRegex = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+  if (!kebabCaseRegex.test(fileName)) {
+    console.error(\`❌ Invalid file name: \${filePath}\`);
+    console.error(\`   Expected kebab-case, got: \${fileName}\`);
+    return false;
+  }
+
+  return true;
+}
+
+function validateFrontmatter(filePath) {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const frontmatterRegex = /^---\n([\s\S]+?)\n---/;
+  const match = content.match(frontmatterRegex);
+
+  if (!match) {
+    console.error(\`❌ No frontmatter found: \${filePath}\`);
+    return false;
+  }
+
+  const frontmatter = match[1];
+  const tagsMatch = frontmatter.match(/tags:\s*\[(.+?)\]/);
+
+  if (!tagsMatch) {
+    console.error(\`❌ Missing tags: \${filePath}\`);
+    return false;
+  }
+
+  const tags = tagsMatch[1].split(',').map(t => t.trim());
+
+  // Check max 5 tags
+  if (tags.length > 5) {
+    console.error(\`❌ Too many tags (\${tags.length}): \${filePath}\`);
+    return false;
+  }
+
+  // Check alphabetical order
+  const sortedTags = [...tags].sort();
+  if (JSON.stringify(tags) !== JSON.stringify(sortedTags)) {
+    console.error(\`❌ Tags not sorted: \${filePath}\`);
+    console.error(\`   Current: \${tags.join(', ')}\`);
+    console.error(\`   Expected: \${sortedTags.join(', ')}\`);
+    return false;
+  }
+
+  return true;
+}
+
+// Run validation
+const contentDir = 'src/content';
+let hasErrors = false;
+
+fs.readdirSync(contentDir, { recursive: true }).forEach(file => {
+  if (file.endsWith('.mdx')) {
+    const filePath = path.join(contentDir, file);
+    if (!validateFileName(filePath) || !validateFrontmatter(filePath)) {
+      hasErrors = true;
+    }
+  }
+});
+
+if (hasErrors) {
+  process.exit(1);
+} else {
+  console.log('✅ All naming conventions are valid');
+}
+```
+
+---
+
+## よくある間違いと修正方法
+
+### 間違い1: ファイル名とコンポーネント名の不一致
+
+```typescript
+// ❌ 悪い例
+// ファイル: SearchBar.tsx
+export function searchBar() { }
+
+// ✅ 良い例
+// ファイル: search-bar.tsx
+export function SearchBar() { }
+```
+
+### 間違い2: タグが多すぎる
+
+```yaml
+# ❌ 悪い例
+tags: [ui, react, typescript, form, input, validation, accessibility]  # 7個
+
+# ✅ 良い例
+tags: [accessibility, form, react, typescript, ui]  # 5個
+```
+
+### 間違い3: タグがソートされていない
+
+```yaml
+# ❌ 悪い例
+tags: [react, ui, typescript, form]
+
+# ✅ 良い例
+tags: [form, react, typescript, ui]  # アルファベット順
+```
+
+### 間違い4: CSS クラスの命名ミス
+
+```css
+/* ❌ 悪い例 */
+.cardHeader { }
+.card_header { }
+.Card-Header { }
+
+/* ✅ 良い例 */
+.card__header { }      /* BEM */
+.card-header { }       /* ユーティリティ */
+```
+
+---
+
+## まとめ
+
+命名規約とタグ規約を守ることで：
+
+1. **検索性向上** - ファイルやコンポーネントがすぐ見つかる
+2. **一貫性確保** - プロジェクト全体で統一された命名
+3. **メンテナンス容易** - 将来の変更が簡単になる
+4. **チーム協調** - 誰が書いても同じスタイル
+
+必ず上記のチェックリストとバリデーションツールを使って、規約を守りましょう。
+
+## 参考リンク
+
+- [Google JavaScript Style Guide](https://google.github.io/styleguide/jsguide.html)
+- [Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript)
+- [BEM Methodology](https://getbem.com/)
+- [Naming Cheat Sheet](https://github.com/kettanaito/naming-cheatsheet)

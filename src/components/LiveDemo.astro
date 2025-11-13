@@ -1,0 +1,123 @@
+---
+interface Props {
+  html: string;
+  css?: string;
+  js?: string;
+  title?: string;
+  height?: string;
+}
+
+const { html, css = '', js = '', title = 'ライブデモ', height = '400px' } = Astro.props;
+
+// コンテンツをBase64エンコード
+const demoContent = `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 1rem;
+      background: #0c1218;
+      color: #e5edf4;
+      line-height: 1.6;
+    }
+    ${css}
+  </style>
+</head>
+<body>
+  ${html}
+  <script>
+    ${js}
+  <\/script>
+</body>
+</html>
+`;
+
+const base64Content = Buffer.from(demoContent).toString('base64');
+const dataUrl = `data:text/html;base64,${base64Content}`;
+---
+
+<div class="live-demo" style="margin: 2rem 0;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+    <h3 style="margin: 0; font-size: 1.125rem; display: flex; align-items: center; gap: 0.5rem;">
+      <span style="font-size: 1.5rem;">🎨</span>
+      {title}
+    </h3>
+    <button
+      class="demo-reload-btn"
+      style="padding: 0.25rem 0.75rem; background: #1f2a37; border: 1px solid #374151; border-radius: 6px; color: #e5edf4; cursor: pointer; font-size: 0.875rem; transition: background 0.2s;"
+      title="デモをリロード"
+    >
+      🔄 リロード
+    </button>
+  </div>
+
+  <div style="position: relative; border: 1px solid #1f2a37; border-radius: 8px; overflow: hidden; background: #0c1218;">
+    <iframe
+      class="demo-frame"
+      src={dataUrl}
+      style={`width: 100%; height: ${height}; border: none; display: block;`}
+      sandbox="allow-scripts allow-same-origin"
+      loading="lazy"
+      title={`${title}のデモ`}
+    ></iframe>
+  </div>
+
+  <div style="margin-top: 0.5rem; font-size: 0.75rem; color: #6b7280; display: flex; align-items: center; gap: 0.5rem;">
+    <span>💡</span>
+    <span>このデモは実際に動作しています。コードをコピーしてそのまま使えます。</span>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.demo-reload-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const demoDiv = btn.closest('.live-demo');
+      const iframe = demoDiv?.querySelector('.demo-frame') as HTMLIFrameElement;
+      if (iframe) {
+        const currentSrc = iframe.src;
+        iframe.src = '';
+        setTimeout(() => {
+          iframe.src = currentSrc;
+        }, 10);
+      }
+    });
+
+    btn.addEventListener('mouseenter', (e) => {
+      (e.target as HTMLElement).style.background = '#374151';
+    });
+
+    btn.addEventListener('mouseleave', (e) => {
+      (e.target as HTMLElement).style.background = '#1f2a37';
+    });
+  });
+</script>
+
+<style>
+  .live-demo {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .demo-reload-btn:hover {
+    background: #374151 !important;
+  }
+
+  .demo-reload-btn:active {
+    transform: scale(0.95);
+  }
+</style>

@@ -1,0 +1,1129 @@
+---
+title: ブログ記事ページ
+description: 完全な記事レイアウトと読書体験を実現する統合レシピ
+tags: [recipe, blog, content, reading-experience]
+modules_used: [sticky-header, smooth-scroll-spy, lightbox, code-block, scroll-progress, breadcrumb]
+level: advanced
+use_case: 技術ブログやドキュメントサイトの記事ページ。目次ナビゲーション、進捗表示、コードブロック、画像ギャラリーなど、読みやすさを追求した統合例。
+prompt_template: |
+  目的: 最高の読書体験を提供するブログ記事ページの構築
+  組み合わせるモジュール:
+  - Sticky Header: 常にアクセス可能なナビゲーション
+  - Smooth Scroll Spy: 目次と現在位置の同期
+  - Progress Bar: 読書進捗の可視化
+  - Lightbox: 画像の拡大表示
+  - Code Block: シンタックスハイライトとコピー機能
+  - Breadcrumb: サイト内での位置情報
+  要件:
+  - サイドバー目次（デスクトップ）
+  - スクロール進捗バー
+  - インライン画像のライトボックス
+  - コードブロックのコピー機能
+  - レスポンシブレイアウト
+  - 印刷最適化
+  納品: 完全な記事ページテンプレート
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## 概要
+
+このレシピでは、**Sticky Header**、**Smooth Scroll Spy**、**Progress Bar**、**Lightbox**、**Code Block**、**Breadcrumb** を組み合わせて、プロフェッショナルなブログ記事ページを構築します。
+
+### このレシピが実現すること
+
+- **優れた読書体験**: 進捗バーと目次で現在位置を常に把握
+- **効率的なナビゲーション**: 目次からワンクリックで任意のセクションへ
+- **リッチコンテンツ**: 画像のライトボックス表示、コードの簡単コピー
+- **レスポンシブデザイン**: モバイルでも快適な閲覧
+- **SEO最適化**: 構造化データとアクセシビリティ対応
+
+## インタラクティブデモ
+
+<LiveDemo
+  title="ブログ記事ページ - 完全版"
+  height="800px"
+  html={`
+<div class="blog-layout">
+  <!-- Reading Progress Bar -->
+  <div class="reading-progress">
+    <div class="reading-progress-bar"></div>
+  </div>
+
+  <!-- Sticky Header -->
+  <header class="blog-header">
+    <nav class="header-nav">
+      <a href="#" class="header-logo">TechBlog</a>
+      <div class="header-actions">
+        <button class="header-btn" id="toc-toggle" aria-label="目次を開く">
+          <span>目次</span>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Breadcrumb -->
+  <nav aria-label="breadcrumb" class="breadcrumb-nav">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="#">ホーム</a></li>
+      <li class="breadcrumb-item"><a href="#">技術記事</a></li>
+      <li class="breadcrumb-item" aria-current="page">
+        <span>Web開発の基礎</span>
+      </li>
+    </ol>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="blog-container">
+    <!-- Sidebar TOC -->
+    <aside class="toc-sidebar" id="toc-sidebar">
+      <div class="toc-header">
+        <h3>目次</h3>
+        <button class="toc-close" id="toc-close" aria-label="閉じる">×</button>
+      </div>
+      <nav class="toc-nav">
+        <ul class="toc-list">
+          <li><a href="#introduction" class="toc-link">はじめに</a></li>
+          <li><a href="#basics" class="toc-link">基本概念</a></li>
+          <li><a href="#advanced" class="toc-link">応用テクニック</a></li>
+          <li><a href="#code-examples" class="toc-link">コード例</a></li>
+          <li><a href="#gallery" class="toc-link">画像ギャラリー</a></li>
+          <li><a href="#conclusion" class="toc-link">まとめ</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Article Content -->
+    <article class="blog-article">
+      <header class="article-header">
+        <h1>モダンWeb開発の基礎</h1>
+        <div class="article-meta">
+          <time datetime="2025-01-15">2025年1月15日</time>
+          <span class="reading-time">約8分で読めます</span>
+        </div>
+      </header>
+
+      <section id="introduction" class="article-section">
+        <h2>はじめに</h2>
+        <p>
+          モダンなWeb開発では、ユーザー体験を最優先に考えることが重要です。
+          この記事では、実践的なテクニックを学びながら、
+          優れたWebアプリケーションを構築する方法を解説します。
+        </p>
+        <p>
+          スクロールすると、上部の進捗バーが記事の読了状況を示します。
+          左側の目次は現在読んでいるセクションをハイライト表示します。
+        </p>
+      </section>
+
+      <section id="basics" class="article-section">
+        <h2>基本概念</h2>
+        <p>
+          Web開発の基礎として、HTML、CSS、JavaScriptの3つの柱を理解することが不可欠です。
+          これらの技術は相互に補完し合い、リッチなユーザーインターフェースを実現します。
+        </p>
+        <h3>HTMLの役割</h3>
+        <p>
+          HTMLは文書構造を定義します。セマンティックなマークアップを使用することで、
+          アクセシビリティとSEOの両面で優れた結果を得られます。
+        </p>
+        <h3>CSSによるスタイリング</h3>
+        <p>
+          CSSはビジュアルデザインを担当します。Flexbox、Grid、カスタムプロパティなどの
+          モダンな機能を活用することで、保守性の高いスタイルを実現できます。
+        </p>
+      </section>
+
+      <section id="advanced" class="article-section">
+        <h2>応用テクニック</h2>
+        <p>
+          基礎を理解したら、より高度なテクニックに挑戦しましょう。
+          パフォーマンス最適化、アクセシビリティ、プログレッシブエンハンスメントなど、
+          プロフェッショナルな開発者が知っておくべき重要なトピックを扱います。
+        </p>
+        <p>
+          特に、IntersectionObserverやResizeObserverなどのモダンなWeb APIを活用することで、
+          効率的でパフォーマンスの高いインタラクションを実装できます。
+        </p>
+      </section>
+
+      <section id="code-examples" class="article-section">
+        <h2>コード例</h2>
+        <p>実際のコード例を見てみましょう。右上のコピーボタンでクリップボードにコピーできます。</p>
+
+        <div class="code-block" data-lang="javascript">
+          <pre><code>// スムーススクロールの実装
+function smoothScrollTo(target) {
+  const element = document.querySelector(target);
+  if (element) {
+    element.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+  }
+}
+
+// IntersectionObserverで要素の可視性を監視
+const observer = new IntersectionObserver(
+  (entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  },
+  { threshold: 0.1 }
+);
+
+document.querySelectorAll('.animate').forEach(el => {
+  observer.observe(el);
+});</code></pre>
+        </div>
+
+        <p>CSSでのアニメーション定義も重要です:</p>
+
+        <div class="code-block" data-lang="css">
+          <pre><code>/* フェードインアニメーション */
+.animate {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.animate.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* レスポンシブなグリッドレイアウト */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate {
+    transition: none;
+  }
+}</code></pre>
+        </div>
+      </section>
+
+      <section id="gallery" class="article-section">
+        <h2>画像ギャラリー</h2>
+        <p>画像をクリックすると、ライトボックスで拡大表示されます。</p>
+
+        <div class="article-gallery">
+          <button class="gallery-item" data-src="https://picsum.photos/800/600?random=1">
+            <img src="https://picsum.photos/400/300?random=1" alt="サンプル画像1">
+          </button>
+          <button class="gallery-item" data-src="https://picsum.photos/800/600?random=2">
+            <img src="https://picsum.photos/400/300?random=2" alt="サンプル画像2">
+          </button>
+          <button class="gallery-item" data-src="https://picsum.photos/800/600?random=3">
+            <img src="https://picsum.photos/400/300?random=3" alt="サンプル画像3">
+          </button>
+        </div>
+      </section>
+
+      <section id="conclusion" class="article-section">
+        <h2>まとめ</h2>
+        <p>
+          この記事では、モダンなWeb開発の基礎から応用まで、幅広いトピックを扱いました。
+          重要なのは、これらの技術を単独で使うのではなく、
+          統合してシームレスなユーザー体験を提供することです。
+        </p>
+        <p>
+          継続的な学習と実践を通じて、より良いWebアプリケーションを構築していきましょう。
+        </p>
+      </section>
+    </article>
+  </div>
+
+  <!-- Lightbox -->
+  <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="画像ビューア" hidden>
+    <div class="lb-overlay"></div>
+    <div class="lb-container">
+      <button class="lb-close" aria-label="閉じる">×</button>
+      <button class="lb-prev" aria-label="前の画像">‹</button>
+      <button class="lb-next" aria-label="次の画像">›</button>
+      <div class="lb-content">
+        <img class="lb-image" src="" alt="">
+        <div class="lb-loading">読込中...</div>
+      </div>
+      <div class="lb-counter"></div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+/* Layout */
+.blog-layout {
+  background: #0c1218;
+  color: #e5edf4;
+  min-height: 100vh;
+}
+
+/* Reading Progress */
+.reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #1f2a37;
+  z-index: 9999;
+}
+
+.reading-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #60a5fa, #3b82f6);
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+/* Header */
+.blog-header {
+  position: sticky;
+  top: 0;
+  background: rgba(31, 42, 55, 0.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid #374151;
+  z-index: 1000;
+  transition: transform 0.3s ease;
+}
+
+.header-nav {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-logo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.header-btn {
+  background: #374151;
+  border: 1px solid #4b5563;
+  color: #e5edf4;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.header-btn:hover {
+  background: #4b5563;
+}
+
+/* Breadcrumb */
+.breadcrumb-nav {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+}
+
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.875rem;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.breadcrumb-item:not(:last-child)::after {
+  content: '›';
+  color: #6b7280;
+}
+
+.breadcrumb-item a {
+  color: #60a5fa;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.breadcrumb-item a:hover {
+  color: #93c5fd;
+}
+
+.breadcrumb-item[aria-current="page"] span {
+  color: #9ca3af;
+}
+
+/* Container */
+.blog-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 3rem;
+}
+
+/* TOC Sidebar */
+.toc-sidebar {
+  position: sticky;
+  top: 100px;
+  height: fit-content;
+  background: #1f2a37;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 1.5rem;
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
+}
+
+.toc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.toc-header h3 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.toc-close {
+  display: none;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.toc-link {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  color: #9ca3af;
+  text-decoration: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  border-left: 2px solid transparent;
+}
+
+.toc-link:hover {
+  color: #e5edf4;
+  background: rgba(96, 165, 250, 0.1);
+}
+
+.toc-link.active {
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+  border-left-color: #60a5fa;
+  font-weight: 600;
+}
+
+/* Article */
+.blog-article {
+  max-width: 800px;
+  background: #1f2a37;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 3rem;
+}
+
+.article-header {
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #374151;
+}
+
+.article-header h1 {
+  font-size: 2.5rem;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+  color: #e5edf4;
+}
+
+.article-meta {
+  display: flex;
+  gap: 1.5rem;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.article-section {
+  margin-bottom: 3rem;
+}
+
+.article-section h2 {
+  font-size: 1.75rem;
+  margin-bottom: 1rem;
+  color: #e5edf4;
+  scroll-margin-top: 100px;
+}
+
+.article-section h3 {
+  font-size: 1.25rem;
+  margin: 2rem 0 1rem;
+  color: #e5edf4;
+}
+
+.article-section p {
+  line-height: 1.8;
+  margin-bottom: 1rem;
+  color: #d1d5db;
+}
+
+/* Code Block */
+.code-block {
+  position: relative;
+  background: #1e1e1e;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  margin: 1.5rem 0;
+  overflow: hidden;
+}
+
+.code-block[data-lang]::before {
+  content: attr(data-lang);
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  background: rgba(96, 165, 250, 0.1);
+  color: #60a5fa;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.code-block pre {
+  margin: 0;
+  padding: 2.5rem 1.5rem 1.5rem;
+  overflow-x: auto;
+}
+
+.code-block code {
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: #d4d4d4;
+}
+
+/* Gallery */
+.article-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.gallery-item {
+  border: 1px solid #374151;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  background: #0c1218;
+  transition: transform 0.2s;
+}
+
+.gallery-item:hover {
+  transform: scale(1.05);
+}
+
+.gallery-item img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Lightbox */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+}
+
+.lb-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.95);
+}
+
+.lb-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lb-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.lb-image {
+  display: block;
+  max-width: 100%;
+  max-height: 90vh;
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.lb-image.loaded {
+  opacity: 1;
+}
+
+.lb-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #e5edf4;
+}
+
+.lb-close, .lb-prev, .lb-next {
+  position: absolute;
+  background: rgba(31, 42, 55, 0.9);
+  border: 1px solid #374151;
+  color: #e5edf4;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.5rem;
+  transition: background 0.2s;
+}
+
+.lb-close:hover, .lb-prev:hover, .lb-next:hover {
+  background: rgba(55, 65, 81, 0.9);
+}
+
+.lb-close { top: 1rem; right: 1rem; }
+.lb-prev { left: 1rem; top: 50%; transform: translateY(-50%); }
+.lb-next { right: 1rem; top: 50%; transform: translateY(-50%); }
+
+.lb-counter {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(12, 18, 24, 0.8);
+  color: #e5edf4;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+}
+
+/* Mobile */
+@media (max-width: 1024px) {
+  .blog-container {
+    grid-template-columns: 1fr;
+  }
+
+  .toc-sidebar {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 300px;
+    height: 100vh;
+    z-index: 9998;
+    transition: left 0.3s ease;
+    border-radius: 0;
+    max-height: 100vh;
+  }
+
+  .toc-sidebar.open {
+    left: 0;
+  }
+
+  .toc-close {
+    display: block;
+  }
+
+  .blog-article {
+    padding: 2rem 1.5rem;
+  }
+
+  .article-header h1 {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .breadcrumb-nav,
+  .header-nav,
+  .blog-container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .blog-article {
+    padding: 1.5rem 1rem;
+  }
+
+  .article-gallery {
+    grid-template-columns: 1fr;
+  }
+}
+  `}
+  js={`
+// Reading Progress
+const progressBar = document.querySelector('.reading-progress-bar');
+const article = document.querySelector('.blog-article');
+
+function updateProgress() {
+  if (!article) return;
+
+  const scrollTop = window.scrollY;
+  const articleTop = article.offsetTop;
+  const articleHeight = article.offsetHeight;
+  const windowHeight = window.innerHeight;
+
+  const scrollDistance = scrollTop - articleTop + windowHeight;
+  const progress = Math.min(100, Math.max(0, (scrollDistance / articleHeight) * 100));
+
+  progressBar.style.width = progress + '%';
+}
+
+window.addEventListener('scroll', updateProgress, { passive: true });
+updateProgress();
+
+// Scroll Spy for TOC
+const sections = document.querySelectorAll('.article-section');
+const tocLinks = document.querySelectorAll('.toc-link');
+const byId = {};
+
+tocLinks.forEach(link => {
+  const href = link.getAttribute('href');
+  if (href) {
+    const id = href.slice(1);
+    byId[id] = link;
+  }
+});
+
+const observer = new IntersectionObserver(
+  (entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        tocLinks.forEach(link => link.classList.remove('active'));
+        const activeLink = byId[entry.target.id];
+        if (activeLink) {
+          activeLink.classList.add('active');
+        }
+      }
+    });
+  },
+  {
+    threshold: 0.5,
+    rootMargin: '-100px 0px -50% 0px'
+  }
+);
+
+sections.forEach(section => observer.observe(section));
+
+// Smooth Scroll
+tocLinks.forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    const target = document.querySelector(link.getAttribute('href'));
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Close mobile TOC
+      document.getElementById('toc-sidebar').classList.remove('open');
+    }
+  });
+});
+
+// Mobile TOC Toggle
+const tocToggle = document.getElementById('toc-toggle');
+const tocSidebar = document.getElementById('toc-sidebar');
+const tocClose = document.getElementById('toc-close');
+
+tocToggle?.addEventListener('click', () => {
+  tocSidebar.classList.add('open');
+});
+
+tocClose?.addEventListener('click', () => {
+  tocSidebar.classList.remove('open');
+});
+
+// Copy Code Blocks
+document.querySelectorAll('.code-block').forEach(block => {
+  const button = document.createElement('button');
+  button.className = 'copy-btn';
+  button.textContent = 'コピー';
+  button.setAttribute('aria-label', 'コードをコピー');
+
+  button.style.cssText = \`
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(96, 165, 250, 0.1);
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    color: #60a5fa;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s;
+  \`;
+
+  button.addEventListener('click', async () => {
+    const code = block.querySelector('code').textContent;
+    try {
+      await navigator.clipboard.writeText(code);
+      button.textContent = '✓ コピーしました';
+      button.style.background = 'rgba(16, 185, 129, 0.2)';
+      button.style.borderColor = '#10b981';
+      button.style.color = '#10b981';
+
+      setTimeout(() => {
+        button.textContent = 'コピー';
+        button.style.background = 'rgba(96, 165, 250, 0.1)';
+        button.style.borderColor = 'rgba(96, 165, 250, 0.3)';
+        button.style.color = '#60a5fa';
+      }, 2000);
+    } catch (err) {
+      button.textContent = 'エラー';
+    }
+  });
+
+  block.appendChild(button);
+});
+
+// Lightbox
+const lightbox = document.getElementById('lightbox');
+const lbImage = lightbox.querySelector('.lb-image');
+const lbLoading = lightbox.querySelector('.lb-loading');
+const lbCounter = lightbox.querySelector('.lb-counter');
+const lbClose = lightbox.querySelector('.lb-close');
+const lbPrev = lightbox.querySelector('.lb-prev');
+const lbNext = lightbox.querySelector('.lb-next');
+const lbOverlay = lightbox.querySelector('.lb-overlay');
+
+const galleryItems = Array.from(document.querySelectorAll('.gallery-item'));
+let currentIndex = 0;
+
+function loadImage(index) {
+  currentIndex = (index + galleryItems.length) % galleryItems.length;
+  const item = galleryItems[currentIndex];
+  const src = item.dataset.src;
+  const alt = item.querySelector('img')?.alt || '';
+
+  lbImage.classList.remove('loaded');
+  lbLoading.style.display = 'block';
+
+  const img = new Image();
+  img.onload = () => {
+    lbImage.src = src;
+    lbImage.alt = alt;
+    lbImage.classList.add('loaded');
+    lbLoading.style.display = 'none';
+  };
+  img.src = src;
+
+  lbCounter.textContent = \`\${currentIndex + 1} / \${galleryItems.length}\`;
+}
+
+function openLightbox(index) {
+  lightbox.hidden = false;
+  loadImage(index);
+  document.body.style.overflow = 'hidden';
+  lbClose.focus();
+}
+
+function closeLightbox() {
+  lightbox.hidden = true;
+  document.body.style.overflow = '';
+}
+
+galleryItems.forEach((item, idx) => {
+  item.addEventListener('click', () => openLightbox(idx));
+});
+
+lbClose.addEventListener('click', closeLightbox);
+lbOverlay.addEventListener('click', closeLightbox);
+lbPrev.addEventListener('click', () => loadImage(currentIndex - 1));
+lbNext.addEventListener('click', () => loadImage(currentIndex + 1));
+
+document.addEventListener('keydown', (e) => {
+  if (lightbox.hidden) return;
+
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') loadImage(currentIndex - 1);
+  if (e.key === 'ArrowRight') loadImage(currentIndex + 1);
+});
+  `}
+/>
+
+## 使用モジュール
+
+このレシピでは以下のモジュールを統合しています:
+
+1. **Sticky Header (固定ヘッダー)** - 常にアクセス可能なナビゲーション
+2. **Smooth Scroll Spy (スクロールスパイ)** - 目次と現在位置の同期
+3. **Progress Bar (進捗バー)** - 読書進捗の可視化
+4. **Lightbox (ライトボックス)** - 画像の全画面表示
+5. **Code Block (コードブロック)** - シンタックスハイライトとコピー機能
+6. **Breadcrumb (パンくずリスト)** - サイト内ナビゲーション
+
+## 実装の要点
+
+### 1. 読書進捗の計算
+
+```javascript
+function updateProgress() {
+  const scrollTop = window.scrollY;
+  const articleTop = article.offsetTop;
+  const articleHeight = article.offsetHeight;
+  const windowHeight = window.innerHeight;
+
+  const scrollDistance = scrollTop - articleTop + windowHeight;
+  const progress = Math.min(100, Math.max(0, (scrollDistance / articleHeight) * 100));
+
+  progressBar.style.width = progress + '%';
+}
+```
+
+### 2. スクロールスパイの実装
+
+```javascript
+const observer = new IntersectionObserver(
+  (entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        tocLinks.forEach(link => link.classList.remove('active'));
+        const activeLink = byId[entry.target.id];
+        if (activeLink) {
+          activeLink.classList.add('active');
+        }
+      }
+    });
+  },
+  {
+    threshold: 0.5,
+    rootMargin: '-100px 0px -50% 0px'
+  }
+);
+```
+
+### 3. コードブロックへのコピーボタン追加
+
+```javascript
+document.querySelectorAll('.code-block').forEach(block => {
+  const button = document.createElement('button');
+  button.textContent = 'コピー';
+
+  button.addEventListener('click', async () => {
+    const code = block.querySelector('code').textContent;
+    await navigator.clipboard.writeText(code);
+    button.textContent = '✓ コピーしました';
+
+    setTimeout(() => {
+      button.textContent = 'コピー';
+    }, 2000);
+  });
+
+  block.appendChild(button);
+});
+```
+
+### 4. レスポンシブな目次の実装
+
+```css
+@media (max-width: 1024px) {
+  .toc-sidebar {
+    position: fixed;
+    left: -100%;
+    width: 300px;
+    transition: left 0.3s ease;
+  }
+
+  .toc-sidebar.open {
+    left: 0;
+  }
+}
+```
+
+## カスタマイズのポイント
+
+### 進捗バーのスタイル変更
+
+```css
+.reading-progress-bar {
+  background: linear-gradient(90deg, #10b981, #059669);
+  /* またはシンプルな単色 */
+  background: #10b981;
+}
+```
+
+### 目次の階層化
+
+```html
+<ul class="toc-list">
+  <li>
+    <a href="#section1">セクション1</a>
+    <ul class="toc-sublist">
+      <li><a href="#subsection1-1">サブセクション1-1</a></li>
+      <li><a href="#subsection1-2">サブセクション1-2</a></li>
+    </ul>
+  </li>
+</ul>
+```
+
+```css
+.toc-sublist {
+  margin-left: 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+}
+```
+
+### 印刷スタイルの追加
+
+```css
+@media print {
+  .blog-header,
+  .toc-sidebar,
+  .reading-progress,
+  .lb-close,
+  .copy-btn {
+    display: none !important;
+  }
+
+  .blog-article {
+    border: none;
+    padding: 0;
+  }
+
+  .article-section {
+    page-break-inside: avoid;
+  }
+}
+```
+
+## よくある問題と解決策
+
+### 問題: スクロールスパイが正しく動作しない
+
+**解決策**: `scroll-margin-top` でスクロール位置を調整
+
+```css
+.article-section h2 {
+  scroll-margin-top: 100px; /* ヘッダーの高さ + 余白 */
+}
+```
+
+### 問題: モバイルで目次が画面外に出る
+
+**解決策**: オーバーレイとして表示し、背景クリックで閉じる
+
+```javascript
+// オーバーレイクリックで閉じる
+document.addEventListener('click', (e) => {
+  if (tocSidebar.classList.contains('open') &&
+      !tocSidebar.contains(e.target) &&
+      !tocToggle.contains(e.target)) {
+    tocSidebar.classList.remove('open');
+  }
+});
+```
+
+### 問題: コードブロックが横スクロールしてしまう
+
+**解決策**: 適切な `max-width` とワードラップ
+
+```css
+.code-block pre {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* 必要に応じて自動折り返し */
+.code-block code {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+```
+
+## パフォーマンス最適化
+
+### 遅延読み込み
+
+```javascript
+// 画像の遅延読み込み
+document.querySelectorAll('.gallery-item img').forEach(img => {
+  img.loading = 'lazy';
+});
+```
+
+### スクロールイベントの最適化
+
+```javascript
+let ticking = false;
+
+window.addEventListener('scroll', () => {
+  if (!ticking) {
+    requestAnimationFrame(() => {
+      updateProgress();
+      ticking = false;
+    });
+    ticking = true;
+  }
+}, { passive: true });
+```
+
+## アクセシビリティの考慮事項
+
+- セクション見出しに適切な階層構造 (h1 → h2 → h3)
+- ライトボックスに `role="dialog"` と `aria-modal="true"`
+- コピーボタンに `aria-label` を設定
+- キーボードナビゲーションの完全サポート
+- フォーカストラップをライトボックスに実装
+- スキップリンクの提供
+
+## まとめ
+
+このレシピは、複数のモジュールを統合して本格的なブログ記事ページを構築する方法を示しています。各モジュールが独立して機能しながらも、統一されたデザインとスムーズなインタラクションによって、優れた読書体験を提供できます。
+
+特に重要なのは:
+- **パフォーマンス**: IntersectionObserver を活用した効率的な監視
+- **レスポンシブ**: モバイルとデスクトップで異なる UX を提供
+- **アクセシビリティ**: すべてのユーザーが快適に利用できる設計
+
+これらの原則を守ることで、プロフェッショナルなブログプラットフォームを構築できます。

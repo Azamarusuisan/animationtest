@@ -1,0 +1,21 @@
+{
+  "name": "zettai-prompt-factory",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "npm run build:index && astro build",
+    "preview": "astro preview",
+    "build:index": "node scripts/build-index.mjs",
+    "import:csv": "node scripts/csv-to-mdx.mjs"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^2.0.3",
+    "astro": "^4.0.8",
+    "fuse.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "csv-parse": "^5.5.3",
+    "gray-matter": "^4.0.3"
+  }
+}

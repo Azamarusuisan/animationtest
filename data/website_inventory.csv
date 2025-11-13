@@ -1,0 +1,2 @@
+プロジェクト名,公開URL,代替URL/サブドメイン,ステータス,目的/タイプ,プラットフォーム/フレームワーク,ホスティング,ドメイン管理,レポジトリURL,アナリティクス,Search Console プロパティ,最終デプロイ日,所有/共同,関係者,備考,サイト要素,アニメーション
+Portfolio 2023,https://example.com,https://portfolio-2023.vercel.app,稼働中,ポートフォリオ,Next.js 13,Vercel,Namecheap,https://github.com/username/portfolio-2023,GA4: G-XXXXXXX,example.com,2024-11-02,所有,,旧サイトから301済み,ハンバーガーメニュー・Smooth Scroll,Fade in・Parallax

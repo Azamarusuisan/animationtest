@@ -1,0 +1,812 @@
+---
+title: ステッパー（進行状況インジケーター）
+description: 複数ステップのフォーム・プロセス表示。完了/現在/未完了状態。
+tags: [stepper, wizard, form, progress]
+frameworks: [Vanilla, Any]
+level: intermediate
+prompt_template: |
+  目的: マルチステップフォーム用ステッパーの実装
+  前提: Vanilla JS（任意のフレームワークに移植可）
+  要件:
+  - 水平ステップ表示
+  - 完了/現在/未完了の3状態
+  - チェックマーク（✓）表示
+  - クリックで各ステップに移動
+  - 進捗線のアニメーション
+  - aria-current="step"
+  - キーボード操作（←→）
+  - バリデーション統合
+  - レスポンシブ（モバイルでは垂直または簡易表示）
+  - アクセシビリティ対応
+  納品: コンポーネント+CSS+最小限のJS
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="ステッパーのデモ"
+  height="280px"
+  html={`
+<div class="stepper" role="navigation" aria-label="進行状況">
+  <div class="stepper-item" data-step="1" data-completed="true">
+    <button class="stepper-button" aria-label="ステップ1: 完了">
+      <span class="stepper-number">
+        <span class="stepper-number-text">1</span>
+        <span class="stepper-check">✓</span>
+      </span>
+    </button>
+    <div class="stepper-label">基本情報</div>
+  </div>
+
+  <div class="stepper-connector" data-completed="true">
+    <div class="stepper-connector-line"></div>
+  </div>
+
+  <div class="stepper-item" data-step="2" aria-current="step">
+    <button class="stepper-button" aria-label="ステップ2: 現在" aria-current="step">
+      <span class="stepper-number">
+        <span class="stepper-number-text">2</span>
+        <span class="stepper-check">✓</span>
+      </span>
+    </button>
+    <div class="stepper-label">詳細設定</div>
+  </div>
+
+  <div class="stepper-connector">
+    <div class="stepper-connector-line"></div>
+  </div>
+
+  <div class="stepper-item" data-step="3">
+    <button class="stepper-button" aria-label="ステップ3: 未完了">
+      <span class="stepper-number">
+        <span class="stepper-number-text">3</span>
+        <span class="stepper-check">✓</span>
+      </span>
+    </button>
+    <div class="stepper-label">確認</div>
+  </div>
+</div>
+
+<div class="stepper-controls">
+  <button class="stepper-btn" id="prev-btn">前へ</button>
+  <button class="stepper-btn stepper-btn-primary" id="next-btn">次へ</button>
+</div>
+  `}
+  css={`
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+  padding: 1rem;
+}
+
+.stepper-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.stepper-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #374151;
+  background: #1f2a37;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.stepper-item[aria-current="step"] .stepper-button {
+  border-color: #60a5fa;
+  background: #60a5fa;
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.2);
+}
+
+.stepper-item[data-completed="true"] .stepper-button {
+  border-color: #10b981;
+  background: #10b981;
+}
+
+.stepper-number {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepper-number-text {
+  color: #9ca3af;
+  font-weight: 700;
+  transition: opacity 0.3s;
+}
+
+.stepper-item[aria-current="step"] .stepper-number-text,
+.stepper-item[data-completed="true"] .stepper-number-text {
+  color: white;
+}
+
+.stepper-check {
+  position: absolute;
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.3s;
+  color: white;
+  font-weight: bold;
+}
+
+.stepper-item[data-completed="true"] .stepper-number-text {
+  opacity: 0;
+  transform: scale(0);
+}
+
+.stepper-item[data-completed="true"] .stepper-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.stepper-connector {
+  width: 60px;
+  height: 2px;
+  background: #374151;
+  position: relative;
+  overflow: hidden;
+  margin: 0 0.5rem;
+}
+
+.stepper-connector-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0;
+  background: #10b981;
+  transition: width 0.5s ease;
+}
+
+.stepper-connector[data-completed="true"] .stepper-connector-line {
+  width: 100%;
+}
+
+.stepper-label {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.stepper-item[aria-current="step"] .stepper-label {
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.stepper-controls {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.stepper-btn {
+  padding: 0.5rem 1.5rem;
+  border: 1px solid #374151;
+  background: #1f2a37;
+  color: #e5edf4;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+}
+
+.stepper-btn:hover {
+  background: #374151;
+}
+
+.stepper-btn-primary {
+  background: #60a5fa;
+  border-color: #60a5fa;
+}
+
+.stepper-btn-primary:hover {
+  background: #3b82f6;
+}
+
+.stepper-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+  `}
+  js={`
+let currentStep = 2;
+const totalSteps = 3;
+const items = document.querySelectorAll('.stepper-item');
+const connectors = document.querySelectorAll('.stepper-connector');
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
+
+function updateStepper() {
+  items.forEach((item, index) => {
+    const stepNum = index + 1;
+    const btn = item.querySelector('.stepper-button');
+
+    item.removeAttribute('aria-current');
+    item.removeAttribute('data-completed');
+    btn.removeAttribute('aria-current');
+
+    if (stepNum < currentStep) {
+      item.setAttribute('data-completed', 'true');
+    } else if (stepNum === currentStep) {
+      item.setAttribute('aria-current', 'step');
+      btn.setAttribute('aria-current', 'step');
+    }
+  });
+
+  connectors.forEach((connector, index) => {
+    if (index < currentStep - 1) {
+      connector.setAttribute('data-completed', 'true');
+    } else {
+      connector.removeAttribute('data-completed');
+    }
+  });
+
+  prevBtn.disabled = currentStep === 1;
+  nextBtn.disabled = currentStep === totalSteps;
+  nextBtn.textContent = currentStep === totalSteps ? '完了' : '次へ';
+}
+
+prevBtn.addEventListener('click', () => {
+  if (currentStep > 1) {
+    currentStep--;
+    updateStepper();
+  }
+});
+
+nextBtn.addEventListener('click', () => {
+  if (currentStep < totalSteps) {
+    currentStep++;
+    updateStepper();
+  }
+});
+
+updateStepper();
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<div class="stepper-container">
+  <div class="stepper" role="navigation" aria-label="進行状況">
+    <!-- Step 1 -->
+    <div class="stepper-item" data-step="1">
+      <button
+        class="stepper-button"
+        role="button"
+        aria-label="ステップ1: アカウント情報"
+        aria-current="step"
+      >
+        <span class="stepper-number">
+          <span class="stepper-number-text">1</span>
+          <svg class="stepper-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </span>
+      </button>
+      <div class="stepper-label">
+        <div class="stepper-title">アカウント情報</div>
+        <div class="stepper-description">基本情報を入力</div>
+      </div>
+    </div>
+
+    <!-- Connector -->
+    <div class="stepper-connector" aria-hidden="true">
+      <div class="stepper-connector-line"></div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="stepper-item" data-step="2">
+      <button
+        class="stepper-button"
+        role="button"
+        aria-label="ステップ2: プロフィール"
+      >
+        <span class="stepper-number">
+          <span class="stepper-number-text">2</span>
+          <svg class="stepper-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </span>
+      </button>
+      <div class="stepper-label">
+        <div class="stepper-title">プロフィール</div>
+        <div class="stepper-description">詳細を設定</div>
+      </div>
+    </div>
+
+    <!-- Connector -->
+    <div class="stepper-connector" aria-hidden="true">
+      <div class="stepper-connector-line"></div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="stepper-item" data-step="3">
+      <button
+        class="stepper-button"
+        role="button"
+        aria-label="ステップ3: 設定"
+      >
+        <span class="stepper-number">
+          <span class="stepper-number-text">3</span>
+          <svg class="stepper-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </span>
+      </button>
+      <div class="stepper-label">
+        <div class="stepper-title">設定</div>
+        <div class="stepper-description">環境を構成</div>
+      </div>
+    </div>
+
+    <!-- Connector -->
+    <div class="stepper-connector" aria-hidden="true">
+      <div class="stepper-connector-line"></div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="stepper-item" data-step="4">
+      <button
+        class="stepper-button"
+        role="button"
+        aria-label="ステップ4: 確認"
+      >
+        <span class="stepper-number">
+          <span class="stepper-number-text">4</span>
+          <svg class="stepper-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </span>
+      </button>
+      <div class="stepper-label">
+        <div class="stepper-title">確認</div>
+        <div class="stepper-description">内容を確認</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Demo Controls -->
+  <div class="stepper-controls">
+    <button class="stepper-control-btn" id="prev-step">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>
+      前へ
+    </button>
+    <button class="stepper-control-btn stepper-control-btn-primary" id="next-step">
+      次へ
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Current Step Display -->
+  <div class="stepper-status" aria-live="polite">
+    ステップ <strong id="current-step-display">1</strong> / <strong>4</strong>
+  </div>
+</div>
+```
+
+**CSS**
+```css
+.stepper-container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 2rem;
+}
+
+/* Stepper Layout */
+.stepper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  position: relative;
+  margin-bottom: 3rem;
+}
+
+/* Stepper Item */
+.stepper-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+  z-index: 2;
+}
+
+/* Stepper Button */
+.stepper-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid #e0e0e0;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all .3s ease;
+  position: relative;
+  margin-bottom: .75rem;
+}
+
+.stepper-button:hover {
+  border-color: #0066cc;
+  transform: scale(1.05);
+}
+
+.stepper-button:focus {
+  outline: 3px solid #0066cc;
+  outline-offset: 2px;
+}
+
+/* Stepper Number */
+.stepper-number {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepper-number-text {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #999;
+  transition: color .3s ease;
+}
+
+.stepper-check {
+  position: absolute;
+  opacity: 0;
+  transform: scale(0);
+  transition: all .3s ease;
+  color: white;
+}
+
+/* Current Step */
+.stepper-item[aria-current="step"] .stepper-button {
+  border-color: #0066cc;
+  background: #0066cc;
+  box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
+}
+
+.stepper-item[aria-current="step"] .stepper-number-text {
+  color: white;
+}
+
+.stepper-item[aria-current="step"] .stepper-label {
+  color: #0066cc;
+}
+
+/* Completed Step */
+.stepper-item[data-completed="true"] .stepper-button {
+  border-color: #10b981;
+  background: #10b981;
+}
+
+.stepper-item[data-completed="true"] .stepper-number-text {
+  opacity: 0;
+  transform: scale(0);
+}
+
+.stepper-item[data-completed="true"] .stepper-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Connector */
+.stepper-connector {
+  flex: 1;
+  height: 3px;
+  background: #e0e0e0;
+  margin: 24px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.stepper-connector-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0;
+  background: #10b981;
+  transition: width .5s ease;
+}
+
+.stepper-connector[data-completed="true"] .stepper-connector-line {
+  width: 100%;
+}
+
+/* Labels */
+.stepper-label {
+  text-align: center;
+  max-width: 120px;
+  transition: color .3s ease;
+}
+
+.stepper-title {
+  font-size: .9375rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: .25rem;
+}
+
+.stepper-description {
+  font-size: .75rem;
+  color: #999;
+}
+
+/* Controls */
+.stepper-controls {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.stepper-control-btn {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .75rem 1.5rem;
+  border: 2px solid #e0e0e0;
+  background: white;
+  color: #333;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+
+.stepper-control-btn:hover {
+  border-color: #0066cc;
+  background: #f0f9ff;
+  transform: translateY(-1px);
+}
+
+.stepper-control-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.stepper-control-btn-primary {
+  background: #0066cc;
+  color: white;
+  border-color: #0066cc;
+}
+
+.stepper-control-btn-primary:hover {
+  background: #0052a3;
+  border-color: #0052a3;
+}
+
+/* Status */
+.stepper-status {
+  text-align: center;
+  font-size: .875rem;
+  color: #666;
+  padding: 1rem;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+/* Mobile Layout */
+@media (max-width: 640px) {
+  .stepper {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stepper-item {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .stepper-button {
+    margin-bottom: 0;
+    margin-right: 1rem;
+    flex-shrink: 0;
+  }
+
+  .stepper-label {
+    text-align: left;
+    max-width: none;
+    flex: 1;
+  }
+
+  .stepper-connector {
+    width: 3px;
+    height: 40px;
+    margin: 0 24px 0 21px;
+  }
+
+  .stepper-connector-line {
+    width: 100%;
+    height: 0;
+    transition: height .5s ease;
+  }
+
+  .stepper-connector[data-completed="true"] .stepper-connector-line {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stepper-button,
+  .stepper-number-text,
+  .stepper-check,
+  .stepper-connector-line,
+  .stepper-label,
+  .stepper-control-btn {
+    transition: none;
+  }
+}
+```
+
+**JS**
+```js
+(() => {
+  const root = document.currentScript?.closest('.card')?.querySelector('.stepper-container') || document.querySelector('.stepper-container');
+  if (!root) return;
+
+  const stepper = root.querySelector('.stepper');
+  const items = Array.from(root.querySelectorAll('.stepper-item'));
+  const connectors = Array.from(root.querySelectorAll('.stepper-connector'));
+  const prevBtn = root.querySelector('#prev-step');
+  const nextBtn = root.querySelector('#next-step');
+  const currentStepDisplay = root.querySelector('#current-step-display');
+
+  let currentStep = 1;
+  const totalSteps = items.length;
+
+  // Update stepper display
+  function updateStepper() {
+    items.forEach((item, index) => {
+      const stepNumber = index + 1;
+      const button = item.querySelector('.stepper-button');
+
+      // Remove all states
+      item.removeAttribute('aria-current');
+      item.removeAttribute('data-completed');
+
+      if (stepNumber < currentStep) {
+        // Completed
+        item.setAttribute('data-completed', 'true');
+        button.removeAttribute('aria-current');
+      } else if (stepNumber === currentStep) {
+        // Current
+        item.setAttribute('aria-current', 'step');
+        button.setAttribute('aria-current', 'step');
+      } else {
+        // Future
+        button.removeAttribute('aria-current');
+      }
+    });
+
+    // Update connectors
+    connectors.forEach((connector, index) => {
+      if (index < currentStep - 1) {
+        connector.setAttribute('data-completed', 'true');
+      } else {
+        connector.removeAttribute('data-completed');
+      }
+    });
+
+    // Update buttons
+    prevBtn.disabled = currentStep === 1;
+    nextBtn.disabled = currentStep === totalSteps;
+    nextBtn.textContent = currentStep === totalSteps ? '完了' : '次へ';
+
+    // Update status
+    if (currentStepDisplay) {
+      currentStepDisplay.textContent = currentStep;
+    }
+
+    // Announce to screen readers
+    const currentItem = items[currentStep - 1];
+    const title = currentItem.querySelector('.stepper-title')?.textContent;
+    const announcement = `ステップ ${currentStep}: ${title}`;
+
+    // Update aria-live region
+    const status = root.querySelector('.stepper-status');
+    if (status) {
+      status.setAttribute('aria-label', announcement);
+    }
+  }
+
+  // Go to specific step
+  function goToStep(step) {
+    if (step < 1 || step > totalSteps) return;
+    currentStep = step;
+    updateStepper();
+  }
+
+  // Previous step
+  function previousStep() {
+    if (currentStep > 1) {
+      goToStep(currentStep - 1);
+    }
+  }
+
+  // Next step
+  function nextStep() {
+    if (currentStep < totalSteps) {
+      goToStep(currentStep + 1);
+    }
+  }
+
+  // Event listeners
+  prevBtn?.addEventListener('click', previousStep);
+  nextBtn?.addEventListener('click', nextStep);
+
+  // Click on step buttons
+  items.forEach((item, index) => {
+    const button = item.querySelector('.stepper-button');
+    button?.addEventListener('click', () => {
+      // Allow clicking on completed steps and current step
+      if (index + 1 <= currentStep) {
+        goToStep(index + 1);
+      }
+    });
+  });
+
+  // Keyboard navigation
+  stepper.setAttribute('tabindex', '0');
+
+  stepper.addEventListener('keydown', (e) => {
+    switch(e.key) {
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        previousStep();
+        e.preventDefault();
+        break;
+      case 'ArrowRight':
+      case 'ArrowDown':
+        nextStep();
+        e.preventDefault();
+        break;
+      case 'Home':
+        goToStep(1);
+        e.preventDefault();
+        break;
+      case 'End':
+        goToStep(totalSteps);
+        e.preventDefault();
+        break;
+    }
+  });
+
+  // Initialize
+  updateStepper();
+
+  // Export for external use
+  window.stepperAPI = {
+    goToStep,
+    nextStep,
+    previousStep,
+    getCurrentStep: () => currentStep,
+    getTotalSteps: () => totalSteps
+  };
+})();
+```

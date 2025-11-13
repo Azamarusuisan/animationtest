@@ -1,0 +1,1229 @@
+---
+title: i18n指針（日本語/英語/RTL対応）
+description: 国際化対応のベストプラクティスと実装ガイド - 多言語・RTLレイアウト・ロケール対応
+tags: [documentation, i18n, internationalization, localization, rtl]
+category: documentation
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="国際化インタラクティブデモ"
+  height="700px"
+  html={`
+<div class="demo-container">
+  <div class="header">
+    <h2 id="demo-title">国際化デモ</h2>
+    <div class="controls">
+      <div class="control-group">
+        <label for="lang-select">言語:</label>
+        <select id="lang-select" class="select">
+          <option value="ja">日本語</option>
+          <option value="en">English</option>
+          <option value="ar">العربية</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label for="dir-toggle">Text Direction:</label>
+        <button id="dir-toggle" class="toggle-btn">Toggle RTL</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="content-area" class="content-area">
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h3 id="date-title">日付フォーマット</h3>
+        <div class="demo-output">
+          <div class="output-label">Short:</div>
+          <div id="date-short" class="output-value">2025/11/11</div>
+        </div>
+        <div class="demo-output">
+          <div class="output-label">Long:</div>
+          <div id="date-long" class="output-value">2025年11月11日</div>
+        </div>
+        <div class="demo-output">
+          <div class="output-label">Relative:</div>
+          <div id="date-relative" class="output-value">今日</div>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <h3 id="number-title">数値フォーマット</h3>
+        <div class="demo-output">
+          <div class="output-label">Number:</div>
+          <div id="number-format" class="output-value">1,234.56</div>
+        </div>
+        <div class="demo-output">
+          <div class="output-label">Percent:</div>
+          <div id="percent-format" class="output-value">75.5%</div>
+        </div>
+        <div class="demo-output">
+          <div class="output-label">Compact:</div>
+          <div id="compact-format" class="output-value">1.2万</div>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <h3 id="currency-title">通貨フォーマット</h3>
+        <div class="demo-output">
+          <div class="output-label">JPY:</div>
+          <div id="currency-jpy" class="output-value">¥1,234</div>
+        </div>
+        <div class="demo-output">
+          <div class="output-label">USD:</div>
+          <div id="currency-usd" class="output-value">$12.34</div>
+        </div>
+        <div class="demo-output">
+          <div class="output-label">EUR:</div>
+          <div id="currency-eur" class="output-value">€10.50</div>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <h3 id="plural-title">複数形対応</h3>
+        <div class="demo-output">
+          <div class="output-label">0 items:</div>
+          <div id="plural-0" class="output-value">アイテムがありません</div>
+        </div>
+        <div class="demo-output">
+          <div class="output-label">1 item:</div>
+          <div id="plural-1" class="output-value">1個のアイテム</div>
+        </div>
+        <div class="demo-output">
+          <div class="output-label">5 items:</div>
+          <div id="plural-5" class="output-value">5個のアイテム</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="layout-demo">
+      <div class="layout-card">
+        <div class="card-header">
+          <div class="icon">📱</div>
+          <h4 id="layout-title">レイアウトデモ</h4>
+        </div>
+        <div class="card-body">
+          <p id="layout-text">
+            このテキストは言語とテキスト方向に応じて自動的に調整されます。
+            RTLレイアウトでは、アイコンやボタンの配置が鏡像反転されます。
+          </p>
+          <div class="button-row">
+            <button class="btn btn-primary">
+              <span class="btn-icon">←</span>
+              <span id="btn-back">戻る</span>
+            </button>
+            <button class="btn btn-secondary">
+              <span id="btn-next">次へ</span>
+              <span class="btn-icon">→</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overflow-demo">
+        <h4 id="overflow-title">テキストオーバーフロー</h4>
+        <div class="overflow-box">
+          <p id="overflow-text">
+            異なる言語では同じ意味でも文字数が大きく異なります。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+    .demo-container {
+      background: #0c1218;
+      border-radius: 12px;
+      overflow: hidden;
+      min-height: 100%;
+    }
+
+    .header {
+      background: #1f2a37;
+      padding: 1.5rem;
+      border-bottom: 2px solid #374151;
+    }
+
+    .header h2 {
+      margin: 0 0 1rem 0;
+      color: #e5edf4;
+      font-size: 1.5rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .control-group label {
+      color: #9ca3af;
+      font-size: 0.875rem;
+    }
+
+    .select {
+      padding: 0.5rem 1rem;
+      background: #374151;
+      color: #e5edf4;
+      border: 2px solid #4b5563;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+
+    .toggle-btn {
+      padding: 0.5rem 1rem;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: background 0.2s;
+    }
+
+    .toggle-btn:hover {
+      background: #2563eb;
+    }
+
+    .content-area {
+      padding: 2rem;
+    }
+
+    [dir="rtl"] .content-area {
+      text-align: right;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .feature-card {
+      background: #1f2a37;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #374151;
+    }
+
+    .feature-card h3 {
+      margin: 0 0 1rem 0;
+      color: #60a5fa;
+      font-size: 1.125rem;
+    }
+
+    .demo-output {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+      background: #0c1218;
+      border-radius: 4px;
+      font-size: 0.875rem;
+    }
+
+    .demo-output:last-child {
+      margin-bottom: 0;
+    }
+
+    .output-label {
+      color: #9ca3af;
+    }
+
+    .output-value {
+      color: #e5edf4;
+      font-weight: 600;
+      font-family: 'Monaco', 'Menlo', monospace;
+    }
+
+    .layout-demo {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .layout-demo {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .layout-card {
+      background: #1f2a37;
+      border-radius: 8px;
+      border: 1px solid #374151;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1.5rem;
+      background: #374151;
+    }
+
+    [dir="rtl"] .card-header {
+      flex-direction: row-reverse;
+    }
+
+    .icon {
+      font-size: 1.5rem;
+    }
+
+    .card-header h4 {
+      margin: 0;
+      color: #e5edf4;
+      font-size: 1.125rem;
+    }
+
+    .card-body {
+      padding: 1.5rem;
+    }
+
+    .card-body p {
+      margin: 0 0 1.5rem 0;
+      color: #e5edf4;
+      line-height: 1.6;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    [dir="rtl"] .button-row {
+      flex-direction: row-reverse;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #2563eb;
+    }
+
+    .btn-secondary {
+      background: #374151;
+      color: #e5edf4;
+      border: 2px solid #4b5563;
+    }
+
+    .btn-secondary:hover {
+      background: #4b5563;
+    }
+
+    .btn-icon {
+      font-size: 1.25rem;
+      line-height: 1;
+    }
+
+    [dir="rtl"] .btn-icon {
+      transform: scaleX(-1);
+    }
+
+    .overflow-demo {
+      background: #1f2a37;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #374151;
+    }
+
+    .overflow-demo h4 {
+      margin: 0 0 1rem 0;
+      color: #60a5fa;
+      font-size: 1.125rem;
+    }
+
+    .overflow-box {
+      background: #0c1218;
+      padding: 1rem;
+      border-radius: 4px;
+      height: 80px;
+      overflow: hidden;
+    }
+
+    .overflow-box p {
+      margin: 0;
+      color: #e5edf4;
+      font-size: 0.875rem;
+      line-height: 1.5;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+    }
+  `}
+  js={`
+    const translations = {
+      ja: {
+        title: '国際化デモ',
+        dateTitle: '日付フォーマット',
+        numberTitle: '数値フォーマット',
+        currencyTitle: '通貨フォーマット',
+        pluralTitle: '複数形対応',
+        layoutTitle: 'レイアウトデモ',
+        layoutText: 'このテキストは言語とテキスト方向に応じて自動的に調整されます。RTLレイアウトでは、アイコンやボタンの配置が鏡像反転されます。',
+        btnBack: '戻る',
+        btnNext: '次へ',
+        overflowTitle: 'テキストオーバーフロー',
+        overflowText: '異なる言語では同じ意味でも文字数が大きく異なります。日本語は比較的コンパクトですが、英語やアラビア語では長くなることがあります。',
+        plurals: {
+          0: 'アイテムがありません',
+          1: '1個のアイテム',
+          other: '{{count}}個のアイテム'
+        }
+      },
+      en: {
+        title: 'Internationalization Demo',
+        dateTitle: 'Date Formatting',
+        numberTitle: 'Number Formatting',
+        currencyTitle: 'Currency Formatting',
+        pluralTitle: 'Pluralization',
+        layoutTitle: 'Layout Demo',
+        layoutText: 'This text automatically adjusts based on language and text direction. In RTL layout, icons and button positions are mirrored.',
+        btnBack: 'Back',
+        btnNext: 'Next',
+        overflowTitle: 'Text Overflow',
+        overflowText: 'Different languages can vary significantly in character count for the same meaning. English tends to be longer than Japanese.',
+        plurals: {
+          0: 'No items',
+          1: '1 item',
+          other: '{{count}} items'
+        }
+      },
+      ar: {
+        title: 'عرض التدويل',
+        dateTitle: 'تنسيق التاريخ',
+        numberTitle: 'تنسيق الأرقام',
+        currencyTitle: 'تنسيق العملة',
+        pluralTitle: 'الجمع',
+        layoutTitle: 'عرض التخطيط',
+        layoutText: 'يتم ضبط هذا النص تلقائيًا بناءً على اللغة واتجاه النص. في تخطيط RTL، تنعكس الأيقونات ومواضع الأزرار.',
+        btnBack: 'رجوع',
+        btnNext: 'التالي',
+        overflowTitle: 'تجاوز النص',
+        overflowText: 'يمكن أن تختلف اللغات المختلفة بشكل كبير في عدد الأحرف لنفس المعنى. العربية قد تكون أطول من اليابانية.',
+        plurals: {
+          0: 'لا توجد عناصر',
+          1: 'عنصر واحد',
+          2: 'عنصران',
+          few: '{{count}} عناصر',
+          many: '{{count}} عنصرًا',
+          other: '{{count}} عنصر'
+        }
+      }
+    };
+
+    let currentLang = 'ja';
+    let currentDir = 'ltr';
+
+    const langSelect = document.getElementById('lang-select');
+    const dirToggle = document.getElementById('dir-toggle');
+    const contentArea = document.getElementById('content-area');
+
+    function updateContent() {
+      const t = translations[currentLang];
+
+      // Update text content
+      document.getElementById('demo-title').textContent = t.title;
+      document.getElementById('date-title').textContent = t.dateTitle;
+      document.getElementById('number-title').textContent = t.numberTitle;
+      document.getElementById('currency-title').textContent = t.currencyTitle;
+      document.getElementById('plural-title').textContent = t.pluralTitle;
+      document.getElementById('layout-title').textContent = t.layoutTitle;
+      document.getElementById('layout-text').textContent = t.layoutText;
+      document.getElementById('btn-back').textContent = t.btnBack;
+      document.getElementById('btn-next').textContent = t.btnNext;
+      document.getElementById('overflow-title').textContent = t.overflowTitle;
+      document.getElementById('overflow-text').textContent = t.overflowText;
+
+      // Locale for Intl API
+      const locale = currentLang === 'ja' ? 'ja-JP' : currentLang === 'ar' ? 'ar-SA' : 'en-US';
+
+      // Date formatting
+      const now = new Date();
+      document.getElementById('date-short').textContent = new Intl.DateTimeFormat(locale, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(now);
+
+      document.getElementById('date-long').textContent = new Intl.DateTimeFormat(locale, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }).format(now);
+
+      document.getElementById('date-relative').textContent = new Intl.RelativeTimeFormat(locale, {
+        numeric: 'auto'
+      }).format(0, 'day');
+
+      // Number formatting
+      document.getElementById('number-format').textContent = new Intl.NumberFormat(locale).format(1234.56);
+      document.getElementById('percent-format').textContent = new Intl.NumberFormat(locale, {
+        style: 'percent',
+        minimumFractionDigits: 1
+      }).format(0.755);
+      document.getElementById('compact-format').textContent = new Intl.NumberFormat(locale, {
+        notation: 'compact',
+        compactDisplay: 'short'
+      }).format(12000);
+
+      // Currency formatting
+      document.getElementById('currency-jpy').textContent = new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: 'JPY'
+      }).format(1234);
+
+      document.getElementById('currency-usd').textContent = new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: 'USD'
+      }).format(12.34);
+
+      document.getElementById('currency-eur').textContent = new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: 'EUR'
+      }).format(10.50);
+
+      // Pluralization
+      function getPlural(count) {
+        if (currentLang === 'ar') {
+          if (count === 0) return t.plurals[0];
+          if (count === 1) return t.plurals[1];
+          if (count === 2) return t.plurals[2];
+          if (count >= 3 && count <= 10) return t.plurals.few?.replace('{{count}}', count);
+          if (count >= 11 && count <= 99) return t.plurals.many?.replace('{{count}}', count);
+          return t.plurals.other?.replace('{{count}}', count);
+        } else {
+          if (count === 0) return t.plurals[0];
+          if (count === 1) return t.plurals[1];
+          return t.plurals.other.replace('{{count}}', count);
+        }
+      }
+
+      document.getElementById('plural-0').textContent = getPlural(0);
+      document.getElementById('plural-1').textContent = getPlural(1);
+      document.getElementById('plural-5').textContent = getPlural(5);
+    }
+
+    function updateDirection() {
+      contentArea.setAttribute('dir', currentDir);
+      dirToggle.textContent = currentDir === 'ltr' ? 'Switch to RTL' : 'Switch to LTR';
+    }
+
+    langSelect.addEventListener('change', (e) => {
+      currentLang = e.target.value;
+      // Arabic defaults to RTL
+      if (currentLang === 'ar') {
+        currentDir = 'rtl';
+      } else {
+        currentDir = 'ltr';
+      }
+      updateContent();
+      updateDirection();
+    });
+
+    dirToggle.addEventListener('click', () => {
+      currentDir = currentDir === 'ltr' ? 'rtl' : 'ltr';
+      updateDirection();
+    });
+
+    // Initialize
+    updateContent();
+    updateDirection();
+  `}
+/>
+
+## i18n（国際化）とは
+
+i18n (Internationalization) とは、アプリケーションを複数の言語・地域・文化に対応させるプロセスです。グローバルなユーザーベースを持つ製品には必須の機能です。
+
+### なぜi18nが重要か
+
+1. **グローバル展開** - 世界中のユーザーにリーチできる
+2. **ユーザーエクスペリエンス** - 母国語でサービスを利用できる快適さ
+3. **市場拡大** - 新しい市場への参入が容易
+4. **法規制対応** - 一部の国では母国語対応が必須
+
+---
+
+## i18n ベストプラクティス
+
+### 1. すべての文字列を外部化する
+
+```javascript
+// ✗ 悪い例: ハードコードされたテキスト
+function WelcomeMessage() {
+  return <h1>ようこそ!</h1>;
+}
+
+// ✓ 良い例: 外部化された文字列
+import { useTranslation } from 'react-i18next';
+
+function WelcomeMessage() {
+  const { t } = useTranslation();
+  return <h1>{t('welcome')}</h1>;
+}
+```
+
+### 2. 文字列の結合を避ける
+
+```javascript
+// ✗ 悪い例: 文字列結合
+const message = 'You have ' + count + ' items';
+
+// ✓ 良い例: プレースホルダー
+const message = t('itemCount', { count });
+// 翻訳ファイル: "itemCount": "You have {{count}} items"
+```
+
+### 3. 日付・数値・通貨は Intl API を使用
+
+```javascript
+// ✓ 良い例: Intl.DateTimeFormat
+const formatter = new Intl.DateTimeFormat('ja-JP', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric'
+});
+formatter.format(new Date()); // "2025年11月11日"
+
+// ✓ 良い例: Intl.NumberFormat
+const numberFormatter = new Intl.NumberFormat('ja-JP');
+numberFormatter.format(1234567); // "1,234,567"
+
+// ✓ 良い例: Intl.NumberFormat (通貨)
+const currencyFormatter = new Intl.NumberFormat('ja-JP', {
+  style: 'currency',
+  currency: 'JPY'
+});
+currencyFormatter.format(1234); // "¥1,234"
+```
+
+---
+
+## 推奨i18nライブラリ
+
+### React: react-i18next
+
+```bash
+npm install react-i18next i18next
+```
+
+#### セットアップ
+
+```typescript
+// i18n.ts
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+
+i18n
+  .use(initReactI18next)
+  .init({
+    resources: {
+      en: {
+        translation: {
+          welcome: 'Welcome',
+          itemCount_zero: 'No items',
+          itemCount_one: '{{count}} item',
+          itemCount_other: '{{count}} items'
+        }
+      },
+      ja: {
+        translation: {
+          welcome: 'ようこそ',
+          itemCount: '{{count}}個のアイテム',
+          itemCount_zero: 'アイテムがありません'
+        }
+      }
+    },
+    lng: 'ja',
+    fallbackLng: 'en',
+    interpolation: {
+      escapeValue: false
+    }
+  });
+
+export default i18n;
+```
+
+#### 使用例
+
+```typescript
+import { useTranslation } from 'react-i18next';
+
+function MyComponent() {
+  const { t, i18n } = useTranslation();
+
+  return (
+    <div>
+      <h1>{t('welcome')}</h1>
+      <p>{t('itemCount', { count: 5 })}</p>
+      <button onClick={() => i18n.changeLanguage('en')}>
+        English
+      </button>
+    </div>
+  );
+}
+```
+
+### Vue: vue-i18n
+
+```bash
+npm install vue-i18n@9
+```
+
+```typescript
+// i18n.ts
+import { createI18n } from 'vue-i18n';
+
+const i18n = createI18n({
+  locale: 'ja',
+  fallbackLocale: 'en',
+  messages: {
+    en: {
+      welcome: 'Welcome'
+    },
+    ja: {
+      welcome: 'ようこそ'
+    }
+  }
+});
+
+export default i18n;
+```
+
+```vue
+<template>
+  <div>
+    <h1>{{ $t('welcome') }}</h1>
+    <button @click="changeLanguage('en')">English</button>
+  </div>
+</template>
+
+<script setup>
+import { useI18n } from 'vue-i18n';
+
+const { t, locale } = useI18n();
+
+function changeLanguage(lang) {
+  locale.value = lang;
+}
+</script>
+```
+
+---
+
+## ロケール検出
+
+### 優先順位
+
+1. **ユーザー設定** - 保存された言語設定
+2. **URL パラメータ** - `?lang=ja` または `/ja/page`
+3. **ブラウザ言語** - `navigator.language`
+4. **デフォルト言語** - フォールバック
+
+```typescript
+function detectLocale(): string {
+  // 1. LocalStorageから取得
+  const savedLocale = localStorage.getItem('locale');
+  if (savedLocale) return savedLocale;
+
+  // 2. URLパラメータから取得
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlLocale = urlParams.get('lang');
+  if (urlLocale) return urlLocale;
+
+  // 3. ブラウザ言語から取得
+  const browserLocale = navigator.language.split('-')[0];
+  const supportedLocales = ['ja', 'en', 'ar'];
+  if (supportedLocales.includes(browserLocale)) {
+    return browserLocale;
+  }
+
+  // 4. デフォルト
+  return 'en';
+}
+```
+
+---
+
+## 日本語特有の考慮事項
+
+### 1. 漢字・ひらがな・カタカナ
+
+```typescript
+// フォントフォールバック
+const fontFamily = `
+  "Noto Sans JP",
+  "Hiragino Kaku Gothic ProN",
+  "Hiragino Sans",
+  Meiryo,
+  sans-serif
+`;
+```
+
+### 2. 縦書きテキスト
+
+```css
+/* 縦書き対応 */
+.vertical-text {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+}
+
+/* 横書きと縦書きの切り替え */
+.text-container[data-writing-mode="vertical"] {
+  writing-mode: vertical-rl;
+}
+
+.text-container[data-writing-mode="horizontal"] {
+  writing-mode: horizontal-tb;
+}
+```
+
+### 3. ルビ（ふりがな）
+
+```html
+<ruby>
+  漢字<rp>(</rp><rt>かんじ</rt><rp>)</rp>
+</ruby>
+```
+
+```css
+ruby {
+  ruby-position: over; /* または under */
+}
+
+rt {
+  font-size: 0.5em;
+  color: #6b7280;
+}
+```
+
+### 4. 日本語の日付形式
+
+```typescript
+// 和暦対応
+const jpDateFormatter = new Intl.DateTimeFormat('ja-JP-u-ca-japanese', {
+  era: 'long',
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric'
+});
+
+jpDateFormatter.format(new Date('2025-11-11'));
+// "令和7年11月11日"
+```
+
+---
+
+## RTL (Right-to-Left) 対応
+
+アラビア語・ヘブライ語などの右から左に読む言語への対応。
+
+### 1. 論理プロパティを使用
+
+```css
+/* ✗ 悪い例: 物理プロパティ */
+.element {
+  margin-left: 1rem;
+  padding-right: 2rem;
+  border-left: 1px solid #ccc;
+}
+
+/* ✓ 良い例: 論理プロパティ */
+.element {
+  margin-inline-start: 1rem;  /* LTR: left, RTL: right */
+  padding-inline-end: 2rem;   /* LTR: right, RTL: left */
+  border-inline-start: 1px solid #ccc;
+}
+```
+
+### 2. dir 属性を使用
+
+```html
+<html dir="ltr">  <!-- 左から右 -->
+<html dir="rtl">  <!-- 右から左 -->
+```
+
+```typescript
+// 動的に dir を変更
+function setTextDirection(locale: string) {
+  const rtlLocales = ['ar', 'he', 'fa'];
+  const dir = rtlLocales.includes(locale) ? 'rtl' : 'ltr';
+  document.documentElement.setAttribute('dir', dir);
+}
+```
+
+### 3. アイコンの反転
+
+```css
+/* RTLでアイコンを反転 */
+[dir="rtl"] .icon-arrow {
+  transform: scaleX(-1);
+}
+
+/* または個別に指定 */
+.icon-back {
+  /* LTR: ← */
+  /* RTL: → */
+}
+
+[dir="rtl"] .icon-back::before {
+  content: '→';
+}
+```
+
+### 4. Flexbox / Grid の対応
+
+```css
+/* Flexboxは自動的に反転される */
+.flex-container {
+  display: flex;
+  flex-direction: row; /* RTLでは自動的に反転 */
+}
+
+/* Gridも論理プロパティを使用 */
+.grid-container {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 1rem;
+  /* RTLでも正しく動作 */
+}
+```
+
+### 5. テキスト整列
+
+```css
+/* ✗ 悪い例 */
+.text {
+  text-align: left;
+}
+
+/* ✓ 良い例 */
+.text {
+  text-align: start; /* LTR: left, RTL: right */
+}
+```
+
+---
+
+## 複数形対応 (Pluralization)
+
+言語によって複数形のルールが異なります。
+
+### 英語 (2形態)
+
+```json
+{
+  "itemCount_zero": "No items",
+  "itemCount_one": "{{count}} item",
+  "itemCount_other": "{{count}} items"
+}
+```
+
+### 日本語 (1形態)
+
+```json
+{
+  "itemCount": "{{count}}個のアイテム",
+  "itemCount_zero": "アイテムがありません"
+}
+```
+
+### アラビア語 (6形態)
+
+```json
+{
+  "itemCount_zero": "لا توجد عناصر",
+  "itemCount_one": "عنصر واحد",
+  "itemCount_two": "عنصران",
+  "itemCount_few": "{{count}} عناصر",
+  "itemCount_many": "{{count}} عنصرًا",
+  "itemCount_other": "{{count}} عنصر"
+}
+```
+
+### 実装例
+
+```typescript
+import { useTranslation } from 'react-i18next';
+
+function ItemCount({ count }: { count: number }) {
+  const { t } = useTranslation();
+
+  return <p>{t('itemCount', { count })}</p>;
+}
+```
+
+---
+
+## テキストオーバーフロー対策
+
+異なる言語では同じ意味でも文字数が大きく変わります。
+
+### 比較例
+
+| 言語 | テキスト | 文字数 |
+|------|---------|-------|
+| 日本語 | "保存" | 2文字 |
+| 英語 | "Save" | 4文字 |
+| ドイツ語 | "Speichern" | 10文字 |
+
+### CSS対策
+
+```css
+/* 1. Ellipsis（省略記号） */
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 2. 複数行の省略 */
+.text-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 3. 折り返し */
+.text-wrap {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+/* 4. 固定幅を避ける */
+.button {
+  padding: 0.5rem 1rem; /* 固定widthではなくpaddingを使用 */
+  min-width: 100px;     /* 最小幅のみ指定 */
+}
+```
+
+---
+
+## フォント対応
+
+### マルチ言語フォントスタック
+
+```css
+:root {
+  /* 日本語・英語・アラビア語対応 */
+  --font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Noto Sans JP",      /* 日本語 */
+    "Noto Sans Arabic",  /* アラビア語 */
+    "Roboto",
+    sans-serif;
+}
+
+body {
+  font-family: var(--font-family);
+}
+
+/* 言語ごとのフォント調整 */
+:lang(ja) {
+  font-family: "Noto Sans JP", sans-serif;
+  letter-spacing: 0.05em;
+}
+
+:lang(ar) {
+  font-family: "Noto Sans Arabic", sans-serif;
+  line-height: 1.8;
+}
+
+:lang(en) {
+  font-family: "Inter", sans-serif;
+  letter-spacing: -0.01em;
+}
+```
+
+---
+
+## テストチェックリスト
+
+```
+□ すべての文字列が外部化されている
+□ ハードコードされたテキストがない
+□ 日付・数値・通貨フォーマットが正しい
+□ 複数形対応が実装されている
+□ RTLレイアウトが正常に動作する
+□ アイコンがRTLで反転する
+□ テキストオーバーフローに対応している
+□ フォールバック言語が設定されている
+□ ロケール検出が正しく動作する
+□ 文字列結合を使用していない
+□ 画像内のテキストを避けている
+□ 日付のハードコーディングがない
+□ すべてのUI要素が翻訳されている
+□ 長いテキストでもレイアウトが崩れない
+□ フォントが各言語で読みやすい
+```
+
+---
+
+## よくある間違いと修正方法
+
+### 間違い1: 文字列結合
+
+```typescript
+// ✗ 悪い例
+const message = user.name + 'さん、こんにちは';
+// 英語では "Hello, " + user.name になるべき
+
+// ✓ 良い例
+const message = t('greeting', { name: user.name });
+// 翻訳: "greeting": "{{name}}さん、こんにちは"
+// 英語: "greeting": "Hello, {{name}}"
+```
+
+### 間違い2: 日付のハードコーディング
+
+```typescript
+// ✗ 悪い例
+const dateStr = \`\${year}年\${month}月\${day}日\`;
+
+// ✓ 良い例
+const dateStr = new Intl.DateTimeFormat(locale, {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric'
+}).format(date);
+```
+
+### 間違い3: 物理プロパティの使用
+
+```css
+/* ✗ 悪い例 */
+.sidebar {
+  float: left;
+  margin-right: 20px;
+}
+
+/* ✓ 良い例 */
+.sidebar {
+  float: inline-start;
+  margin-inline-end: 20px;
+}
+```
+
+### 間違い4: 画像内のテキスト
+
+```html
+<!-- ✗ 悪い例: 画像内にテキスト -->
+<img src="/banner-ja.png" alt="バナー">
+
+<!-- ✓ 良い例: テキストオーバーレイ -->
+<div class="banner">
+  <img src="/banner-bg.png" alt="">
+  <h2>{{ t('bannerTitle') }}</h2>
+</div>
+```
+
+---
+
+## i18n 自動化ツール
+
+### 1. 翻訳管理プラットフォーム
+
+- **Lokalise** - 翻訳管理・自動同期
+- **Crowdin** - コミュニティ翻訳
+- **Phrase** - 開発者向け翻訳プラットフォーム
+
+### 2. 機械翻訳API
+
+```typescript
+// Google Cloud Translation API
+import { Translate } from '@google-cloud/translate/build/src/v2';
+
+const translate = new Translate({
+  projectId: 'your-project-id',
+  keyFilename: 'path/to/key.json'
+});
+
+async function translateText(text: string, target: string) {
+  const [translation] = await translate.translate(text, target);
+  return translation;
+}
+```
+
+### 3. 未翻訳キー検出
+
+```typescript
+// scripts/check-translations.ts
+import fs from 'fs';
+
+const languages = ['en', 'ja', 'ar'];
+const baseKeys = Object.keys(
+  JSON.parse(fs.readFileSync('./locales/en.json', 'utf-8'))
+);
+
+languages.forEach(lang => {
+  const translations = JSON.parse(
+    fs.readFileSync(\`./locales/\${lang}.json\`, 'utf-8')
+  );
+  const missingKeys = baseKeys.filter(key => !(key in translations));
+
+  if (missingKeys.length > 0) {
+    console.error(\`Missing keys in \${lang}:\`, missingKeys);
+    process.exit(1);
+  }
+});
+```
+
+---
+
+## まとめ
+
+国際化対応を行うことで：
+
+1. **グローバル展開** - 世界中のユーザーにアプローチ
+2. **UX向上** - 母国語での快適な体験
+3. **保守性向上** - 外部化された文字列で管理が容易
+4. **柔軟性** - 新しい言語の追加が簡単
+
+必ずチェックリストを使って、すべての言語で正しく動作することを確認しましょう。
+
+## 参考リンク
+
+- [react-i18next Documentation](https://react.i18next.com/)
+- [vue-i18n Documentation](https://vue-i18n.intlify.dev/)
+- [MDN: Intl API](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl)
+- [W3C: Internationalization Best Practices](https://www.w3.org/International/quicktips/)
+- [RTL Styling 101](https://rtlstyling.com/)
+- [Unicode CLDR](https://cldr.unicode.org/) - ロケールデータ標準

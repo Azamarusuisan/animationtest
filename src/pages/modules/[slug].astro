@@ -1,0 +1,75 @@
+---
+import Base from '../../layouts/Base.astro';
+import PromptCopy from '../../components/PromptCopy.astro';
+import { getCollection } from 'astro:content';
+
+export async function getStaticPaths() {
+  const modules = await getCollection('modules');
+  return modules.map(module => ({
+    params: { slug: module.slug },
+    props: { module },
+  }));
+}
+
+const { module } = Astro.props;
+const { Content } = await module.render();
+---
+
+<Base title={module.data.title} description={module.data.description}>
+  <article>
+    <div style="margin-bottom: 2rem;">
+      <a href="/modules" style="color: var(--color-text-light); font-size: 0.875rem;">← モジュール一覧に戻る</a>
+    </div>
+
+    <h1 style="margin-bottom: 1rem;">{module.data.title}</h1>
+
+    <p style="font-size: 1.125rem; color: var(--color-text-light); margin-bottom: 2rem;">
+      {module.data.description}
+    </p>
+
+    <div style="margin-bottom: 2rem;">
+      {module.data.tags.map((tag: string) => (
+        <span class="tag">{tag}</span>
+      ))}
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+      {module.data.level && (
+        <div class="card" style="padding: 1rem;">
+          <div style="font-size: 0.875rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Level</div>
+          <div style="font-weight: bold;">{module.data.level}</div>
+        </div>
+      )}
+      {module.data.frameworks && module.data.frameworks.length > 0 && (
+        <div class="card" style="padding: 1rem;">
+          <div style="font-size: 0.875rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Frameworks</div>
+          <div style="font-weight: bold;">{module.data.frameworks.join(', ')}</div>
+        </div>
+      )}
+      {module.data.demo_url && (
+        <div class="card" style="padding: 1rem;">
+          <div style="font-size: 0.875rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Demo</div>
+          <a href={module.data.demo_url} target="_blank" rel="noopener noreferrer" style="font-weight: bold;">
+            デモを見る →
+          </a>
+        </div>
+      )}
+      {module.data.code_url && (
+        <div class="card" style="padding: 1rem;">
+          <div style="font-size: 0.875rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Code</div>
+          <a href={module.data.code_url} target="_blank" rel="noopener noreferrer" style="font-weight: bold;">
+            コードを見る →
+          </a>
+        </div>
+      )}
+    </div>
+
+    {module.data.prompt_template && (
+      <PromptCopy prompt={module.data.prompt_template} />
+    )}
+
+    <div class="card" style="padding: 2rem; margin-top: 2rem;">
+      <Content />
+    </div>
+  </article>
+</Base>

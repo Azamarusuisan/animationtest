@@ -1,0 +1,469 @@
+---
+title: ドロップダウンメニュー
+description: クリックで展開。外側クリック・Escで閉じる。
+tags: [dropdown, menu, navigation, accessibility]
+frameworks: [Vanilla, Any]
+level: intermediate
+prompt_template: |
+  ドロップダウンメニューを実装：
+  - ボタンクリックで展開
+  - 外側クリックで閉じる
+  - Escキーで閉じる
+  - キーボード操作（↑↓、Enter）
+  - aria-haspopup, aria-expanded
+  - ポジション調整（上/下、左/右）
+  - フォーカストラップ
+  - アニメーション（フェード + スライド）
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="ドロップダウンメニューのデモ"
+  height="350px"
+  html={`
+<div class="dropdown-demo">
+  <div class="dropdown" data-position="bottom-right">
+    <button class="dropdown-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="menu1">
+      ユーザーメニュー ▼
+    </button>
+    <ul id="menu1" class="dropdown-menu" role="menu" hidden>
+      <li role="none">
+        <a href="#profile" role="menuitem">プロフィール</a>
+      </li>
+      <li role="none">
+        <a href="#settings" role="menuitem">設定</a>
+      </li>
+      <li role="none">
+        <a href="#billing" role="menuitem">料金プラン</a>
+      </li>
+      <li role="separator" class="menu-divider"></li>
+      <li role="none">
+        <a href="#logout" role="menuitem" class="menu-danger">ログアウト</a>
+      </li>
+    </ul>
+  </div>
+
+  <div class="dropdown" data-position="bottom-left">
+    <button class="dropdown-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="menu2">
+      その他 ▼
+    </button>
+    <ul id="menu2" class="dropdown-menu" role="menu" hidden>
+      <li role="none">
+        <a href="#help" role="menuitem">ヘルプ</a>
+      </li>
+      <li role="none">
+        <a href="#docs" role="menuitem">ドキュメント</a>
+      </li>
+      <li role="none">
+        <a href="#about" role="menuitem">このアプリについて</a>
+      </li>
+    </ul>
+  </div>
+</div>
+  `}
+  css={`
+.dropdown-demo {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  padding: 40px 20px;
+  min-height: 250px;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-trigger {
+  padding: 10px 20px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.dropdown-trigger:hover {
+  background: #2563eb;
+}
+
+.dropdown-trigger:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.dropdown-menu {
+  position: absolute;
+  z-index: 1000;
+  min-width: 200px;
+  margin: 8px 0;
+  padding: 6px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  list-style: none;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+
+.dropdown-menu[hidden] {
+  display: block;
+}
+
+.dropdown-trigger[aria-expanded="true"] + .dropdown-menu {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.dropdown[data-position="bottom-right"] .dropdown-menu {
+  top: 100%;
+  right: 0;
+}
+
+.dropdown[data-position="bottom-left"] .dropdown-menu {
+  top: 100%;
+  left: 0;
+}
+
+.dropdown-menu li[role="none"] {
+  padding: 0;
+  margin: 2px 0;
+}
+
+.dropdown-menu a {
+  display: block;
+  padding: 10px 14px;
+  color: #e5edf4;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+  font-size: 14px;
+}
+
+.dropdown-menu a:hover,
+.dropdown-menu a:focus {
+  background: #334155;
+  outline: none;
+}
+
+.menu-danger {
+  color: #f87171 !important;
+}
+
+.menu-danger:hover {
+  background: #7f1d1d !important;
+}
+
+.menu-divider {
+  height: 1px;
+  margin: 6px 0;
+  background: #334155;
+  border: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropdown-menu {
+    transition: none;
+  }
+}
+  `}
+  js={`
+let currentDropdown = null;
+
+document.querySelectorAll('.dropdown').forEach(dropdown => {
+  const trigger = dropdown.querySelector('.dropdown-trigger');
+  const menu = document.getElementById(trigger.getAttribute('aria-controls'));
+  const items = menu.querySelectorAll('[role="menuitem"]');
+  let focusIndex = -1;
+
+  // Toggle menu
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+
+    // Close other dropdowns
+    if (currentDropdown && currentDropdown !== dropdown) {
+      closeDropdown(currentDropdown);
+    }
+
+    if (isOpen) {
+      closeDropdown(dropdown);
+    } else {
+      openDropdown(dropdown);
+    }
+  });
+
+  // Keyboard navigation
+  trigger.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (trigger.getAttribute('aria-expanded') !== 'true') {
+        openDropdown(dropdown);
+      }
+      focusIndex = 0;
+      items[focusIndex]?.focus();
+    }
+  });
+
+  menu.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      focusIndex = (focusIndex + 1) % items.length;
+      items[focusIndex].focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      focusIndex = (focusIndex - 1 + items.length) % items.length;
+      items[focusIndex].focus();
+    } else if (e.key === 'Escape') {
+      closeDropdown(dropdown);
+      trigger.focus();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      e.target.click();
+    }
+  });
+
+  // Menu item click
+  items.forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeDropdown(dropdown);
+    });
+  });
+});
+
+// Close on outside click
+document.addEventListener('click', (e) => {
+  if (currentDropdown && !currentDropdown.contains(e.target)) {
+    closeDropdown(currentDropdown);
+  }
+});
+
+// Close on Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && currentDropdown) {
+    const trigger = currentDropdown.querySelector('.dropdown-trigger');
+    closeDropdown(currentDropdown);
+    trigger.focus();
+  }
+});
+
+function openDropdown(dropdown) {
+  const trigger = dropdown.querySelector('.dropdown-trigger');
+  const menu = document.getElementById(trigger.getAttribute('aria-controls'));
+  trigger.setAttribute('aria-expanded', 'true');
+  menu.hidden = false;
+  currentDropdown = dropdown;
+}
+
+function closeDropdown(dropdown) {
+  const trigger = dropdown.querySelector('.dropdown-trigger');
+  const menu = document.getElementById(trigger.getAttribute('aria-controls'));
+  trigger.setAttribute('aria-expanded', 'false');
+  menu.hidden = true;
+  if (currentDropdown === dropdown) {
+    currentDropdown = null;
+  }
+}
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<div class="dropdown" data-position="bottom-right">
+  <button class="dropdown-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="menu1">
+    メニュー ▼
+  </button>
+  <ul id="menu1" class="dropdown-menu" role="menu" hidden>
+    <li role="none">
+      <a href="#profile" role="menuitem">👤 プロフィール</a>
+    </li>
+    <li role="none">
+      <a href="#settings" role="menuitem">⚙️ 設定</a>
+    </li>
+    <li role="separator" class="menu-divider"></li>
+    <li role="none">
+      <a href="#logout" role="menuitem" class="menu-danger">🚪 ログアウト</a>
+    </li>
+  </ul>
+</div>
+
+<div class="dropdown" data-position="bottom-left">
+  <button class="dropdown-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="menu2">
+    その他 ▼
+  </button>
+  <ul id="menu2" class="dropdown-menu" role="menu" hidden>
+    <li role="none">
+      <a href="#help" role="menuitem">📚 ヘルプ</a>
+    </li>
+    <li role="none">
+      <a href="#about" role="menuitem">ℹ️ について</a>
+    </li>
+  </ul>
+</div>
+```
+
+**CSS**
+```css
+.dropdown { position: relative; display: inline-block; }
+
+.dropdown-trigger {
+  padding: 8px 16px; background: #3b82f6; color: #fff;
+  border: none; border-radius: 6px; cursor: pointer;
+  font-size: 14px; font-weight: 500;
+  transition: background .2s ease;
+}
+.dropdown-trigger:hover { background: #2563eb; }
+.dropdown-trigger:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+
+.dropdown-menu {
+  position: absolute; z-index: 1000;
+  min-width: 200px; margin: 4px 0; padding: 4px;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  list-style: none;
+  opacity: 0; transform: translateY(-8px);
+  transition: opacity .2s ease, transform .2s ease;
+  pointer-events: none;
+}
+.dropdown-menu[hidden] { display: block; }
+.dropdown-trigger[aria-expanded="true"] + .dropdown-menu {
+  opacity: 1; transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* ポジション */
+.dropdown[data-position="bottom-right"] .dropdown-menu { top: 100%; right: 0; }
+.dropdown[data-position="bottom-left"] .dropdown-menu { top: 100%; left: 0; }
+.dropdown[data-position="top-right"] .dropdown-menu { bottom: 100%; right: 0; transform: translateY(8px); }
+.dropdown[data-position="top-left"] .dropdown-menu { bottom: 100%; left: 0; transform: translateY(8px); }
+
+.dropdown-menu li[role="none"] { padding: 0; }
+.dropdown-menu a {
+  display: block; padding: 8px 12px; color: #374151;
+  text-decoration: none; border-radius: 4px;
+  transition: background .15s ease;
+}
+.dropdown-menu a:hover, .dropdown-menu a:focus {
+  background: #f3f4f6; outline: none;
+}
+.menu-danger { color: #dc2626 !important; }
+.menu-danger:hover { background: #fee2e2 !important; }
+
+.menu-divider {
+  height: 1px; margin: 4px 0;
+  background: #e5e7eb; border: none;
+}
+```
+
+**JS**
+```js
+(() => {
+  let currentDropdown = null;
+
+  document.querySelectorAll('.dropdown').forEach(dropdown => {
+    const trigger = dropdown.querySelector('.dropdown-trigger');
+    const menu = document.getElementById(trigger.getAttribute('aria-controls'));
+    const items = menu.querySelectorAll('[role="menuitem"]');
+    let focusIndex = -1;
+
+    // トグル
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+
+      // 他のドロップダウンを閉じる
+      if (currentDropdown && currentDropdown !== dropdown) {
+        closeDropdown(currentDropdown);
+      }
+
+      if (isOpen) {
+        closeDropdown(dropdown);
+      } else {
+        openDropdown(dropdown);
+      }
+    });
+
+    // キーボード操作
+    trigger.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (trigger.getAttribute('aria-expanded') !== 'true') {
+          openDropdown(dropdown);
+        }
+        focusIndex = 0;
+        items[focusIndex]?.focus();
+      }
+    });
+
+    menu.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        focusIndex = (focusIndex + 1) % items.length;
+        items[focusIndex].focus();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        focusIndex = (focusIndex - 1 + items.length) % items.length;
+        items[focusIndex].focus();
+      } else if (e.key === 'Escape') {
+        closeDropdown(dropdown);
+        trigger.focus();
+      } else if (e.key === 'Enter') {
+        e.target.click();
+      }
+    });
+
+    // メニュー項目クリック
+    items.forEach(item => {
+      item.addEventListener('click', () => {
+        closeDropdown(dropdown);
+      });
+    });
+  });
+
+  // 外側クリック
+  document.addEventListener('click', (e) => {
+    if (currentDropdown && !currentDropdown.contains(e.target)) {
+      closeDropdown(currentDropdown);
+    }
+  });
+
+  // Escキー
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && currentDropdown) {
+      const trigger = currentDropdown.querySelector('.dropdown-trigger');
+      closeDropdown(currentDropdown);
+      trigger.focus();
+    }
+  });
+
+  function openDropdown(dropdown) {
+    const trigger = dropdown.querySelector('.dropdown-trigger');
+    const menu = document.getElementById(trigger.getAttribute('aria-controls'));
+    trigger.setAttribute('aria-expanded', 'true');
+    menu.hidden = false;
+    currentDropdown = dropdown;
+  }
+
+  function closeDropdown(dropdown) {
+    const trigger = dropdown.querySelector('.dropdown-trigger');
+    const menu = document.getElementById(trigger.getAttribute('aria-controls'));
+    trigger.setAttribute('aria-expanded', 'false');
+    menu.hidden = true;
+    if (currentDropdown === dropdown) {
+      currentDropdown = null;
+    }
+  }
+})();
+```

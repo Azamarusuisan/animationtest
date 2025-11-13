@@ -1,0 +1,680 @@
+---
+title: パララックス（GSAP ScrollTrigger版）
+description: GSAP ScrollTriggerで高度な視差効果。複数レイヤー対応。
+tags: [parallax, gsap, scroll-trigger, animation]
+frameworks: [Vanilla, React, Any]
+level: advanced
+prompt_template: |
+  目的: GSAP ScrollTriggerを使った高度なパララックススクロール実装
+  前提: GSAP 3.x + ScrollTrigger プラグイン
+  要件:
+  - GSAP ScrollTriggerでスクロール連動アニメーション
+  - 複数レイヤーで異なるスピード設定（data-speed属性）
+  - scrub（スクロール同期）で滑らかな動き
+  - markers（開発モード）でトリガーポイント可視化
+  - pin機能（要素を固定しながらアニメーション）
+  - start/endトリガー詳細設定
+  - toggleActions（onEnter/onLeave/onEnterBack/onLeaveBack）
+  - prefers-reduced-motion対応
+  - パフォーマンス最適化（GPU最適化、will-change）
+  納品: GSAP設定コード+HTML構造+CSS+使用例
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## 概要
+
+GSAP（GreenSock Animation Platform）のScrollTriggerプラグインを使用した、
+プロフェッショナルレベルのパララックススクロール実装。
+複雑なスクロールアニメーションを直感的に制御できます。
+
+## 実装のポイント
+
+### 1. GSAP ScrollTriggerの主要機能
+
+- **scrub**: スクロールに完全同期（true または遅延秒数指定）
+- **pin**: 要素を固定してアニメーション
+- **markers**: デバッグ用トリガーマーカー表示
+- **start/end**: トリガー開始/終了位置
+- **toggleActions**: 4つの状態での動作指定
+
+### 2. トリガー設定の理解
+
+```javascript
+// start: "trigger viewport"
+// "top top" = トリガー要素の上端がビューポート上端に達したとき
+// "center center" = トリガー要素の中央がビューポート中央に達したとき
+// "bottom top" = トリガー要素の下端がビューポート上端に達したとき
+```
+
+### 3. toggleActionsの動作
+
+```javascript
+toggleActions: "onEnter onLeave onEnterBack onLeaveBack"
+// play, pause, resume, reset, restart, complete, reverse, none
+```
+
+<LiveDemo title="GSAP-Style Parallax Demo" height="600px">
+{`
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0c1218;
+      color: #e5edf4;
+      overflow-x: hidden;
+    }
+
+    .parallax-container {
+      position: relative;
+      height: 150vh;
+      overflow: hidden;
+      background: linear-gradient(to bottom, #0c1218 0%, #1f2a37 100%);
+    }
+
+    .parallax-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      will-change: transform;
+    }
+
+    .layer-back {
+      z-index: 1;
+    }
+
+    .layer-back .shape {
+      width: 300px;
+      height: 300px;
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+      border-radius: 50%;
+      opacity: 0.3;
+    }
+
+    .layer-mid {
+      z-index: 2;
+    }
+
+    .layer-mid .shape {
+      width: 200px;
+      height: 200px;
+      background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+      border-radius: 20px;
+      opacity: 0.5;
+      transform: rotate(45deg);
+    }
+
+    .layer-front {
+      z-index: 3;
+    }
+
+    .layer-front .shape {
+      width: 150px;
+      height: 150px;
+      background: linear-gradient(135deg, #db2777 0%, #f472b6 100%);
+      border-radius: 30px;
+      opacity: 0.7;
+    }
+
+    .parallax-content {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .parallax-content h1 {
+      font-size: clamp(2rem, 5vw, 4rem);
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: #60a5fa;
+      text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    .parallax-content p {
+      font-size: clamp(1rem, 2vw, 1.5rem);
+      color: #e5edf4;
+      text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .scroll-indicator {
+      position: absolute;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #60a5fa;
+      font-size: 0.875rem;
+      animation: bounce 2s infinite;
+      z-index: 10;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translate(-50%, 0); }
+      50% { transform: translate(-50%, 10px); }
+    }
+
+    .content-section {
+      min-height: 100vh;
+      background: #0c1218;
+      padding: 4rem 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .content-section h2 {
+      font-size: 2rem;
+      color: #60a5fa;
+      margin-bottom: 1rem;
+    }
+
+    .content-section p {
+      font-size: 1.125rem;
+      line-height: 1.6;
+      max-width: 600px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="parallax-container" id="parallaxSection">
+    <div class="parallax-layer layer-back" data-speed="0.2">
+      <div class="shape"></div>
+    </div>
+
+    <div class="parallax-layer layer-mid" data-speed="0.5">
+      <div class="shape"></div>
+    </div>
+
+    <div class="parallax-layer layer-front" data-speed="0.8">
+      <div class="shape"></div>
+    </div>
+
+    <div class="parallax-layer">
+      <div class="parallax-content">
+        <h1>GSAP Parallax</h1>
+        <p>Scroll-triggered parallax animation</p>
+      </div>
+    </div>
+
+    <div class="scroll-indicator">↓ Scroll Down ↓</div>
+  </div>
+
+  <div class="content-section">
+    <h2>Smooth Parallax Effect</h2>
+    <p>
+      Multiple layers move at different speeds to create depth.
+      This demo uses vanilla JavaScript with scroll event optimization
+      to simulate GSAP ScrollTrigger behavior.
+    </p>
+  </div>
+
+  <script>
+    // Vanilla JS parallax implementation (GSAP-style)
+    const parallaxLayers = document.querySelectorAll('.parallax-layer[data-speed]');
+    const parallaxSection = document.getElementById('parallaxSection');
+
+    let ticking = false;
+
+    function updateParallax() {
+      const scrollY = window.scrollY;
+      const sectionTop = parallaxSection.offsetTop;
+      const sectionHeight = parallaxSection.offsetHeight;
+
+      // Only animate when section is in view
+      if (scrollY + window.innerHeight > sectionTop && scrollY < sectionTop + sectionHeight) {
+        const scrollProgress = (scrollY - sectionTop) / sectionHeight;
+
+        parallaxLayers.forEach(layer => {
+          const speed = parseFloat(layer.dataset.speed);
+          const movement = scrollProgress * sectionHeight * speed;
+          layer.style.transform = \`translate3d(0, \${movement}px, 0)\`;
+        });
+      }
+
+      ticking = false;
+    }
+
+    function requestTick() {
+      if (!ticking) {
+        requestAnimationFrame(updateParallax);
+        ticking = true;
+      }
+    }
+
+    // Check for reduced motion preference
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (!prefersReducedMotion) {
+      window.addEventListener('scroll', requestTick);
+      updateParallax(); // Initial call
+    }
+  </script>
+</body>
+</html>
+`}
+</LiveDemo>
+
+## コード例
+
+### Vanilla JavaScript（基本実装）
+
+```javascript
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
+
+// prefers-reduced-motion チェック
+const prefersReducedMotion = window.matchMedia(
+  '(prefers-reduced-motion: reduce)'
+).matches;
+
+if (!prefersReducedMotion) {
+  // 基本的なパララックス
+  gsap.utils.toArray('.parallax-layer').forEach((layer) => {
+    const speed = parseFloat(layer.dataset.speed) || 0.5;
+    const movement = -(layer.offsetHeight * speed);
+
+    gsap.to(layer, {
+      y: movement,
+      ease: 'none',
+      scrollTrigger: {
+        trigger: layer.closest('.parallax-container'),
+        start: 'top top',
+        end: 'bottom top',
+        scrub: true, // スクロールに完全同期
+        // markers: true, // 開発時のみ有効化
+      },
+    });
+  });
+}
+```
+
+### HTML 構造
+
+```html
+<!-- 基本構造 -->
+<section class="parallax-container">
+  <!-- 背景レイヤー（最も遅い） -->
+  <div class="parallax-layer" data-speed="0.2">
+    <img src="mountains-back.jpg" alt="遠景の山">
+  </div>
+
+  <!-- 中間レイヤー -->
+  <div class="parallax-layer" data-speed="0.5">
+    <img src="mountains-mid.jpg" alt="中景の山">
+  </div>
+
+  <!-- 前景レイヤー（最も速い） -->
+  <div class="parallax-layer" data-speed="0.8">
+    <img src="mountains-front.jpg" alt="近景の山">
+  </div>
+
+  <!-- コンテンツレイヤー -->
+  <div class="parallax-content">
+    <h1>パララックスエフェクト</h1>
+    <p>GSAP ScrollTriggerによる実装</p>
+  </div>
+</section>
+```
+
+### CSS
+
+```css
+.parallax-container {
+  position: relative;
+  height: 100vh;
+  overflow: hidden;
+  background: #0c1218;
+}
+
+.parallax-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 120%; /* スクロール余白 */
+  will-change: transform;
+}
+
+.parallax-layer img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.parallax-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #e5edf4;
+  text-align: center;
+}
+
+/* prefers-reduced-motion 対応 */
+@media (prefers-reduced-motion: reduce) {
+  .parallax-layer {
+    transform: none !important;
+  }
+}
+
+/* レスポンシブ */
+@media (max-width: 768px) {
+  .parallax-container {
+    height: 60vh;
+  }
+
+  .parallax-layer {
+    height: 100%; /* モバイルでは余白を減らす */
+  }
+}
+```
+
+## 高度な実装
+
+### 1. Pin機能（固定しながらアニメーション）
+
+```javascript
+// セクションを固定してアニメーション
+gsap.to('.pin-section', {
+  scrollTrigger: {
+    trigger: '.pin-section',
+    start: 'top top',
+    end: '+=500', // 500px分スクロールするまで固定
+    pin: true,
+    scrub: 1, // 1秒の遅延でスムーズに
+    markers: false,
+  },
+});
+
+// 固定中に他の要素をアニメーション
+gsap.to('.pin-section .content', {
+  opacity: 0,
+  scale: 0.5,
+  scrollTrigger: {
+    trigger: '.pin-section',
+    start: 'top top',
+    end: '+=500',
+    scrub: 1,
+  },
+});
+```
+
+### 2. 複雑なタイムライン
+
+```javascript
+// タイムラインで複数アニメーションを連携
+const tl = gsap.timeline({
+  scrollTrigger: {
+    trigger: '.timeline-section',
+    start: 'top center',
+    end: 'bottom center',
+    scrub: true,
+    pin: true,
+  },
+});
+
+tl.from('.element-1', { x: -100, opacity: 0 })
+  .from('.element-2', { x: 100, opacity: 0 })
+  .from('.element-3', { y: 100, opacity: 0 })
+  .to('.element-1', { scale: 1.5, rotation: 360 });
+```
+
+### 3. 水平スクロール
+
+```javascript
+// 横方向のスクロール連動
+const sections = gsap.utils.toArray('.horizontal-section');
+const totalWidth = sections.length * 100; // セクション数 × 100vw
+
+gsap.to(sections, {
+  xPercent: -100 * (sections.length - 1),
+  ease: 'none',
+  scrollTrigger: {
+    trigger: '.horizontal-container',
+    pin: true,
+    scrub: 1,
+    snap: 1 / (sections.length - 1), // スナップ機能
+    end: () => `+=${totalWidth}vw`,
+  },
+});
+```
+
+### 4. スクロール速度検知
+
+```javascript
+ScrollTrigger.create({
+  trigger: '.velocity-section',
+  start: 'top center',
+  end: 'bottom center',
+  onUpdate: (self) => {
+    const velocity = self.getVelocity(); // スクロール速度取得
+    console.log('Velocity:', velocity);
+
+    // 速度に応じてエフェクト変更
+    if (Math.abs(velocity) > 1000) {
+      gsap.to('.velocity-element', { scale: 1.2, duration: 0.3 });
+    } else {
+      gsap.to('.velocity-element', { scale: 1, duration: 0.3 });
+    }
+  },
+});
+```
+
+### 5. スクロール位置に応じた色変更
+
+```javascript
+gsap.to('.color-change-section', {
+  backgroundColor: '#7c3aed',
+  scrollTrigger: {
+    trigger: '.color-change-section',
+    start: 'top center',
+    end: 'bottom center',
+    scrub: true,
+  },
+});
+```
+
+## React での実装
+
+```tsx
+'use client';
+
+import { useEffect, useRef } from 'react';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
+
+const ParallaxSection = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const layersRef = useRef<HTMLDivElement[]>([]);
+
+  useEffect(() => {
+    const prefersReducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches;
+
+    if (prefersReducedMotion) return;
+
+    const ctx = gsap.context(() => {
+      layersRef.current.forEach((layer) => {
+        if (!layer) return;
+
+        const speed = parseFloat(layer.dataset.speed || '0.5');
+        const movement = -(layer.offsetHeight * speed);
+
+        gsap.to(layer, {
+          y: movement,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: containerRef.current,
+            start: 'top top',
+            end: 'bottom top',
+            scrub: true,
+          },
+        });
+      });
+    }, containerRef);
+
+    return () => ctx.revert(); // クリーンアップ
+  }, []);
+
+  return (
+    <section ref={containerRef} className="parallax-container">
+      <div
+        ref={(el) => el && layersRef.current.push(el)}
+        className="parallax-layer"
+        data-speed="0.2"
+      >
+        <img src="/mountains-back.jpg" alt="背景" />
+      </div>
+      <div
+        ref={(el) => el && layersRef.current.push(el)}
+        className="parallax-layer"
+        data-speed="0.5"
+      >
+        <img src="/mountains-mid.jpg" alt="中景" />
+      </div>
+      <div
+        ref={(el) => el && layersRef.current.push(el)}
+        className="parallax-layer"
+        data-speed="0.8"
+      >
+        <img src="/mountains-front.jpg" alt="前景" />
+      </div>
+      <div className="parallax-content">
+        <h1>パララックスエフェクト</h1>
+        <p>GSAP ScrollTrigger</p>
+      </div>
+    </section>
+  );
+};
+
+export default ParallaxSection;
+```
+
+## デバッグとトラブルシューティング
+
+### 1. マーカー表示（開発時のみ）
+
+```javascript
+ScrollTrigger.create({
+  trigger: '.debug-section',
+  start: 'top center',
+  end: 'bottom center',
+  markers: {
+    startColor: 'green',
+    endColor: 'red',
+    fontSize: '18px',
+    fontWeight: 'bold',
+    indent: 20,
+  },
+});
+```
+
+### 2. ScrollTriggerのリフレッシュ
+
+```javascript
+// 画像読み込み後やレイアウト変更後
+window.addEventListener('load', () => {
+  ScrollTrigger.refresh();
+});
+
+// リサイズ時は自動的にリフレッシュされる
+```
+
+### 3. 全てのScrollTriggerを削除
+
+```javascript
+// クリーンアップ
+ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
+```
+
+## パフォーマンス最適化
+
+### 1. GPU アクセラレーション
+
+```javascript
+gsap.to('.parallax-layer', {
+  force3D: true, // GPU最適化を強制
+  y: movement,
+});
+```
+
+### 2. will-change の自動管理
+
+```css
+.parallax-layer {
+  /* GSAPが自動的にwill-changeを管理 */
+  /* 手動設定は不要 */
+}
+```
+
+### 3. invalidateOnRefresh
+
+```javascript
+ScrollTrigger.create({
+  trigger: '.section',
+  invalidateOnRefresh: true, // リフレッシュ時に値を再計算
+  // 動的コンテンツに有効
+});
+```
+
+## toggleActions の詳細
+
+```javascript
+// 構文: "onEnter onLeave onEnterBack onLeaveBack"
+// 値: play, pause, resume, reset, restart, complete, reverse, none
+
+// 例1: スクロールイン時に再生、スクロールアウト時にリバース
+toggleActions: "play reverse play reverse"
+
+// 例2: 一度だけ再生
+toggleActions: "play none none none"
+
+// 例3: 前後スクロールに対応
+toggleActions: "play pause resume reset"
+```
+
+## 注意点
+
+1. **GSAPのライセンス**: 商用利用は有料ライセンス必要
+2. **バンドルサイズ**: GSAP本体 + ScrollTrigger = 約50KB（gzip）
+3. **パフォーマンス**: レイヤー数は5個以内推奨
+4. **モバイル**: スクロールパフォーマンスに注意
+5. **SSR/SSG**: useEffectやマウント後に初期化
+
+## まとめ
+
+GSAP ScrollTriggerは、複雑なスクロールアニメーションを簡潔に実装できる強力なツールです。
+直感的なAPIと豊富な機能により、プロフェッショナルな視差効果を実現できます。
+
+## 参考リンク
+
+- [GSAP Documentation](https://greensock.com/docs/)
+- [ScrollTrigger Documentation](https://greensock.com/docs/v3/Plugins/ScrollTrigger)
+- [GSAP ScrollTrigger Demos](https://greensock.com/st-demos/)
+- [GSAP Licensing](https://greensock.com/licensing/)

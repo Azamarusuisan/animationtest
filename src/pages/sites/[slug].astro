@@ -1,0 +1,154 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+
+export async function getStaticPaths() {
+  const sites = await getCollection('sites');
+  return sites.map(site => ({
+    params: { slug: site.slug },
+    props: { site },
+  }));
+}
+
+const { site } = Astro.props;
+const { Content } = await site.render();
+---
+
+<Base title={site.data.title} description={site.data.description}>
+  <article>
+    <div style="margin-bottom: 2rem;">
+      <a href="/sites" style="color: var(--color-text-light); font-size: 0.875rem;">← Sites一覧に戻る</a>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+      <h1 style="margin: 0;">{site.data.title}</h1>
+      {site.data.status && (
+        <span style={`
+          padding: 0.5rem 1rem;
+          border-radius: 0.5rem;
+          font-size: 1rem;
+          font-weight: bold;
+          ${site.data.status === '稼働中' ? 'background-color: #dcfce7; color: #166534;' :
+            site.data.status === '停止' ? 'background-color: #fee2e2; color: #991b1b;' :
+            'background-color: #fef3c7; color: #92400e;'}
+        `}>
+          {site.data.status}
+        </span>
+      )}
+    </div>
+
+    <p style="font-size: 1.125rem; color: var(--color-text-light); margin-bottom: 2rem;">
+      {site.data.description}
+    </p>
+
+    <div style="margin-bottom: 2rem;">
+      {site.data.tags.map((tag: string) => (
+        <span class="tag">{tag}</span>
+      ))}
+    </div>
+
+    <div class="card" style="padding: 2rem; margin-bottom: 2rem;">
+      <h2 style="margin-bottom: 1rem;">基本情報</h2>
+      <div style="display: grid; gap: 1rem;">
+        {site.data.url && (
+          <div>
+            <div style="font-weight: bold; color: var(--color-text-light); font-size: 0.875rem; margin-bottom: 0.25rem;">URL</div>
+            <a href={site.data.url} target="_blank" rel="noopener noreferrer">{site.data.url} →</a>
+          </div>
+        )}
+        {site.data.alt_urls && site.data.alt_urls.length > 0 && (
+          <div>
+            <div style="font-weight: bold; color: var(--color-text-light); font-size: 0.875rem; margin-bottom: 0.25rem;">代替URL</div>
+            {site.data.alt_urls.map((url: string) => (
+              <div><a href={url} target="_blank" rel="noopener noreferrer">{url} →</a></div>
+            ))}
+          </div>
+        )}
+        {site.data.repo && (
+          <div>
+            <div style="font-weight: bold; color: var(--color-text-light); font-size: 0.875rem; margin-bottom: 0.25rem;">リポジトリ</div>
+            <a href={site.data.repo} target="_blank" rel="noopener noreferrer">{site.data.repo} →</a>
+          </div>
+        )}
+        {site.data.platform && (
+          <div>
+            <div style="font-weight: bold; color: var(--color-text-light); font-size: 0.875rem; margin-bottom: 0.25rem;">プラットフォーム</div>
+            <div>{site.data.platform}</div>
+          </div>
+        )}
+        {site.data.hosting && (
+          <div>
+            <div style="font-weight: bold; color: var(--color-text-light); font-size: 0.875rem; margin-bottom: 0.25rem;">ホスティング</div>
+            <div>{site.data.hosting}</div>
+          </div>
+        )}
+        {site.data.domain && (
+          <div>
+            <div style="font-weight: bold; color: var(--color-text-light); font-size: 0.875rem; margin-bottom: 0.25rem;">ドメイン管理</div>
+            <div>{site.data.domain}</div>
+          </div>
+        )}
+        {site.data.analytics && (
+          <div>
+            <div style="font-weight: bold; color: var(--color-text-light); font-size: 0.875rem; margin-bottom: 0.25rem;">アナリティクス</div>
+            <div>{site.data.analytics}</div>
+          </div>
+        )}
+        {site.data.search_console && (
+          <div>
+            <div style="font-weight: bold; color: var(--color-text-light); font-size: 0.875rem; margin-bottom: 0.25rem;">Search Console</div>
+            <div>{site.data.search_console}</div>
+          </div>
+        )}
+        {site.data.last_deployed && (
+          <div>
+            <div style="font-weight: bold; color: var(--color-text-light); font-size: 0.875rem; margin-bottom: 0.25rem;">最終デプロイ日</div>
+            <div>{site.data.last_deployed}</div>
+          </div>
+        )}
+        {site.data.ownership && (
+          <div>
+            <div style="font-weight: bold; color: var(--color-text-light); font-size: 0.875rem; margin-bottom: 0.25rem;">所有/共同</div>
+            <div>{site.data.ownership}</div>
+          </div>
+        )}
+        {site.data.collaborators && (
+          <div>
+            <div style="font-weight: bold; color: var(--color-text-light); font-size: 0.875rem; margin-bottom: 0.25rem;">関係者</div>
+            <div>{site.data.collaborators}</div>
+          </div>
+        )}
+      </div>
+    </div>
+
+    {(site.data.elements && site.data.elements.length > 0) || (site.data.animations && site.data.animations.length > 0) ? (
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+        {site.data.elements && site.data.elements.length > 0 && (
+          <div class="card" style="padding: 1.5rem;">
+            <h3 style="margin-bottom: 1rem;">サイト要素</h3>
+            <ul style="margin-left: 1.5rem; line-height: 1.8;">
+              {site.data.elements.map((element: string) => (
+                <li>{element}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {site.data.animations && site.data.animations.length > 0 && (
+          <div class="card" style="padding: 1.5rem;">
+            <h3 style="margin-bottom: 1rem;">アニメーション</h3>
+            <ul style="margin-left: 1.5rem; line-height: 1.8;">
+              {site.data.animations.map((animation: string) => (
+                <li>{animation}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    ) : null}
+
+    <div class="card" style="padding: 2rem;">
+      <Content />
+    </div>
+  </article>
+</Base>

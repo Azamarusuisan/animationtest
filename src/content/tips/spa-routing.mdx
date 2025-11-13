@@ -1,0 +1,1021 @@
+---
+title: SPA ルーティング（クライアントサイド）
+description: ページリロードなしで画面遷移を実現するクライアントサイドルーティングの実装
+tags: [spa, routing, history-api, navigation, webapp]
+category: webapp
+level: intermediate
+date: 2025-11-12
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## SPA ルーティングとは
+
+**普通のWebサイト**: リンクをクリックすると、画面が真っ白になって新しいページが読み込まれる
+**SPA**: リンクをクリックしても画面が真っ白にならず、すぐに次の画面に切り替わる
+
+例えば、YouTubeで動画を見ているときに別の動画をクリックしても、ページ全体が読み込み直しにならずスムーズに切り替わりますよね。それがSPA（シングルページアプリケーション）です。
+
+この技術を使うと：
+- ページ切り替えが速い（読み込み待ちがない）
+- 動画や音楽が途切れない
+- スマホアプリみたいな操作感
+
+## 基本的なルーティングの実装
+
+<LiveDemo
+  title="SPA ルーティング デモ"
+  height="700px"
+  html={`
+<div class="spa-demo">
+  <div class="demo-header">
+    <h3>🚀 SPA ルーティングデモ</h3>
+    <p class="subtitle">ページリロードなしで画面遷移</p>
+  </div>
+
+  <div class="browser-mockup">
+    <div class="browser-chrome">
+      <div class="browser-dots">
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+      <div class="address-bar">
+        <span class="protocol">🔒</span>
+        <span class="url" id="addressBar">myapp.com/</span>
+      </div>
+    </div>
+
+    <div class="browser-content">
+      <nav class="app-nav">
+        <a href="/" class="nav-link active" data-link>
+          <span class="nav-icon">🏠</span>
+          <span>ホーム</span>
+        </a>
+        <a href="/about" class="nav-link" data-link>
+          <span class="nav-icon">ℹ️</span>
+          <span>アバウト</span>
+        </a>
+        <a href="/products" class="nav-link" data-link>
+          <span class="nav-icon">📦</span>
+          <span>製品</span>
+        </a>
+        <a href="/contact" class="nav-link" data-link>
+          <span class="nav-icon">✉️</span>
+          <span>お問い合わせ</span>
+        </a>
+      </nav>
+
+      <div class="page-content" id="pageContent">
+        <!-- ページコンテンツがここに表示される -->
+      </div>
+
+      <div class="loading-bar" id="loadingBar"></div>
+    </div>
+  </div>
+
+  <div class="control-panel">
+    <div class="history-controls">
+      <button class="history-btn" id="backBtn" disabled>
+        <span>←</span>
+        <span>戻る</span>
+      </button>
+      <button class="history-btn" id="forwardBtn" disabled>
+        <span>進む</span>
+        <span>→</span>
+      </button>
+      <div class="history-position">
+        <span id="historyInfo">履歴: 0 / 0</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="event-log">
+    <div class="log-header">ルーティングイベント</div>
+    <div class="log-content" id="logContent">
+      <div class="log-empty">イベントを待機中...</div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.spa-demo {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.demo-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.demo-header h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  color: #e5edf4;
+}
+
+.subtitle {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 0.9375rem;
+}
+
+.browser-mockup {
+  background: #1f2a37;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  margin-bottom: 1.5rem;
+}
+
+.browser-chrome {
+  background: #374151;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.browser-dots {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+.dot:nth-child(2) {
+  background: #f59e0b;
+}
+
+.dot:nth-child(3) {
+  background: #10b981;
+}
+
+.address-bar {
+  flex: 1;
+  background: #1f2a37;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+.protocol {
+  font-size: 0.875rem;
+}
+
+.url {
+  color: #e5edf4;
+}
+
+.browser-content {
+  background: #0c1218;
+  min-height: 400px;
+  position: relative;
+}
+
+.app-nav {
+  display: flex;
+  background: #1f2a37;
+  border-bottom: 1px solid #374151;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  color: #9ca3af;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.nav-link:hover {
+  color: #e5edf4;
+  background: #374151;
+}
+
+.nav-link.active {
+  color: #60a5fa;
+  border-bottom-color: #60a5fa;
+}
+
+.nav-icon {
+  font-size: 1.25rem;
+}
+
+.page-content {
+  padding: 2rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-title {
+  font-size: 2rem;
+  margin: 0 0 1rem 0;
+  color: #e5edf4;
+}
+
+.page-description {
+  color: #9ca3af;
+  margin: 0 0 2rem 0;
+  line-height: 1.6;
+}
+
+.page-card {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.card-title {
+  color: #e5edf4;
+  margin: 0 0 0.5rem 0;
+}
+
+.card-text {
+  color: #9ca3af;
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.loading-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #60a5fa, #3b82f6);
+  width: 0;
+  transition: width 0.3s ease-out;
+  opacity: 0;
+}
+
+.loading-bar.loading {
+  opacity: 1;
+  animation: loadProgress 0.5s ease-out forwards;
+}
+
+@keyframes loadProgress {
+  to {
+    width: 100%;
+  }
+}
+
+.control-panel {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.history-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.history-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 8px;
+  color: #e5edf4;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.history-btn:hover:not(:disabled) {
+  background: #4b5563;
+  transform: translateY(-2px);
+}
+
+.history-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.history-position {
+  flex: 1;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.event-log {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.log-header {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #e5edf4;
+  margin-bottom: 1rem;
+}
+
+.log-content {
+  background: #0c1218;
+  border-radius: 6px;
+  padding: 1rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.log-empty {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+  padding: 1rem;
+}
+
+.log-entry {
+  display: flex;
+  align-items: start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: #1f2a37;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.log-time {
+  color: #60a5fa;
+  font-weight: 600;
+  min-width: 65px;
+  font-family: monospace;
+}
+
+.log-message {
+  color: #d1d5db;
+  flex: 1;
+}
+
+.log-route {
+  color: #10b981;
+  font-weight: 600;
+}
+  `}
+  js={`
+// ページテンプレート
+const pages = {
+  '/': {
+    title: 'ホーム',
+    content: \`
+      <h2 class="page-title">🏠 ホームページ</h2>
+      <p class="page-description">SPAルーティングのデモへようこそ！このアプリケーションはページをリロードせずに画面遷移を実現しています。</p>
+      <div class="page-card">
+        <h3 class="card-title">最新情報</h3>
+        <p class="card-text">SPA（Single Page Application）では、すべてのページコンテンツを事前に読み込んだり、必要に応じて動的に取得したりします。</p>
+      </div>
+      <div class="page-card">
+        <h3 class="card-title">特徴</h3>
+        <p class="card-text">✓ 高速な画面遷移<br>✓ スムーズなユーザー体験<br>✓ 状態の保持が容易</p>
+      </div>
+    \`
+  },
+  '/about': {
+    title: 'アバウト',
+    content: \`
+      <h2 class="page-title">ℹ️ アバウト</h2>
+      <p class="page-description">このデモについての詳細情報です。</p>
+      <div class="page-card">
+        <h3 class="card-title">技術スタック</h3>
+        <p class="card-text">History API、addEventListener、カスタムルーターを使用しています。</p>
+      </div>
+      <div class="page-card">
+        <h3 class="card-title">実装のポイント</h3>
+        <p class="card-text">
+          1. history.pushState() でURLを変更<br>
+          2. popstate イベントで戻る/進むに対応<br>
+          3. リンククリックをインターセプト<br>
+          4. 動的にコンテンツを更新
+        </p>
+      </div>
+    \`
+  },
+  '/products': {
+    title: '製品',
+    content: \`
+      <h2 class="page-title">📦 製品一覧</h2>
+      <p class="page-description">私たちの製品をご覧ください。</p>
+      <div class="page-card">
+        <h3 class="card-title">製品 A</h3>
+        <p class="card-text">高品質で使いやすい製品です。</p>
+      </div>
+      <div class="page-card">
+        <h3 class="card-title">製品 B</h3>
+        <p class="card-text">革新的な機能を搭載した次世代製品。</p>
+      </div>
+      <div class="page-card">
+        <h3 class="card-title">製品 C</h3>
+        <p class="card-text">エンタープライズ向けソリューション。</p>
+      </div>
+    \`
+  },
+  '/contact': {
+    title: 'お問い合わせ',
+    content: \`
+      <h2 class="page-title">✉️ お問い合わせ</h2>
+      <p class="page-description">ご質問やご相談がありましたら、お気軽にご連絡ください。</p>
+      <div class="page-card">
+        <h3 class="card-title">連絡先</h3>
+        <p class="card-text">
+          Email: info@example.com<br>
+          Tel: 03-1234-5678<br>
+          営業時間: 平日 9:00-18:00
+        </p>
+      </div>
+      <div class="page-card">
+        <h3 class="card-title">所在地</h3>
+        <p class="card-text">
+          〒100-0001<br>
+          東京都千代田区千代田1-1
+        </p>
+      </div>
+    \`
+  }
+};
+
+const addressBar = document.getElementById('addressBar');
+const pageContent = document.getElementById('pageContent');
+const logContent = document.getElementById('logContent');
+const loadingBar = document.getElementById('loadingBar');
+const backBtn = document.getElementById('backBtn');
+const forwardBtn = document.getElementById('forwardBtn');
+const historyInfo = document.getElementById('historyInfo');
+
+let historyStack = ['/'];
+let historyPosition = 0;
+
+// ログ追加
+function addLog(message, route = null) {
+  if (logContent.querySelector('.log-empty')) {
+    logContent.innerHTML = '';
+  }
+
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('ja-JP', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+
+  const routeHtml = route ? \` <span class="log-route">\${route}</span>\` : '';
+  entry.innerHTML = \`
+    <span class="log-time">\${timeStr}</span>
+    <span class="log-message">\${message}\${routeHtml}</span>
+  \`;
+
+  logContent.insertBefore(entry, logContent.firstChild);
+
+  while (logContent.children.length > 10) {
+    logContent.removeChild(logContent.lastChild);
+  }
+}
+
+// 履歴情報の更新
+function updateHistoryInfo() {
+  historyInfo.textContent = \`履歴: \${historyPosition + 1} / \${historyStack.length}\`;
+  backBtn.disabled = historyPosition === 0;
+  forwardBtn.disabled = historyPosition === historyStack.length - 1;
+}
+
+// ローディングアニメーション
+function showLoading() {
+  loadingBar.style.width = '0';
+  loadingBar.classList.add('loading');
+  setTimeout(() => {
+    loadingBar.classList.remove('loading');
+  }, 500);
+}
+
+// ページレンダリング
+function renderPage(path) {
+  const page = pages[path] || pages['/'];
+
+  showLoading();
+
+  setTimeout(() => {
+    pageContent.innerHTML = page.content;
+    addressBar.textContent = \`myapp.com\${path}\`;
+    document.title = \`\${page.title} - SPA Demo\`;
+
+    // ナビゲーションのアクティブ状態を更新
+    document.querySelectorAll('.nav-link').forEach(link => {
+      link.classList.remove('active');
+      if (link.getAttribute('href') === path) {
+        link.classList.add('active');
+      }
+    });
+
+    addLog('ページをレンダリング:', path);
+  }, 100);
+}
+
+// ルート変更
+function navigateTo(path, addToHistory = true) {
+  if (addToHistory) {
+    // 現在位置より後ろの履歴を削除
+    historyStack = historyStack.slice(0, historyPosition + 1);
+    historyStack.push(path);
+    historyPosition = historyStack.length - 1;
+
+    history.pushState({ path }, '', path);
+    addLog('history.pushState():', path);
+  }
+
+  renderPage(path);
+  updateHistoryInfo();
+}
+
+// リンククリックのインターセプト
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('[data-link]');
+  if (link) {
+    e.preventDefault();
+    const path = link.getAttribute('href');
+    navigateTo(path);
+  }
+});
+
+// popstate イベント（戻る/進む）
+window.addEventListener('popstate', (e) => {
+  if (e.state && e.state.path) {
+    addLog('popstate イベント:', e.state.path);
+    renderPage(e.state.path);
+  }
+});
+
+// 戻るボタン
+backBtn.addEventListener('click', () => {
+  if (historyPosition > 0) {
+    historyPosition--;
+    const path = historyStack[historyPosition];
+    history.back();
+    addLog('戻る:', path);
+  }
+});
+
+// 進むボタン
+forwardBtn.addEventListener('click', () => {
+  if (historyPosition < historyStack.length - 1) {
+    historyPosition++;
+    const path = historyStack[historyPosition];
+    history.forward();
+    addLog('進む:', path);
+  }
+});
+
+// 初期化
+addLog('SPA ルーター初期化');
+renderPage('/');
+updateHistoryInfo();
+  `}
+/>
+
+## どうやって実現するの？
+
+### 仕組み1: URLを変える（でもページは読み込まない）
+
+普通、URLが変わると新しいページを読み込みます。でも、JavaScriptを使うと「URLだけ変えて、ページは読み込まない」ことができます。
+
+```javascript
+// アドレスバーのURLを /about に変える（でもページはそのまま）
+history.pushState(null, '', '/about');
+```
+
+これは、本のしおりを移動するような感じです。本は同じだけど、今どこを読んでいるか（URL）だけ変わります。
+
+### 仕組み2: 戻るボタンに対応する
+
+ブラウザの「戻る」ボタンを押したときに、前のページを表示できるようにします。
+
+```javascript
+// 「戻る」ボタンが押されたら実行される
+window.addEventListener('popstate', () => {
+  // 今のURLを見て、表示するページを決める
+  表示するページを切り替える();
+});
+```
+
+## 実際に作ってみよう
+
+### ステップ1: ページのHTMLを用意
+
+```html
+<!-- ナビゲーション（メニュー） -->
+<nav>
+  <a href="/" class="link">ホーム</a>
+  <a href="/about" class="link">アバウト</a>
+  <a href="/contact" class="link">お問い合わせ</a>
+</nav>
+
+<!-- ここにページの内容が表示される -->
+<div id="page">
+  <!-- ページ内容がここに入る -->
+</div>
+```
+
+### ステップ2: リンクをクリックしたときの処理
+
+```javascript
+// すべてのリンクに対して
+document.querySelectorAll('.link').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault(); // 普通のページ移動を止める
+
+    const url = link.getAttribute('href'); // クリックしたリンク先
+    history.pushState(null, '', url); // URLを変更
+
+    showPage(url); // ページ内容を表示
+  });
+});
+```
+
+### ステップ3: ページ内容を表示する関数
+
+```javascript
+function showPage(url) {
+  const pageDiv = document.getElementById('page');
+
+  // URLに応じて表示する内容を決める
+  if (url === '/') {
+    pageDiv.innerHTML = '<h1>ホームページ</h1><p>ようこそ！</p>';
+  } else if (url === '/about') {
+    pageDiv.innerHTML = '<h1>アバウト</h1><p>このサイトについて</p>';
+  } else if (url === '/contact') {
+    pageDiv.innerHTML = '<h1>お問い合わせ</h1><p>連絡先情報</p>';
+  }
+}
+```
+
+これだけで、リンクをクリックしたときに画面が真っ白にならずに切り替わります！
+
+## 応用: URLから情報を取り出す
+
+例えば `/user/123` というURLから、ユーザーID「123」を取り出したいときがあります。
+
+```javascript
+function showPage(url) {
+  const pageDiv = document.getElementById('page');
+
+  // URLが /user/○○ の形なら
+  if (url.startsWith('/user/')) {
+    const userId = url.replace('/user/', ''); // 123 が取れる
+    pageDiv.innerHTML = `<h1>ユーザー ${userId} のページ</h1>`;
+  }
+}
+```
+
+こうすると：
+- `/user/1` → 「ユーザー 1 のページ」
+- `/user/999` → 「ユーザー 999 のページ」
+
+と、URLの数字部分を使ってページを作れます。
+
+## クエリパラメータの処理
+
+```javascript
+function getQueryParams() {
+  const params = new URLSearchParams(window.location.search);
+  const result = {};
+  for (const [key, value] of params) {
+    result[key] = value;
+  }
+  return result;
+}
+
+// 使用例
+// URL: /search?q=javascript&page=2
+const params = getQueryParams();
+console.log(params.q);     // 'javascript'
+console.log(params.page);  // '2'
+
+// クエリパラメータを更新
+function updateQueryParams(newParams) {
+  const url = new URL(window.location);
+  Object.keys(newParams).forEach(key => {
+    url.searchParams.set(key, newParams[key]);
+  });
+  history.pushState(null, '', url);
+}
+
+updateQueryParams({ page: 3 });
+```
+
+## ナビゲーションガード
+
+### ページ遷移前の確認
+
+```javascript
+class Router {
+  constructor(routes, options = {}) {
+    this.routes = routes;
+    this.beforeEach = options.beforeEach || null;
+    // ...
+  }
+
+  async navigateTo(url) {
+    const path = new URL(url).pathname;
+
+    // ナビゲーションガードを実行
+    if (this.beforeEach) {
+      const shouldNavigate = await this.beforeEach(
+        this.currentPath,
+        path
+      );
+
+      if (!shouldNavigate) {
+        console.log('Navigation cancelled');
+        return;
+      }
+    }
+
+    history.pushState(null, null, path);
+    this.render(path);
+  }
+}
+
+// 使用例：認証チェック
+const router = new Router(routes, {
+  beforeEach: (from, to) => {
+    // 保護されたルートをチェック
+    if (to.startsWith('/admin') && !isAuthenticated()) {
+      alert('ログインが必要です');
+      router.navigateTo('/login');
+      return false;
+    }
+    return true;
+  }
+});
+```
+
+## ページ遷移アニメーション
+
+```javascript
+class Router {
+  async render(path) {
+    const app = document.getElementById('app');
+
+    // フェードアウト
+    app.style.opacity = '0';
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // コンテンツ更新
+    const route = this.findRoute(path);
+    app.innerHTML = route.component();
+
+    // フェードイン
+    app.style.opacity = '1';
+  }
+}
+```
+
+### CSS トランジション
+
+```css
+#app {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.page-enter {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+```
+
+## ネストルート
+
+```javascript
+const routes = [
+  {
+    path: '/dashboard',
+    component: DashboardLayout,
+    children: [
+      {
+        path: '/dashboard/overview',
+        component: Overview
+      },
+      {
+        path: '/dashboard/settings',
+        component: Settings
+      }
+    ]
+  }
+];
+
+class Router {
+  renderNested(routes, path, parentElement) {
+    for (const route of routes) {
+      if (path === route.path) {
+        parentElement.innerHTML = route.component();
+
+        if (route.children) {
+          const childContainer = parentElement.querySelector('[data-child-view]');
+          this.renderNested(route.children, path, childContainer);
+        }
+        return;
+      }
+    }
+  }
+}
+```
+
+## スクロール位置の管理
+
+```javascript
+class Router {
+  constructor(routes) {
+    this.routes = routes;
+    this.scrollPositions = new Map();
+
+    window.addEventListener('popstate', () => {
+      const path = window.location.pathname;
+      this.render(path);
+
+      // 保存された位置にスクロール
+      if (this.scrollPositions.has(path)) {
+        const pos = this.scrollPositions.get(path);
+        window.scrollTo(pos.x, pos.y);
+      } else {
+        window.scrollTo(0, 0);
+      }
+    });
+  }
+
+  navigateTo(url) {
+    const currentPath = window.location.pathname;
+
+    // 現在のスクロール位置を保存
+    this.scrollPositions.set(currentPath, {
+      x: window.scrollX,
+      y: window.scrollY
+    });
+
+    const path = new URL(url).pathname;
+    history.pushState(null, null, path);
+    this.render(path);
+
+    // 新しいページは最上部へ
+    window.scrollTo(0, 0);
+  }
+}
+```
+
+## エラーハンドリング
+
+```javascript
+class Router {
+  constructor(routes) {
+    this.routes = routes;
+    this.notFoundHandler = () => '<h1>404 - Page Not Found</h1>';
+    this.errorHandler = (error) => \`<h1>Error: \${error.message}</h1>\`;
+  }
+
+  async render(path) {
+    try {
+      const route = this.findRoute(path);
+
+      if (!route) {
+        // 404 ページ
+        document.getElementById('app').innerHTML = this.notFoundHandler();
+        return;
+      }
+
+      const content = await route.component();
+      document.getElementById('app').innerHTML = content;
+
+    } catch (error) {
+      console.error('Rendering error:', error);
+      document.getElementById('app').innerHTML = this.errorHandler(error);
+    }
+  }
+
+  setNotFoundHandler(handler) {
+    this.notFoundHandler = handler;
+  }
+
+  setErrorHandler(handler) {
+    this.errorHandler = handler;
+  }
+}
+```
+
+## ベストプラクティス
+
+### 1. SEO 対策
+
+SPAはクローラーに優しくないため：
+
+- サーバーサイドレンダリング（SSR）を検討
+- `<meta>` タグを動的に更新
+- サイトマップを提供
+
+```javascript
+function updateMetaTags(title, description) {
+  document.title = title;
+
+  let metaDesc = document.querySelector('meta[name="description"]');
+  if (!metaDesc) {
+    metaDesc = document.createElement('meta');
+    metaDesc.name = 'description';
+    document.head.appendChild(metaDesc);
+  }
+  metaDesc.content = description;
+}
+```
+
+### 2. プログレッシブエンハンスメント
+
+```html
+<!-- JavaScript無効時のフォールバック -->
+<a href="/about" data-link>About</a>
+```
+
+### 3. メモリリーク対策
+
+```javascript
+class Router {
+  cleanup() {
+    // イベントリスナーの解除
+    window.removeEventListener('popstate', this.handlePopState);
+    document.removeEventListener('click', this.handleClick);
+  }
+}
+```
+
+## まとめ
+
+SPAルーティングを実現するには、この3つだけ覚えればOK！
+
+1. **リンクのクリックをキャッチ**
+   - クリックされたら普通のページ移動を止める
+
+2. **URLを変更（でもページは読み込まない）**
+   - `history.pushState()` を使う
+
+3. **ページ内容を切り替える**
+   - URLに合わせて表示する内容を変える
+
+これで、YouTubeやTwitterのような「サクサク動くWebサイト」が作れます！
+
+## 参考リンク
+
+- [History API - MDN](https://developer.mozilla.org/ja/docs/Web/API/History_API)
+- [pushState - MDN](https://developer.mozilla.org/ja/docs/Web/API/History/pushState)
+- [popstate event - MDN](https://developer.mozilla.org/ja/docs/Web/API/Window/popstate_event)

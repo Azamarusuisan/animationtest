@@ -1,0 +1,583 @@
+---
+title: プログレスバー（進捗表示）
+description: <progress>要素使用。円形・線形両対応。アニメーション付き。
+tags: [progress, loading, animation, ux]
+frameworks: [Vanilla, Any]
+level: basic
+prompt_template: |
+  目的: アクセシブルなプログレスバーの実装
+  前提: Vanilla JS（任意のフレームワークに移植可）
+  要件:
+  - HTML5 <progress>要素使用
+  - 線形バー（横長）
+  - 円形プログレス（SVG）
+  - パーセント表示
+  - カラーグラデーション
+  - アニメーション（スムーズな変化）
+  - 不確定状態（indeterminate）
+  - aria-valuemin/max/now/text対応
+  - アクセシビリティ対応
+  納品: コンポーネント+CSS+最小限のJS
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="プログレスバーのデモ"
+  height="500px"
+  html={`
+<div style="max-width: 500px; margin: 0 auto; padding: 1rem;">
+  <div class="progress-container">
+    <div class="progress-label" style="color: #e5edf4;">線形プログレスバー</div>
+    <div class="progress-wrapper">
+      <progress
+        id="progress-linear"
+        class="progress-linear"
+        max="100"
+        value="0"
+        aria-label="アップロード進捗"
+      ></progress>
+      <span class="progress-text" aria-live="polite">0%</span>
+    </div>
+  </div>
+
+  <div class="progress-container">
+    <div class="progress-label" style="color: #e5edf4;">円形プログレス</div>
+    <div class="progress-circular-wrapper">
+      <svg class="progress-circular" viewBox="0 0 100 100" aria-hidden="true">
+        <defs>
+          <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#4caf50;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#8bc34a;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        <circle class="progress-circular-bg" cx="50" cy="50" r="45"></circle>
+        <circle class="progress-circular-bar" cx="50" cy="50" r="45"></circle>
+      </svg>
+      <span class="progress-circular-text" aria-live="polite">0%</span>
+    </div>
+    <div
+      role="progressbar"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="0"
+      aria-label="ダウンロード進捗"
+      class="sr-only"
+    ></div>
+  </div>
+
+  <div class="controls">
+    <button id="start-btn" class="control-btn">開始</button>
+    <button id="reset-btn" class="control-btn control-btn--secondary">リセット</button>
+  </div>
+</div>
+  `}
+  css={`
+.progress-container {
+  margin: 2rem 0;
+}
+
+.progress-label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.progress-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.progress-linear {
+  flex: 1;
+  width: 100%;
+  height: 1.5rem;
+  appearance: none;
+  border: none;
+  border-radius: 100px;
+  overflow: hidden;
+  background: #374151;
+}
+
+.progress-linear::-webkit-progress-bar {
+  background: #374151;
+  border-radius: 100px;
+}
+
+.progress-linear::-webkit-progress-value {
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  border-radius: 100px;
+  transition: width 0.3s ease;
+}
+
+.progress-linear::-moz-progress-bar {
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  border-radius: 100px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  min-width: 3rem;
+  text-align: right;
+  font-weight: 600;
+  color: #4caf50;
+  font-size: 0.875rem;
+}
+
+.progress-circular-wrapper {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 1rem auto;
+}
+
+.progress-circular {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.progress-circular-bg {
+  fill: none;
+  stroke: #374151;
+  stroke-width: 8;
+}
+
+.progress-circular-bar {
+  fill: none;
+  stroke: url(#gradient);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 283;
+  stroke-dashoffset: 283;
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+.progress-circular-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #4caf50;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.controls {
+  margin-top: 2rem;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.control-btn {
+  padding: 0.75rem 1.5rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 14px;
+}
+
+.control-btn:hover {
+  background: #2563eb;
+}
+
+.control-btn:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.control-btn--secondary {
+  background: #6b7280;
+}
+
+.control-btn--secondary:hover {
+  background: #4b5563;
+}
+  `}
+  js={`
+const linearProgress = document.getElementById('progress-linear');
+const linearText = document.querySelector('.progress-text');
+const circularBar = document.querySelector('.progress-circular-bar');
+const circularText = document.querySelector('.progress-circular-text');
+const circularRole = document.querySelector('[role="progressbar"]');
+const startBtn = document.getElementById('start-btn');
+const resetBtn = document.getElementById('reset-btn');
+
+const radius = 45;
+const circumference = 2 * Math.PI * radius;
+let currentProgress = 0;
+let animationId = null;
+
+function updateProgress(value) {
+  currentProgress = Math.max(0, Math.min(100, value));
+
+  linearProgress.value = currentProgress;
+  linearText.textContent = Math.round(currentProgress) + '%';
+
+  const offset = circumference - (currentProgress / 100) * circumference;
+  circularBar.style.strokeDashoffset = offset;
+  circularText.textContent = Math.round(currentProgress) + '%';
+
+  circularRole.setAttribute('aria-valuenow', Math.round(currentProgress));
+  circularRole.setAttribute('aria-valuetext', Math.round(currentProgress) + ' percent');
+}
+
+function startProgress() {
+  if (animationId) return;
+
+  startBtn.disabled = true;
+  const startTime = Date.now();
+  const duration = 3000;
+  const startValue = currentProgress;
+  const endValue = 100;
+
+  function animate() {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const value = startValue + (endValue - startValue) * eased;
+
+    updateProgress(value);
+
+    if (progress < 1) {
+      animationId = requestAnimationFrame(animate);
+    } else {
+      animationId = null;
+      startBtn.disabled = false;
+    }
+  }
+
+  animationId = requestAnimationFrame(animate);
+}
+
+function reset() {
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+  updateProgress(0);
+  startBtn.disabled = false;
+}
+
+startBtn.addEventListener('click', startProgress);
+resetBtn.addEventListener('click', reset);
+
+updateProgress(0);
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<!-- Linear Progress Bar -->
+<div class="progress-container">
+  <label for="progress-linear" class="progress-label">
+    Upload Progress
+  </label>
+  <div class="progress-wrapper">
+    <progress
+      id="progress-linear"
+      class="progress-linear"
+      max="100"
+      value="0"
+      aria-label="Upload progress"
+    ></progress>
+    <span class="progress-text" aria-live="polite">0%</span>
+  </div>
+</div>
+
+<!-- Circular Progress -->
+<div class="progress-container">
+  <div class="progress-label">Download Progress</div>
+  <div class="progress-circular-wrapper">
+    <svg class="progress-circular" viewBox="0 0 100 100" aria-hidden="true">
+      <circle class="progress-circular-bg" cx="50" cy="50" r="45"></circle>
+      <circle class="progress-circular-bar" cx="50" cy="50" r="45"></circle>
+    </svg>
+    <span class="progress-circular-text" aria-live="polite">0%</span>
+  </div>
+  <div
+    role="progressbar"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    aria-valuenow="0"
+    aria-label="Download progress"
+    class="sr-only"
+  ></div>
+</div>
+
+<!-- Indeterminate Progress -->
+<div class="progress-container">
+  <div class="progress-label">Processing...</div>
+  <progress class="progress-linear indeterminate"></progress>
+</div>
+
+<!-- Demo Controls -->
+<div class="controls">
+  <button id="start-btn">Start Progress</button>
+  <button id="reset-btn">Reset</button>
+</div>
+```
+
+**CSS**
+```css
+.progress-container {
+  margin: 2rem 0;
+  max-width: 400px;
+}
+.progress-label {
+  display: block;
+  margin-bottom: .5rem;
+  font-weight: 600;
+  color: #333;
+}
+.progress-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Linear Progress */
+.progress-linear {
+  flex: 1;
+  width: 100%;
+  height: 1.5rem;
+  appearance: none;
+  border: none;
+  border-radius: 100px;
+  overflow: hidden;
+  background: #e0e0e0;
+}
+
+/* WebKit (Chrome, Safari) */
+.progress-linear::-webkit-progress-bar {
+  background: #e0e0e0;
+  border-radius: 100px;
+}
+.progress-linear::-webkit-progress-value {
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  border-radius: 100px;
+  transition: width .3s ease;
+}
+
+/* Firefox */
+.progress-linear::-moz-progress-bar {
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  border-radius: 100px;
+  transition: width .3s ease;
+}
+
+/* Indeterminate state */
+.progress-linear.indeterminate::-webkit-progress-value {
+  animation: indeterminate 1.5s infinite;
+}
+.progress-linear.indeterminate::-moz-progress-bar {
+  animation: indeterminate 1.5s infinite;
+}
+
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+.progress-text {
+  min-width: 3rem;
+  text-align: right;
+  font-weight: 600;
+  color: #4caf50;
+  font-size: .875rem;
+}
+
+/* Circular Progress */
+.progress-circular-wrapper {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 1rem auto;
+}
+.progress-circular {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.progress-circular-bg {
+  fill: none;
+  stroke: #e0e0e0;
+  stroke-width: 8;
+}
+.progress-circular-bar {
+  fill: none;
+  stroke: url(#gradient);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 283;
+  stroke-dashoffset: 283;
+  transition: stroke-dashoffset .5s ease;
+}
+.progress-circular-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #4caf50;
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Controls */
+.controls {
+  margin-top: 2rem;
+  display: flex;
+  gap: 1rem;
+}
+.controls button {
+  padding: .75rem 1.5rem;
+  background: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s;
+}
+.controls button:hover {
+  background: #0052a3;
+}
+.controls button:focus {
+  outline: 2px solid #0066cc;
+  outline-offset: 2px;
+}
+```
+
+**JS**
+```js
+(() => {
+  const linearProgress = document.getElementById('progress-linear');
+  const linearText = document.querySelector('.progress-text');
+  const circularBar = document.querySelector('.progress-circular-bar');
+  const circularText = document.querySelector('.progress-circular-text');
+  const circularRole = document.querySelector('[role="progressbar"]');
+  const startBtn = document.getElementById('start-btn');
+  const resetBtn = document.getElementById('reset-btn');
+
+  if (!linearProgress || !circularBar) return;
+
+  // Add SVG gradient
+  const svg = document.querySelector('.progress-circular');
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  defs.innerHTML = `
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4caf50;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8bc34a;stop-opacity:1" />
+    </linearGradient>
+  `;
+  svg.insertBefore(defs, svg.firstChild);
+
+  const radius = 45;
+  const circumference = 2 * Math.PI * radius;
+  let currentProgress = 0;
+  let animationId = null;
+
+  function updateProgress(value) {
+    currentProgress = Math.max(0, Math.min(100, value));
+
+    // Update linear progress
+    linearProgress.value = currentProgress;
+    linearText.textContent = `${Math.round(currentProgress)}%`;
+
+    // Update circular progress
+    const offset = circumference - (currentProgress / 100) * circumference;
+    circularBar.style.strokeDashoffset = offset;
+    circularText.textContent = `${Math.round(currentProgress)}%`;
+
+    // Update ARIA
+    circularRole.setAttribute('aria-valuenow', Math.round(currentProgress));
+    circularRole.setAttribute('aria-valuetext', `${Math.round(currentProgress)} percent`);
+  }
+
+  function startProgress() {
+    if (animationId) return;
+
+    startBtn.disabled = true;
+    const startTime = Date.now();
+    const duration = 3000; // 3 seconds
+    const startValue = currentProgress;
+    const endValue = 100;
+
+    function animate() {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      // Easing function (ease-out)
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const value = startValue + (endValue - startValue) * eased;
+
+      updateProgress(value);
+
+      if (progress < 1) {
+        animationId = requestAnimationFrame(animate);
+      } else {
+        animationId = null;
+        startBtn.disabled = false;
+      }
+    }
+
+    animationId = requestAnimationFrame(animate);
+  }
+
+  function reset() {
+    if (animationId) {
+      cancelAnimationFrame(animationId);
+      animationId = null;
+    }
+    updateProgress(0);
+    startBtn.disabled = false;
+  }
+
+  // Event listeners
+  startBtn.addEventListener('click', startProgress);
+  resetBtn.addEventListener('click', reset);
+
+  // Initialize
+  updateProgress(0);
+})();
+```

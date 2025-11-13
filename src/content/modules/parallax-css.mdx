@@ -1,0 +1,798 @@
+---
+title: パララックス（CSS-only版）
+description: transformとperspectiveのみ。JavaScript不要の軽量実装。
+tags: [parallax, css-only, performance, no-js]
+frameworks: [Any]
+level: basic
+prompt_template: |
+  目的: CSS transformとperspectiveのみで実装する軽量パララックス
+  前提: HTML + CSS（JavaScript不要）
+  要件:
+  - CSS transformとperspectiveでパララックス効果
+  - translate3dでGPU最適化
+  - スクロール追従（CSS scroll-behavior: smooth）
+  - レイヤー構造（z-index管理で奥行き表現）
+  - will-change最適化（使用後は削除）
+  - prefers-reduced-motion対応
+  - 制約事項: スクロール速度の細かい制御は不可
+  - レスポンシブ対応
+  納品: HTML構造+CSS実装+使用例
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## 概要
+
+JavaScriptを一切使わず、CSSのtransformとperspectiveプロパティのみで実装する軽量パララックス。
+シンプルな構造でありながら、効果的な奥行き表現が可能です。
+
+## 実装のポイント
+
+### 1. perspectiveの仕組み
+
+```css
+/* 親要素にperspectiveを設定 */
+.parallax-wrapper {
+  perspective: 1px; /* 小さい値で効果が顕著 */
+  height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* 子要素のtranslateZで奥行きを制御 */
+.parallax-layer {
+  transform: translateZ(-1px) scale(2); /* 遠くに配置 */
+}
+```
+
+### 2. スケール補正の計算式
+
+```
+scale = 1 + (translateZ * -1) / perspective
+例: translateZ(-1px), perspective(1px) → scale(2)
+```
+
+### 3. レイヤーの速度
+
+```
+速度 = 1 - (translateZ / perspective)
+例: translateZ(-1px), perspective(1px) → 速度 0.5（半分の速さ）
+```
+
+<LiveDemo title="CSS-Only Parallax Demo" height="600px">
+{`
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0c1218;
+      color: #e5edf4;
+    }
+
+    .parallax-wrapper {
+      perspective: 1px;
+      perspective-origin: center center;
+      height: 100vh;
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .parallax-container {
+      position: relative;
+      height: 200vh;
+      transform-style: preserve-3d;
+    }
+
+    .parallax-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      transform: translateZ(0);
+      will-change: transform;
+    }
+
+    .layer-content {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .shape {
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.5rem;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .layer-back {
+      z-index: 1;
+      transform: translateZ(-3px) scale(4);
+    }
+
+    .layer-back .shape {
+      width: 200px;
+      height: 200px;
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+      opacity: 0.3;
+    }
+
+    .layer-mid {
+      z-index: 2;
+      transform: translateZ(-2px) scale(3);
+    }
+
+    .layer-mid .shape {
+      width: 180px;
+      height: 180px;
+      background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+      opacity: 0.5;
+      transform: rotate(45deg);
+    }
+
+    .layer-front {
+      z-index: 3;
+      transform: translateZ(-1px) scale(2);
+    }
+
+    .layer-front .shape {
+      width: 150px;
+      height: 150px;
+      background: linear-gradient(135deg, #db2777 0%, #f472b6 100%);
+      opacity: 0.7;
+    }
+
+    .layer-base {
+      z-index: 4;
+      transform: translateZ(0);
+    }
+
+    .content-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .content-section h1 {
+      font-size: clamp(2rem, 5vw, 4rem);
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: #60a5fa;
+      text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8);
+    }
+
+    .content-section p {
+      font-size: clamp(1rem, 2vw, 1.5rem);
+      color: #e5edf4;
+      text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
+    }
+
+    .scroll-hint {
+      margin-top: 2rem;
+      font-size: 0.875rem;
+      opacity: 0.7;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+
+    .normal-content {
+      position: relative;
+      z-index: 10;
+      background: #0c1218;
+      padding: 4rem 2rem;
+      min-height: 50vh;
+      text-align: center;
+    }
+
+    .normal-content h2 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      color: #60a5fa;
+    }
+
+    .normal-content p {
+      font-size: 1.125rem;
+      line-height: 1.6;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      .parallax-wrapper {
+        perspective: none;
+      }
+
+      .parallax-layer {
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="parallax-wrapper">
+    <div class="parallax-container">
+      <div class="parallax-layer layer-back">
+        <div class="layer-content">
+          <div class="shape">Back</div>
+        </div>
+      </div>
+
+      <div class="parallax-layer layer-mid">
+        <div class="layer-content">
+          <div class="shape">Mid</div>
+        </div>
+      </div>
+
+      <div class="parallax-layer layer-front">
+        <div class="layer-content">
+          <div class="shape">Front</div>
+        </div>
+      </div>
+
+      <div class="parallax-layer layer-base">
+        <div class="content-section">
+          <h1>CSS-only Parallax</h1>
+          <p>Pure CSS with perspective transform</p>
+          <div class="scroll-hint">↓ Scroll to see the effect ↓</div>
+        </div>
+      </div>
+    </div>
+
+    <section class="normal-content">
+      <h2>No JavaScript Required</h2>
+      <p>This parallax effect uses only CSS perspective and transform properties.</p>
+    </section>
+  </div>
+</body>
+</html>
+`}
+</LiveDemo>
+
+## コード例
+
+### HTML 構造
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSS-only Parallax</title>
+  <link rel="stylesheet" href="parallax.css">
+</head>
+<body>
+  <!-- パララックスラッパー -->
+  <div class="parallax-wrapper">
+    <div class="parallax-container">
+
+      <!-- 背景レイヤー（最も遅い） -->
+      <div class="parallax-layer layer-back" data-depth="3">
+        <div class="layer-content">
+          <img src="mountains-back.jpg" alt="遠景">
+        </div>
+      </div>
+
+      <!-- 中間レイヤー -->
+      <div class="parallax-layer layer-mid" data-depth="2">
+        <div class="layer-content">
+          <img src="mountains-mid.jpg" alt="中景">
+        </div>
+      </div>
+
+      <!-- 前景レイヤー -->
+      <div class="parallax-layer layer-front" data-depth="1">
+        <div class="layer-content">
+          <img src="mountains-front.jpg" alt="近景">
+        </div>
+      </div>
+
+      <!-- コンテンツレイヤー（固定速度） -->
+      <div class="parallax-layer layer-base">
+        <div class="content-section">
+          <h1>CSS-only Parallax</h1>
+          <p>JavaScript不要の軽量実装</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 通常のコンテンツ -->
+  <section class="normal-content">
+    <h2>通常セクション</h2>
+    <p>パララックスエリアの後のコンテンツ</p>
+  </section>
+</body>
+</html>
+```
+
+### CSS 実装
+
+```css
+/* ===== 基本設定 ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #0c1218;
+  color: #e5edf4;
+}
+
+/* ===== パララックスラッパー ===== */
+.parallax-wrapper {
+  /* perspectiveの設定（重要） */
+  perspective: 1px;
+  perspective-origin: center center;
+
+  height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  /* スクロールのスムーズ化 */
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* ===== パララックスコンテナ ===== */
+.parallax-container {
+  position: relative;
+  height: 100vh;
+  transform-style: preserve-3d;
+}
+
+/* ===== パララックスレイヤー（基本） ===== */
+.parallax-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  /* GPU最適化 */
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* ===== レイヤー内容 ===== */
+.layer-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.layer-content img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+/* ===== 背景レイヤー（最も遅い） ===== */
+.layer-back {
+  z-index: 1;
+  transform: translateZ(-3px) scale(4);
+}
+
+/* ===== 中間レイヤー ===== */
+.layer-mid {
+  z-index: 2;
+  transform: translateZ(-2px) scale(3);
+}
+
+/* ===== 前景レイヤー ===== */
+.layer-front {
+  z-index: 3;
+  transform: translateZ(-1px) scale(2);
+}
+
+/* ===== ベースレイヤー（通常速度） ===== */
+.layer-base {
+  z-index: 4;
+  transform: translateZ(0);
+}
+
+/* ===== コンテンツセクション ===== */
+.content-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  text-align: center;
+  padding: 2rem;
+}
+
+.content-section h1 {
+  font-size: clamp(2rem, 5vw, 4rem);
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #60a5fa;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.content-section p {
+  font-size: clamp(1rem, 2vw, 1.5rem);
+  color: #e5edf4;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* ===== 通常コンテンツ ===== */
+.normal-content {
+  position: relative;
+  z-index: 10;
+  background: #0c1218;
+  padding: 4rem 2rem;
+  min-height: 100vh;
+}
+
+.normal-content h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #60a5fa;
+}
+
+.normal-content p {
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+/* ===== prefers-reduced-motion 対応 ===== */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .parallax-wrapper {
+    perspective: none;
+  }
+
+  .parallax-layer {
+    transform: none !important;
+  }
+
+  .layer-content {
+    position: relative;
+  }
+}
+
+/* ===== レスポンシブ対応 ===== */
+@media (max-width: 768px) {
+  /* モバイルではパララックス効果を軽減 */
+  .parallax-wrapper {
+    perspective: 2px; /* 効果を弱める */
+  }
+
+  .layer-back {
+    transform: translateZ(-1.5px) scale(2.5);
+  }
+
+  .layer-mid {
+    transform: translateZ(-1px) scale(2);
+  }
+
+  .layer-front {
+    transform: translateZ(-0.5px) scale(1.5);
+  }
+
+  .content-section {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* 小さい画面ではさらに軽減 */
+  .parallax-wrapper {
+    perspective: 3px;
+  }
+
+  .layer-back {
+    transform: translateZ(-1px) scale(1.33);
+  }
+
+  .layer-mid {
+    transform: translateZ(-0.5px) scale(1.16);
+  }
+
+  .layer-front {
+    transform: translateZ(-0.25px) scale(1.08);
+  }
+}
+
+/* ===== パフォーマンス最適化 ===== */
+@media (hover: none) and (pointer: coarse) {
+  /* タッチデバイスでの最適化 */
+  .parallax-wrapper {
+    perspective: 4px; /* 効果をさらに軽減 */
+  }
+
+  .parallax-layer {
+    will-change: auto; /* タッチデバイスではwill-changeを無効化 */
+  }
+}
+
+/* ===== ダークモード対応 ===== */
+@media (prefers-color-scheme: light) {
+  body {
+    background: #f3f4f6;
+    color: #1f2937;
+  }
+
+  .normal-content {
+    background: #ffffff;
+  }
+
+  .content-section h1,
+  .normal-content h2 {
+    color: #2563eb;
+  }
+
+  .content-section p,
+  .normal-content p {
+    color: #1f2937;
+  }
+}
+```
+
+## 応用テクニック
+
+### 1. グラデーションオーバーレイ
+
+```css
+.parallax-layer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    rgba(12, 18, 24, 0) 0%,
+    rgba(12, 18, 24, 0.8) 100%
+  );
+  pointer-events: none;
+}
+```
+
+### 2. ブラー効果で奥行き強調
+
+```css
+.layer-back .layer-content {
+  filter: blur(3px);
+}
+
+.layer-mid .layer-content {
+  filter: blur(1.5px);
+}
+
+.layer-front .layer-content {
+  filter: blur(0);
+}
+```
+
+### 3. 複数セクション対応
+
+```html
+<div class="parallax-wrapper">
+  <!-- セクション1 -->
+  <div class="parallax-container">
+    <!-- レイヤー群 -->
+  </div>
+
+  <!-- セクション2 -->
+  <div class="parallax-container">
+    <!-- 別のレイヤー群 -->
+  </div>
+</div>
+```
+
+### 4. カスタムデータ属性での制御
+
+```css
+/* data-depth属性で動的に制御 */
+.parallax-layer[data-depth="1"] {
+  transform: translateZ(-1px) scale(2);
+}
+
+.parallax-layer[data-depth="2"] {
+  transform: translateZ(-2px) scale(3);
+}
+
+.parallax-layer[data-depth="3"] {
+  transform: translateZ(-3px) scale(4);
+}
+```
+
+## 最適化テクニック
+
+### 1. 画像の最適化
+
+```html
+<!-- WebP形式 + フォールバック -->
+<picture>
+  <source srcset="mountains-back.webp" type="image/webp">
+  <img src="mountains-back.jpg" alt="背景" loading="eager">
+</picture>
+```
+
+### 2. CSSカスタムプロパティで管理
+
+```css
+:root {
+  --parallax-perspective: 1px;
+  --parallax-depth-back: -3px;
+  --parallax-depth-mid: -2px;
+  --parallax-depth-front: -1px;
+}
+
+.parallax-wrapper {
+  perspective: var(--parallax-perspective);
+}
+
+.layer-back {
+  transform: translateZ(var(--parallax-depth-back)) scale(4);
+}
+```
+
+### 3. コンテンツ可視性の最適化
+
+```css
+.parallax-layer {
+  content-visibility: auto;
+  contain: layout style paint;
+}
+```
+
+## ブラウザ互換性
+
+### サポート状況
+
+- Chrome/Edge: 完全サポート
+- Firefox: 完全サポート
+- Safari: 完全サポート（iOS含む）
+- IE11: 部分サポート（プレフィックス必要）
+
+### フォールバック
+
+```css
+/* Modernizrなどで検出 */
+.no-preserve3d .parallax-layer {
+  position: relative;
+  transform: none;
+}
+
+.no-preserve3d .layer-back {
+  opacity: 0.3;
+}
+
+.no-preserve3d .layer-mid {
+  opacity: 0.6;
+}
+```
+
+## メリットとデメリット
+
+### メリット
+
+1. JavaScript不要（軽量、高速）
+2. シンプルな実装
+3. ブラウザ互換性が高い
+4. メンテナンスが容易
+5. GPUアクセラレーション自動
+
+### デメリット
+
+1. 細かい速度制御は不可
+2. 複雑なアニメーションは困難
+3. スクロール位置に応じた動的変更は不可
+4. レスポンシブ対応に工夫が必要
+
+## 使用例
+
+### ヒーローセクション
+
+```html
+<div class="parallax-wrapper hero">
+  <div class="parallax-container">
+    <div class="parallax-layer layer-back">
+      <div class="layer-content">
+        <img src="hero-bg.jpg" alt="背景">
+      </div>
+    </div>
+    <div class="parallax-layer layer-base">
+      <div class="content-section">
+        <h1>Welcome</h1>
+        <p>Pure CSS Parallax</p>
+        <a href="#content" class="cta-button">詳しく見る</a>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+### CTA ボタンのスタイル
+
+```css
+.cta-button {
+  display: inline-block;
+  margin-top: 2rem;
+  padding: 1rem 2rem;
+  background: #60a5fa;
+  color: #ffffff;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.cta-button:hover {
+  background: #3b82f6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.4);
+}
+```
+
+## 注意点
+
+1. **perspective値**: 小さいほど効果が強い（1px推奨）
+2. **scale補正**: translateZに応じて適切に調整
+3. **z-index管理**: レイヤーの重なり順を明確に
+4. **画像サイズ**: scale拡大を考慮して大きめに
+5. **モバイル**: バッテリー消費に注意、効果を軽減推奨
+
+## まとめ
+
+CSS-onlyパララックスは、JavaScript不要でシンプルながら効果的な視差効果を実現できます。
+軽量でパフォーマンスに優れ、保守性も高いため、基本的なパララックス実装に最適です。
+
+## 参考リンク
+
+- [MDN: perspective](https://developer.mozilla.org/ja/docs/Web/CSS/perspective)
+- [MDN: transform](https://developer.mozilla.org/ja/docs/Web/CSS/transform)
+- [CSS-Tricks: Practical CSS Parallax](https://css-tricks.com/practical-css-parallax/)

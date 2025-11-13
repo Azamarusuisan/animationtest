@@ -1,0 +1,347 @@
+---
+title: インフィニットスクロール（無限スクロール）
+description: スクロール到達で自動的に次のコンテンツを読み込み。
+tags: [infinite-scroll, ux, performance, loading]
+frameworks: [Vanilla, React, Any]
+level: intermediate
+prompt_template: |
+  IntersectionObserverでセンチネル要素を監視し、自動的に次のコンテンツをロード：
+  - センチネル要素が見えたら次ページ取得
+  - ローディングインジケーター表示
+  - 重複リクエスト防止
+  - 最後のページ検出
+  - エラーハンドリング
+  - 「もっと読む」ボタンとの切り替え
+  - スクロール位置の復元対応
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo height="500px" html={`
+<div style="background: #0c1218; padding: 2rem;">
+  <h2 style="color: #e5edf4; margin-bottom: 1.5rem;">インフィニットスクロールデモ</h2>
+  <div id="content-list"></div>
+  <div id="sentinel" aria-hidden="true"></div>
+  <div id="loading" role="status" aria-live="polite" style="display:none;">
+    <span>読み込み中...</span>
+  </div>
+  <div id="end-message" style="display:none;">すべて読み込みました</div>
+  <button id="load-more" style="display:none;">もっと読む</button>
+</div>
+`} css={`
+#content-list {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.content-item {
+  background: #1f2a37;
+  border: 1px solid #374151;
+  padding: 1.5rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.content-item:hover {
+  border-color: #60a5fa;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.2);
+}
+
+.content-item h3 {
+  color: #e5edf4;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+}
+
+.content-item p {
+  color: #9ca3af;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+#sentinel {
+  height: 1px;
+  margin: 2rem 0;
+}
+
+#loading {
+  text-align: center;
+  padding: 2rem;
+  color: #9ca3af;
+}
+
+#loading span {
+  display: inline-block;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+#end-message {
+  text-align: center;
+  padding: 2rem;
+  color: #60a5fa;
+  font-weight: 500;
+}
+
+#load-more {
+  display: block;
+  margin: 1rem auto;
+  padding: 0.75rem 2rem;
+  background: #60a5fa;
+  color: #0c1218;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+
+#load-more:hover {
+  background: #3b82f6;
+}
+
+#load-more:active {
+  transform: scale(0.98);
+}
+`} js={`
+(() => {
+  const contentList = document.getElementById('content-list');
+  const sentinel = document.getElementById('sentinel');
+  const loading = document.getElementById('loading');
+  const endMessage = document.getElementById('end-message');
+  const loadMoreBtn = document.getElementById('load-more');
+
+  let page = 1;
+  let isLoading = false;
+  let hasMore = true;
+
+  async function fetchContent(pageNum) {
+    await new Promise(resolve => setTimeout(resolve, 800));
+    const maxPages = 5;
+    const items = pageNum <= maxPages
+      ? Array.from({ length: 6 }, (_, i) => ({
+          id: (pageNum - 1) * 6 + i + 1,
+          title: \`アイテム \${(pageNum - 1) * 6 + i + 1}\`,
+          content: \`ページ \${pageNum} のコンテンツです。スクロールして次のページを読み込みます。\`
+        }))
+      : [];
+    return { items, hasMore: pageNum < maxPages };
+  }
+
+  function renderItems(items) {
+    items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'content-item';
+      div.innerHTML = \`<h3>\${item.title}</h3><p>\${item.content}</p>\`;
+      contentList.appendChild(div);
+    });
+  }
+
+  function setLoading(show) {
+    loading.style.display = show ? 'block' : 'none';
+    sentinel.style.display = show ? 'none' : 'block';
+  }
+
+  async function loadMore() {
+    if (isLoading || !hasMore) return;
+
+    isLoading = true;
+    setLoading(true);
+
+    try {
+      const data = await fetchContent(page);
+      renderItems(data.items);
+      hasMore = data.hasMore;
+      page++;
+
+      if (!hasMore) {
+        sentinel.style.display = 'none';
+        endMessage.style.display = 'block';
+        loadMoreBtn.style.display = 'none';
+      }
+    } catch (error) {
+      console.error('読み込みエラー:', error);
+      sentinel.style.display = 'none';
+      loadMoreBtn.style.display = 'block';
+    } finally {
+      isLoading = false;
+      setLoading(false);
+    }
+  }
+
+  const io = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting && !isLoading && hasMore) {
+        loadMore();
+      }
+    }
+  }, { rootMargin: '200px' });
+
+  io.observe(sentinel);
+
+  loadMoreBtn.addEventListener('click', () => {
+    loadMoreBtn.style.display = 'none';
+    sentinel.style.display = 'block';
+    loadMore();
+  });
+
+  loadMore();
+})();
+`} />
+
+## 実装コード
+
+**HTML**
+```html
+<div id="content-list"></div>
+<div id="sentinel" aria-hidden="true"></div>
+<div id="loading" role="status" aria-live="polite" style="display:none;">
+  <span>読み込み中...</span>
+</div>
+<div id="end-message" style="display:none;">すべて読み込みました</div>
+<button id="load-more" style="display:none;">もっと読む</button>
+```
+
+**CSS**
+```css
+#content-list { display: grid; gap: 1rem; }
+.content-item { background: #f9fafb; border: 1px solid #e5e7eb; padding: 1rem; border-radius: 8px; }
+#sentinel { height: 1px; margin: 2rem 0; }
+#loading { text-align: center; padding: 1rem; color: #6b7280; }
+#loading span { display: inline-block; animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+#end-message { text-align: center; padding: 1rem; color: #9ca3af; }
+#load-more { display: block; margin: 1rem auto; padding: 0.5rem 1.5rem; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; }
+#load-more:hover { background: #2563eb; }
+@media (prefers-reduced-motion: reduce) { #loading span { animation: none; } }
+```
+
+**JS**
+```js
+(() => {
+  const contentList = document.getElementById('content-list');
+  const sentinel = document.getElementById('sentinel');
+  const loading = document.getElementById('loading');
+  const endMessage = document.getElementById('end-message');
+  const loadMoreBtn = document.getElementById('load-more');
+
+  let page = 1;
+  let isLoading = false;
+  let hasMore = true;
+
+  // コンテンツ取得（実際はAPIに置き換え）
+  async function fetchContent(pageNum) {
+    // シミュレーション: 実際のAPIエンドポイントに置き換えてください
+    await new Promise(resolve => setTimeout(resolve, 800));
+    const maxPages = 5;
+    const items = pageNum <= maxPages
+      ? Array.from({ length: 10 }, (_, i) => ({
+          id: (pageNum - 1) * 10 + i + 1,
+          title: `アイテム ${(pageNum - 1) * 10 + i + 1}`,
+          content: `ページ ${pageNum} のコンテンツです。`
+        }))
+      : [];
+    return { items, hasMore: pageNum < maxPages };
+  }
+
+  // コンテンツをDOMに追加
+  function renderItems(items) {
+    items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'content-item';
+      div.innerHTML = `<h3>${item.title}</h3><p>${item.content}</p>`;
+      contentList.appendChild(div);
+    });
+  }
+
+  // ローディング表示切り替え
+  function setLoading(show) {
+    loading.style.display = show ? 'block' : 'none';
+    sentinel.style.display = show ? 'none' : 'block';
+  }
+
+  // コンテンツ読み込み
+  async function loadMore() {
+    if (isLoading || !hasMore) return;
+
+    isLoading = true;
+    setLoading(true);
+
+    try {
+      const data = await fetchContent(page);
+      renderItems(data.items);
+      hasMore = data.hasMore;
+      page++;
+
+      if (!hasMore) {
+        sentinel.style.display = 'none';
+        endMessage.style.display = 'block';
+        loadMoreBtn.style.display = 'none';
+      }
+    } catch (error) {
+      console.error('読み込みエラー:', error);
+      // エラー時は「もっと読む」ボタンを表示
+      sentinel.style.display = 'none';
+      loadMoreBtn.style.display = 'block';
+    } finally {
+      isLoading = false;
+      setLoading(false);
+    }
+  }
+
+  // IntersectionObserver設定
+  const io = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting && !isLoading && hasMore) {
+        loadMore();
+      }
+    }
+  }, { rootMargin: '200px' });
+
+  io.observe(sentinel);
+
+  // 「もっと読む」ボタン
+  loadMoreBtn.addEventListener('click', () => {
+    loadMoreBtn.style.display = 'none';
+    sentinel.style.display = 'block';
+    loadMore();
+  });
+
+  // 初回読み込み
+  loadMore();
+
+  // スクロール位置の復元（履歴戻り時）
+  if ('scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+  }
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) {
+      const savedScroll = sessionStorage.getItem('scroll-position');
+      if (savedScroll) {
+        window.scrollTo(0, parseInt(savedScroll, 10));
+      }
+    }
+  });
+  window.addEventListener('beforeunload', () => {
+    sessionStorage.setItem('scroll-position', window.scrollY.toString());
+  });
+})();
+```

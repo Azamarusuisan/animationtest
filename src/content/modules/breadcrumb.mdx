@@ -1,0 +1,318 @@
+---
+title: ブレッドクラム（パンくずリスト）
+description: 階層的ナビゲーション。構造化データ対応。
+tags: [breadcrumb, navigation, seo, accessibility]
+frameworks: [Vanilla, Any]
+level: basic
+prompt_template: |
+  SEO・アクセシビリティ対応のブレッドクラム：
+  - <nav> + <ol> 構造、aria-label="breadcrumb"
+  - 現在ページはaria-current="page"
+  - レスポンシブ（モバイルで省略表示）
+  - JSON-LD構造化データ対応
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="ブレッドクラムのデモ"
+  height="120px"
+  html={`
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item">
+      <a href="#">ホーム</a>
+    </li>
+    <li class="breadcrumb-item">
+      <a href="#">カテゴリ</a>
+    </li>
+    <li class="breadcrumb-item">
+      <a href="#">サブカテゴリ</a>
+    </li>
+    <li class="breadcrumb-item" aria-current="page">
+      <span>現在のページ</span>
+    </li>
+  </ol>
+</nav>
+  `}
+  css={`
+nav[aria-label="breadcrumb"] { padding: 16px; }
+
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.breadcrumb-item:not(:last-child)::after {
+  content: '›';
+  color: #64748b;
+  font-size: 16px;
+  user-select: none;
+}
+
+.breadcrumb-item a {
+  color: #60a5fa;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.breadcrumb-item a:hover {
+  color: #93c5fd;
+  text-decoration: underline;
+}
+
+.breadcrumb-item a:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.breadcrumb-item[aria-current="page"] span {
+  color: #e5edf4;
+  font-weight: 500;
+}
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item">
+      <a href="/">ホーム</a>
+    </li>
+    <li class="breadcrumb-item">
+      <a href="/products">商品一覧</a>
+    </li>
+    <li class="breadcrumb-item">
+      <a href="/products/electronics">電子機器</a>
+    </li>
+    <li class="breadcrumb-item">
+      <a href="/products/electronics/laptops">ノートパソコン</a>
+    </li>
+    <li class="breadcrumb-item" aria-current="page">
+      <span>MacBook Pro 14インチ</span>
+    </li>
+  </ol>
+</nav>
+
+<!-- 構造化データ（JSON-LD） -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "ホーム",
+      "item": "https://example.com/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "商品一覧",
+      "item": "https://example.com/products"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "電子機器",
+      "item": "https://example.com/products/electronics"
+    },
+    {
+      "@type": "ListItem",
+      "position": 4,
+      "name": "ノートパソコン",
+      "item": "https://example.com/products/electronics/laptops"
+    },
+    {
+      "@type": "ListItem",
+      "position": 5,
+      "name": "MacBook Pro 14インチ",
+      "item": "https://example.com/products/electronics/laptops/macbook-pro-14"
+    }
+  ]
+}
+</script>
+```
+
+**CSS**
+```css
+nav[aria-label="breadcrumb"] { padding: 16px 0; }
+
+.breadcrumb {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  list-style: none; margin: 0; padding: 0;
+  font-size: 14px; color: #94a3b8;
+}
+
+.breadcrumb-item {
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* Separator */
+.breadcrumb-item:not(:last-child)::after {
+  content: '›'; color: #64748b; font-size: 16px;
+  user-select: none;
+}
+
+.breadcrumb-item a {
+  color: #60a5fa; text-decoration: none;
+  transition: color .15s ease, text-decoration .15s ease;
+  position: relative;
+}
+.breadcrumb-item a:hover {
+  color: #93c5fd; text-decoration: underline;
+}
+.breadcrumb-item a:focus-visible {
+  outline: 2px solid #60a5fa; outline-offset: 2px; border-radius: 4px;
+}
+
+/* Current page */
+.breadcrumb-item[aria-current="page"] span {
+  color: #e2e8f0; font-weight: 500;
+}
+
+/* Responsive: Hide middle items on mobile */
+@media (max-width: 640px) {
+  .breadcrumb-item:not(:first-child):not(:last-child):not(:nth-last-child(2)) {
+    display: none;
+  }
+
+  /* Show ellipsis for hidden items */
+  .breadcrumb-item:nth-child(2)::before {
+    content: '...';
+    color: #64748b;
+    padding-right: 8px;
+  }
+
+  /* Adjust separator for ellipsis */
+  .breadcrumb-item:first-child::after {
+    content: '›';
+  }
+}
+
+/* Truncate long text */
+.breadcrumb-item a,
+.breadcrumb-item span {
+  max-width: 200px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .breadcrumb-item a,
+  .breadcrumb-item span {
+    max-width: 120px;
+  }
+}
+
+/* Icon support (optional) */
+.breadcrumb-item svg {
+  width: 16px; height: 16px; vertical-align: middle;
+  margin-right: 4px;
+}
+
+/* Alternative separator styles */
+.breadcrumb--slash .breadcrumb-item:not(:last-child)::after { content: '/'; }
+.breadcrumb--arrow .breadcrumb-item:not(:last-child)::after { content: '→'; }
+.breadcrumb--dot .breadcrumb-item:not(:last-child)::after { content: '•'; }
+```
+
+**JS**
+```js
+(() => {
+  // Generate JSON-LD automatically from breadcrumb HTML
+  function generateBreadcrumbSchema() {
+    const breadcrumb = document.querySelector('.breadcrumb');
+    if (!breadcrumb) return;
+
+    const items = Array.from(breadcrumb.querySelectorAll('.breadcrumb-item'));
+    const baseUrl = window.location.origin;
+
+    const itemListElement = items.map((item, index) => {
+      const link = item.querySelector('a');
+      const span = item.querySelector('span');
+      const text = link ? link.textContent.trim() : span.textContent.trim();
+      const href = link ? link.getAttribute('href') : window.location.pathname;
+
+      // Convert relative URLs to absolute
+      const absoluteUrl = href.startsWith('http')
+        ? href
+        : new URL(href, baseUrl).href;
+
+      return {
+        "@type": "ListItem",
+        "position": index + 1,
+        "name": text,
+        "item": absoluteUrl
+      };
+    });
+
+    const schema = {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": itemListElement
+    };
+
+    // Insert or update schema script
+    let schemaScript = document.querySelector('script[type="application/ld+json"]');
+    if (!schemaScript) {
+      schemaScript = document.createElement('script');
+      schemaScript.type = 'application/ld+json';
+      document.head.appendChild(schemaScript);
+    }
+    schemaScript.textContent = JSON.stringify(schema, null, 2);
+  }
+
+  // Truncate breadcrumb for mobile (alternative JS approach)
+  function handleResponsiveBreadcrumb() {
+    const breadcrumb = document.querySelector('.breadcrumb');
+    if (!breadcrumb) return;
+
+    const items = breadcrumb.querySelectorAll('.breadcrumb-item');
+    const isMobile = window.innerWidth <= 640;
+
+    if (isMobile && items.length > 3) {
+      // Show first, last, and second-to-last items
+      items.forEach((item, index) => {
+        if (index === 0 || index >= items.length - 2) {
+          item.style.display = 'flex';
+        } else if (index === 1) {
+          // Add ellipsis to second item
+          item.innerHTML = '<span>...</span>';
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    } else {
+      // Show all items on desktop
+      items.forEach(item => {
+        item.style.display = 'flex';
+      });
+    }
+  }
+
+  // Initialize
+  generateBreadcrumbSchema();
+
+  // Optional: Handle window resize for responsive behavior
+  // window.addEventListener('resize', handleResponsiveBreadcrumb);
+  // handleResponsiveBreadcrumb();
+})();
+```

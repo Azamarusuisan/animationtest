@@ -1,0 +1,379 @@
+---
+title: ページネーション（ページ送り）
+description: 前後ボタン・ページ番号・省略表示。アクセシブル。
+tags: [pagination, navigation, ux, accessibility]
+frameworks: [Vanilla, Any]
+level: basic
+prompt_template: |
+  目的: アクセシブルなページネーションの実装
+  前提: Vanilla JS（任意のフレームワークに移植可）
+  要件:
+  - 前後ボタン（最初・最後へも）
+  - 現在ページのaria-current="page"
+  - 省略表示（...）の実装
+  - キーボード操作（Tab、Enter）
+  - URLパラメータ連動（?page=2）
+  - 無効状態（最初/最後ページ）
+  - ページ数の動的計算
+  - アクセシビリティ対応
+  納品: コンポーネント+CSS+最小限のJS
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="ページネーションのデモ"
+  height="200px"
+  html={`
+<nav class="pagination" role="navigation" aria-label="Pagination">
+  <ul class="pagination-list" id="pagination"></ul>
+</nav>
+<div class="pagination-info" aria-live="polite">
+  <p>Page <span id="current-page">1</span> of <span id="total-pages">10</span></p>
+</div>
+  `}
+  css={`
+.pagination { margin: 2rem 0; display: flex; justify-content: center; }
+.pagination-list { display: flex; gap: .25rem; list-style: none; padding: 0; margin: 0; flex-wrap: wrap; align-items: center; }
+.pagination-item { display: inline-block; }
+.pagination-link {
+  display: flex; align-items: center; justify-content: center;
+  min-width: 2.5rem; height: 2.5rem; padding: .5rem;
+  border: 1px solid #374151; background: #1f2a37; color: #e5edf4;
+  text-decoration: none; border-radius: 4px; font-weight: 500;
+  transition: all .2s; cursor: pointer;
+}
+.pagination-link:hover:not(:disabled):not([aria-current]) { background: #374151; border-color: #4b5563; }
+.pagination-link:focus { outline: 2px solid #60a5fa; outline-offset: 2px; }
+.pagination-link[aria-current="page"] { background: #3b82f6; color: white; border-color: #3b82f6; cursor: default; font-weight: 600; }
+.pagination-link:disabled { opacity: .4; cursor: not-allowed; }
+.pagination-ellipsis { display: flex; align-items: center; justify-content: center; min-width: 2.5rem; height: 2.5rem; color: #9ca3af; user-select: none; }
+.pagination-arrow { font-weight: 600; padding: 0 .75rem; }
+.pagination-info { text-align: center; margin-top: 1rem; color: #9ca3af; font-size: .875rem; }
+  `}
+  js={`
+const container = document.getElementById('pagination');
+const currentPageSpan = document.getElementById('current-page');
+const totalPagesSpan = document.getElementById('total-pages');
+let currentPage = 1;
+const totalPages = 10;
+
+function render() {
+  container.innerHTML = '';
+  currentPageSpan.textContent = currentPage;
+  totalPagesSpan.textContent = totalPages;
+
+  container.appendChild(createButton('«', 1, currentPage === 1, 'First'));
+  container.appendChild(createButton('‹', currentPage - 1, currentPage === 1, 'Prev', 'prev'));
+
+  const pages = getPageNumbers();
+  pages.forEach(page => {
+    if (page === '...') {
+      const li = document.createElement('li');
+      li.className = 'pagination-item';
+      li.innerHTML = '<span class="pagination-ellipsis" aria-hidden="true">...</span>';
+      container.appendChild(li);
+    } else {
+      container.appendChild(createButton(page, page, false, \`Page \${page}\`));
+    }
+  });
+
+  container.appendChild(createButton('›', currentPage + 1, currentPage === totalPages, 'Next', 'next'));
+  container.appendChild(createButton('»', totalPages, currentPage === totalPages, 'Last'));
+}
+
+function createButton(label, page, disabled, ariaLabel, extraClass = '') {
+  const li = document.createElement('li');
+  li.className = 'pagination-item';
+  const button = document.createElement('button');
+  button.className = \`pagination-link \${extraClass ? 'pagination-arrow' : ''}\`;
+  button.textContent = label;
+  button.disabled = disabled;
+  button.setAttribute('aria-label', ariaLabel);
+  if (page === currentPage && typeof page === 'number') button.setAttribute('aria-current', 'page');
+  if (!disabled) button.addEventListener('click', () => goToPage(page));
+  li.appendChild(button);
+  return li;
+}
+
+function getPageNumbers() {
+  const pages = [];
+  const siblingCount = 1;
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    const leftSibling = Math.max(currentPage - siblingCount, 1);
+    const rightSibling = Math.min(currentPage + siblingCount, totalPages);
+    const showLeftEllipsis = leftSibling > 2;
+    const showRightEllipsis = rightSibling < totalPages - 1;
+
+    if (!showLeftEllipsis && showRightEllipsis) {
+      for (let i = 1; i <= 5; i++) pages.push(i);
+      pages.push('...');
+      pages.push(totalPages);
+    } else if (showLeftEllipsis && !showRightEllipsis) {
+      pages.push(1);
+      pages.push('...');
+      for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      pages.push('...');
+      for (let i = leftSibling; i <= rightSibling; i++) pages.push(i);
+      pages.push('...');
+      pages.push(totalPages);
+    }
+  }
+  return pages;
+}
+
+function goToPage(page) {
+  if (page < 1 || page > totalPages || page === currentPage) return;
+  currentPage = page;
+  render();
+}
+
+render();
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<nav class="pagination" role="navigation" aria-label="Pagination">
+  <ul class="pagination-list" id="pagination"></ul>
+</nav>
+
+<div class="pagination-info" aria-live="polite">
+  <p>Page <span id="current-page">1</span> of <span id="total-pages">10</span></p>
+</div>
+```
+
+**CSS**
+```css
+.pagination {
+  margin: 2rem 0;
+  display: flex;
+  justify-content: center;
+}
+.pagination-list {
+  display: flex;
+  gap: .25rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.pagination-item {
+  display: inline-block;
+}
+.pagination-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding: .5rem;
+  border: 1px solid #ddd;
+  background: white;
+  color: #333;
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: all .2s;
+  cursor: pointer;
+}
+.pagination-link:hover:not(:disabled):not([aria-current]) {
+  background: #f5f5f5;
+  border-color: #999;
+}
+.pagination-link:focus {
+  outline: 2px solid #0066cc;
+  outline-offset: 2px;
+}
+.pagination-link[aria-current="page"] {
+  background: #0066cc;
+  color: white;
+  border-color: #0066cc;
+  cursor: default;
+  font-weight: 600;
+}
+.pagination-link:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+.pagination-ellipsis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  height: 2.5rem;
+  color: #666;
+  user-select: none;
+}
+.pagination-arrow {
+  font-weight: 600;
+  padding: 0 .75rem;
+}
+.pagination-info {
+  text-align: center;
+  margin-top: 1rem;
+  color: #666;
+  font-size: .875rem;
+}
+```
+
+**JS**
+```js
+(() => {
+  const container = document.getElementById('pagination');
+  const currentPageSpan = document.getElementById('current-page');
+  const totalPagesSpan = document.getElementById('total-pages');
+  if (!container) return;
+
+  // Configuration
+  const config = {
+    totalItems: 100,
+    itemsPerPage: 10,
+    maxVisiblePages: 7,
+    siblingCount: 1
+  };
+
+  let currentPage = 1;
+  const totalPages = Math.ceil(config.totalItems / config.itemsPerPage);
+
+  function init() {
+    // Get page from URL
+    const params = new URLSearchParams(window.location.search);
+    const pageParam = parseInt(params.get('page')) || 1;
+    currentPage = Math.max(1, Math.min(pageParam, totalPages));
+    render();
+  }
+
+  function render() {
+    container.innerHTML = '';
+
+    // Update info
+    currentPageSpan.textContent = currentPage;
+    totalPagesSpan.textContent = totalPages;
+
+    // First button
+    container.appendChild(createButton('«', 1, currentPage === 1, 'First page'));
+
+    // Previous button
+    container.appendChild(createButton('‹', currentPage - 1, currentPage === 1, 'Previous page', 'prev'));
+
+    // Page numbers with ellipsis
+    const pages = getPageNumbers();
+    pages.forEach(page => {
+      if (page === '...') {
+        const li = document.createElement('li');
+        li.className = 'pagination-item';
+        li.innerHTML = '<span class="pagination-ellipsis" aria-hidden="true">...</span>';
+        container.appendChild(li);
+      } else {
+        container.appendChild(createButton(page, page, false, `Page ${page}`));
+      }
+    });
+
+    // Next button
+    container.appendChild(createButton('›', currentPage + 1, currentPage === totalPages, 'Next page', 'next'));
+
+    // Last button
+    container.appendChild(createButton('»', totalPages, currentPage === totalPages, 'Last page'));
+  }
+
+  function createButton(label, page, disabled, ariaLabel, extraClass = '') {
+    const li = document.createElement('li');
+    li.className = 'pagination-item';
+
+    const button = document.createElement('button');
+    button.className = `pagination-link ${extraClass ? 'pagination-arrow' : ''}`;
+    button.textContent = label;
+    button.disabled = disabled;
+    button.setAttribute('aria-label', ariaLabel);
+
+    if (page === currentPage && typeof page === 'number') {
+      button.setAttribute('aria-current', 'page');
+    }
+
+    if (!disabled) {
+      button.addEventListener('click', () => goToPage(page));
+    }
+
+    li.appendChild(button);
+    return li;
+  }
+
+  function getPageNumbers() {
+    const pages = [];
+    const { siblingCount } = config;
+    const totalNumbers = siblingCount * 2 + 3; // siblings + current + first + last
+    const totalBlocks = totalNumbers + 2; // + 2 ellipsis
+
+    if (totalPages <= totalBlocks) {
+      // Show all pages
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      const leftSibling = Math.max(currentPage - siblingCount, 1);
+      const rightSibling = Math.min(currentPage + siblingCount, totalPages);
+
+      const showLeftEllipsis = leftSibling > 2;
+      const showRightEllipsis = rightSibling < totalPages - 1;
+
+      if (!showLeftEllipsis && showRightEllipsis) {
+        // Only right ellipsis
+        const leftRange = 3 + 2 * siblingCount;
+        for (let i = 1; i <= leftRange; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (showLeftEllipsis && !showRightEllipsis) {
+        // Only left ellipsis
+        pages.push(1);
+        pages.push('...');
+        const rightRange = 3 + 2 * siblingCount;
+        for (let i = totalPages - rightRange + 1; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        // Both ellipsis
+        pages.push(1);
+        pages.push('...');
+        for (let i = leftSibling; i <= rightSibling; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  }
+
+  function goToPage(page) {
+    if (page < 1 || page > totalPages || page === currentPage) return;
+
+    currentPage = page;
+
+    // Update URL
+    const url = new URL(window.location);
+    url.searchParams.set('page', page);
+    window.history.pushState({}, '', url);
+
+    render();
+
+    // Scroll to top (optional)
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Handle browser back/forward
+  window.addEventListener('popstate', () => {
+    init();
+  });
+
+  init();
+})();
+```

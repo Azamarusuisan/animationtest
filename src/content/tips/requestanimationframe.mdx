@@ -1,0 +1,966 @@
+---
+title: requestAnimationFrameで滑らかなアニメーション
+description: setTimeout/setIntervalではなくrAFを使って60fpsを実現する方法
+tags: [javascript, animation, performance, requestanimationframe]
+category: animation
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## requestAnimationFrame とは
+
+`requestAnimationFrame` (rAF) は、ブラウザに最適なタイミングでアニメーションを実行するためのAPIです。ブラウザの再描画サイクルに同期して実行されるため、`setTimeout` や `setInterval` よりも滑らかで効率的なアニメーションを実現できます。
+
+### なぜ requestAnimationFrame を使うべきか
+
+<LiveDemo
+  title="setTimeout vs requestAnimationFrame"
+  height="600px"
+  html={`
+<div class="raf-comparison">
+  <div class="comparison-section">
+    <h3>❌ setTimeout (16ms)</h3>
+    <div class="animation-container">
+      <div class="ball ball-settimeout" id="ballTimeout"></div>
+    </div>
+    <div class="metrics">
+      <div class="metric">
+        <span>FPS:</span>
+        <span id="fpsTimeout" class="fps-value">60</span>
+      </div>
+      <div class="metric">
+        <span>フレームドロップ:</span>
+        <span id="dropsTimeout" class="drops-value">0</span>
+      </div>
+    </div>
+    <p class="description">タイミングがずれてカクつく可能性あり</p>
+  </div>
+
+  <div class="comparison-section">
+    <h3>✅ requestAnimationFrame</h3>
+    <div class="animation-container">
+      <div class="ball ball-raf" id="ballRaf"></div>
+    </div>
+    <div class="metrics">
+      <div class="metric">
+        <span>FPS:</span>
+        <span id="fpsRaf" class="fps-value">60</span>
+      </div>
+      <div class="metric">
+        <span>フレームドロップ:</span>
+        <span id="dropsRaf" class="drops-value">0</span>
+      </div>
+    </div>
+    <p class="description">ブラウザの再描画に同期して滑らか</p>
+  </div>
+
+  <div class="controls">
+    <button id="startBtn" class="btn btn-start">開始</button>
+    <button id="stopBtn" class="btn btn-stop">停止</button>
+    <button id="resetBtn" class="btn btn-reset">リセット</button>
+  </div>
+</div>
+  `}
+  css={`
+.raf-comparison {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.comparison-section {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.comparison-section h3 {
+  font-size: 1rem;
+  color: #e5edf4;
+  margin: 0 0 1rem 0;
+}
+
+.animation-container {
+  position: relative;
+  height: 100px;
+  background: #0c1218;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.ball {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  top: 25px;
+  left: 0;
+}
+
+.ball-settimeout {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.ball-raf {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.metrics {
+  background: #0c1218;
+  border-radius: 6px;
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.metric span:first-child {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fps-value,
+.drops-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #10b981;
+}
+
+.drops-value.has-drops {
+  color: #ef4444;
+}
+
+.description {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.btn {
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-start {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.btn-stop {
+  background: #374151;
+  color: #e5edf4;
+}
+
+.btn-reset {
+  background: #374151;
+  color: #e5edf4;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+  `}
+  js={`
+let animatingTimeout = false;
+let animatingRaf = false;
+let timeoutId = null;
+let rafId = null;
+
+const ballTimeout = document.getElementById('ballTimeout');
+const ballRaf = document.getElementById('ballRaf');
+const fpsTimeoutEl = document.getElementById('fpsTimeout');
+const fpsRafEl = document.getElementById('fpsRaf');
+const dropsTimeoutEl = document.getElementById('dropsTimeout');
+const dropsRafEl = document.getElementById('dropsRaf');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+let lastTimeTimeout = performance.now();
+let lastTimeRaf = performance.now();
+let frameCountTimeout = 0;
+let frameCountRaf = 0;
+let dropsTimeout = 0;
+let dropsRaf = 0;
+let startPosTimeout = 0;
+let startPosRaf = 0;
+
+// setTimeout版
+function animateWithTimeout() {
+  if (!animatingTimeout) return;
+
+  const now = performance.now();
+  const deltaTime = now - lastTimeTimeout;
+
+  // FPS計算
+  frameCountTimeout++;
+  if (deltaTime > 16.67 * 2) {
+    dropsTimeout++;
+    dropsTimeoutEl.textContent = dropsTimeout;
+    dropsTimeoutEl.classList.add('has-drops');
+  }
+
+  const fps = Math.round(1000 / deltaTime);
+  fpsTimeoutEl.textContent = fps;
+
+  // 位置更新
+  startPosTimeout += 2;
+  if (startPosTimeout > 600) startPosTimeout = 0;
+  ballTimeout.style.transform = 'translateX(' + startPosTimeout + 'px)';
+
+  lastTimeTimeout = now;
+  timeoutId = setTimeout(animateWithTimeout, 16);
+}
+
+// requestAnimationFrame版
+function animateWithRaf() {
+  if (!animatingRaf) return;
+
+  const now = performance.now();
+  const deltaTime = now - lastTimeRaf;
+
+  // FPS計算
+  frameCountRaf++;
+  if (deltaTime > 16.67 * 2) {
+    dropsRaf++;
+    dropsRafEl.textContent = dropsRaf;
+    dropsRafEl.classList.add('has-drops');
+  }
+
+  const fps = Math.round(1000 / deltaTime);
+  fpsRafEl.textContent = fps;
+
+  // 位置更新
+  startPosRaf += 2;
+  if (startPosRaf > 600) startPosRaf = 0;
+  ballRaf.style.transform = 'translateX(' + startPosRaf + 'px)';
+
+  lastTimeRaf = now;
+  rafId = requestAnimationFrame(animateWithRaf);
+}
+
+startBtn.addEventListener('click', () => {
+  animatingTimeout = true;
+  animatingRaf = true;
+  animateWithTimeout();
+  animateWithRaf();
+});
+
+stopBtn.addEventListener('click', () => {
+  animatingTimeout = false;
+  animatingRaf = false;
+  if (timeoutId) clearTimeout(timeoutId);
+  if (rafId) cancelAnimationFrame(rafId);
+});
+
+resetBtn.addEventListener('click', () => {
+  animatingTimeout = false;
+  animatingRaf = false;
+  if (timeoutId) clearTimeout(timeoutId);
+  if (rafId) cancelAnimationFrame(rafId);
+
+  startPosTimeout = 0;
+  startPosRaf = 0;
+  dropsTimeout = 0;
+  dropsRaf = 0;
+
+  ballTimeout.style.transform = 'translateX(0)';
+  ballRaf.style.transform = 'translateX(0)';
+  fpsTimeoutEl.textContent = '60';
+  fpsRafEl.textContent = '60';
+  dropsTimeoutEl.textContent = '0';
+  dropsRafEl.textContent = '0';
+  dropsTimeoutEl.classList.remove('has-drops');
+  dropsRafEl.classList.remove('has-drops');
+});
+
+// 初期表示時に自動開始
+setTimeout(() => startBtn.click(), 500);
+  `}
+/>
+
+## 基本的な使い方
+
+### シンプルな例
+
+```javascript
+function animate() {
+  // アニメーション処理
+  element.style.transform = `translateX(${x}px)`;
+
+  // 次のフレームを要求
+  requestAnimationFrame(animate);
+}
+
+// アニメーション開始
+requestAnimationFrame(animate);
+```
+
+### アニメーションの停止
+
+```javascript
+let animationId;
+
+function animate() {
+  // アニメーション処理
+  updateAnimation();
+
+  // 次のフレームを要求
+  animationId = requestAnimationFrame(animate);
+}
+
+// 開始
+animationId = requestAnimationFrame(animate);
+
+// 停止
+cancelAnimationFrame(animationId);
+```
+
+## deltaTime を使った滑らかなアニメーション
+
+フレームレートが変動しても一定速度で動くように、`deltaTime` を使います：
+
+<LiveDemo
+  title="deltaTime による速度制御"
+  height="550px"
+  html={`
+<div class="deltatime-demo">
+  <div class="demo-section">
+    <h3>❌ deltaTime なし</h3>
+    <div class="track">
+      <div class="runner runner-no-delta" id="runnerNoDelta">🏃</div>
+    </div>
+    <p class="info">フレームレートが変わると速度も変わる</p>
+  </div>
+
+  <div class="demo-section">
+    <h3>✅ deltaTime あり</h3>
+    <div class="track">
+      <div class="runner runner-with-delta" id="runnerWithDelta">🏃</div>
+    </div>
+    <p class="info">常に一定速度で動く</p>
+  </div>
+
+  <div class="controls-panel">
+    <div class="control-group">
+      <label>FPS制限:</label>
+      <select id="fpsLimit" class="select">
+        <option value="60">60 FPS (制限なし)</option>
+        <option value="30">30 FPS</option>
+        <option value="15">15 FPS</option>
+      </select>
+    </div>
+    <div class="stats-panel">
+      <div class="stat">
+        <span>現在の FPS:</span>
+        <span id="currentFps">60</span>
+      </div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.deltatime-demo {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.demo-section {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.demo-section h3 {
+  font-size: 1rem;
+  color: #e5edf4;
+  margin: 0 0 1rem 0;
+}
+
+.track {
+  position: relative;
+  height: 80px;
+  background: #0c1218;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.runner {
+  position: absolute;
+  font-size: 3rem;
+  top: 15px;
+  left: 0;
+  user-select: none;
+}
+
+.info {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.controls-panel {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.control-group {
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.control-group label {
+  font-size: 0.875rem;
+  color: #e5edf4;
+  font-weight: 600;
+}
+
+.select {
+  flex: 1;
+  padding: 0.5rem;
+  background: #0c1218;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  color: #e5edf4;
+  font-size: 0.875rem;
+}
+
+.stats-panel {
+  background: #0c1218;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.stat span:first-child {
+  color: #9ca3af;
+}
+
+.stat span:last-child {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #10b981;
+}
+  `}
+  js={`
+const runnerNoDelta = document.getElementById('runnerNoDelta');
+const runnerWithDelta = document.getElementById('runnerWithDelta');
+const fpsLimitSelect = document.getElementById('fpsLimit');
+const currentFpsEl = document.getElementById('currentFps');
+
+let lastTime = performance.now();
+let posNoDelta = 0;
+let posWithDelta = 0;
+let fpsLimit = 60;
+let frameInterval = 1000 / fpsLimit;
+let lastFrameTime = 0;
+
+const SPEED = 100; // ピクセル/秒
+
+fpsLimitSelect.addEventListener('change', (e) => {
+  fpsLimit = parseInt(e.target.value);
+  frameInterval = 1000 / fpsLimit;
+});
+
+function animate(currentTime) {
+  requestAnimationFrame(animate);
+
+  // FPS制限
+  const timeSinceLastFrame = currentTime - lastFrameTime;
+  if (timeSinceLastFrame < frameInterval) return;
+  lastFrameTime = currentTime - (timeSinceLastFrame % frameInterval);
+
+  const deltaTime = (currentTime - lastTime) / 1000; // 秒に変換
+  lastTime = currentTime;
+
+  // FPS表示
+  const fps = Math.round(1 / deltaTime);
+  currentFpsEl.textContent = fps;
+
+  // deltaTime なし: 毎フレーム2px移動（FPSに依存）
+  posNoDelta += 2;
+  if (posNoDelta > 500) posNoDelta = 0;
+  runnerNoDelta.style.transform = 'translateX(' + posNoDelta + 'px)';
+
+  // deltaTime あり: 常に100px/秒で移動（FPSに依存しない）
+  posWithDelta += SPEED * deltaTime;
+  if (posWithDelta > 500) posWithDelta = 0;
+  runnerWithDelta.style.transform = 'translateX(' + posWithDelta + 'px)';
+}
+
+requestAnimationFrame(animate);
+  `}
+/>
+
+### deltaTime を使ったコード
+
+```javascript
+let lastTime = performance.now();
+let position = 0;
+const SPEED = 100; // ピクセル/秒
+
+function animate(currentTime) {
+  // 前フレームからの経過時間（秒）
+  const deltaTime = (currentTime - lastTime) / 1000;
+  lastTime = currentTime;
+
+  // 速度 × 時間 = 移動距離
+  position += SPEED * deltaTime;
+
+  element.style.transform = `translateX(${position}px)`;
+
+  requestAnimationFrame(animate);
+}
+
+requestAnimationFrame(animate);
+```
+
+## 実践例: スムーズなスクロールアニメーション
+
+<LiveDemo
+  title="カスタムスムーススクロール"
+  height="550px"
+  html={`
+<div class="smooth-scroll-demo">
+  <div class="demo-header">
+    <h3>スムーススクロールの実装</h3>
+    <div class="nav-buttons">
+      <button class="nav-btn" data-target="0">セクション 1</button>
+      <button class="nav-btn" data-target="300">セクション 2</button>
+      <button class="nav-btn" data-target="600">セクション 3</button>
+    </div>
+  </div>
+
+  <div class="scroll-container" id="scrollContainer">
+    <div class="section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+      <h4>セクション 1</h4>
+      <p>スムーズにスクロールします</p>
+    </div>
+
+    <div class="section" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+      <h4>セクション 2</h4>
+      <p>イージング関数で自然な動き</p>
+    </div>
+
+    <div class="section" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+      <h4>セクション 3</h4>
+      <p>requestAnimationFrame を使用</p>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.smooth-scroll-demo {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.demo-header {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.demo-header h3 {
+  font-size: 1rem;
+  color: #e5edf4;
+  margin: 0 0 1rem 0;
+}
+
+.nav-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.nav-btn {
+  padding: 0.5rem;
+  background: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 6px;
+  color: #e5edf4;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nav-btn:hover {
+  background: #4b5563;
+  transform: translateY(-2px);
+}
+
+.scroll-container {
+  height: 300px;
+  overflow-y: scroll;
+  border-radius: 8px;
+  scroll-behavior: auto;
+}
+
+.section {
+  height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+}
+
+.section h4 {
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.section p {
+  font-size: 1rem;
+  margin: 0;
+  opacity: 0.9;
+}
+  `}
+  js={`
+const scrollContainer = document.getElementById('scrollContainer');
+const navButtons = document.querySelectorAll('.nav-btn');
+
+function easeInOutCubic(t) {
+  return t < 0.5
+    ? 4 * t * t * t
+    : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function smoothScrollTo(targetPosition, duration = 600) {
+  const startPosition = scrollContainer.scrollTop;
+  const distance = targetPosition - startPosition;
+  const startTime = performance.now();
+
+  function animation(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const easeProgress = easeInOutCubic(progress);
+
+    scrollContainer.scrollTop = startPosition + (distance * easeProgress);
+
+    if (progress < 1) {
+      requestAnimationFrame(animation);
+    }
+  }
+
+  requestAnimationFrame(animation);
+}
+
+navButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = parseInt(btn.dataset.target);
+    smoothScrollTo(target);
+  });
+});
+  `}
+/>
+
+### スムーススクロールのコード
+
+```javascript
+function easeInOutCubic(t) {
+  return t < 0.5
+    ? 4 * t * t * t
+    : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function smoothScrollTo(targetPosition, duration = 600) {
+  const startPosition = window.scrollY;
+  const distance = targetPosition - startPosition;
+  const startTime = performance.now();
+
+  function animation(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+
+    // イージング関数を適用
+    const easeProgress = easeInOutCubic(progress);
+
+    window.scrollTo(0, startPosition + (distance * easeProgress));
+
+    if (progress < 1) {
+      requestAnimationFrame(animation);
+    }
+  }
+
+  requestAnimationFrame(animation);
+}
+
+// 使用例
+button.addEventListener('click', () => {
+  smoothScrollTo(1000); // Y位置1000pxまでスクロール
+});
+```
+
+## パフォーマンスの最適化
+
+### 1. 処理の分離
+
+重い処理は別のフレームで実行：
+
+```javascript
+let needsUpdate = false;
+let data = null;
+
+function animate() {
+  if (needsUpdate) {
+    // 軽い処理: 描画のみ
+    render(data);
+    needsUpdate = false;
+  }
+
+  requestAnimationFrame(animate);
+}
+
+// 重い処理は別途実行
+function updateData() {
+  data = heavyCalculation();
+  needsUpdate = true;
+}
+
+requestAnimationFrame(animate);
+```
+
+### 2. Throttling（実行頻度の制限）
+
+```javascript
+let lastUpdate = 0;
+const updateInterval = 100; // 100msごとに更新
+
+function animate(currentTime) {
+  if (currentTime - lastUpdate >= updateInterval) {
+    update();
+    lastUpdate = currentTime;
+  }
+
+  requestAnimationFrame(animate);
+}
+
+requestAnimationFrame(animate);
+```
+
+### 3. 条件付き実行
+
+```javascript
+let isAnimating = false;
+
+function animate() {
+  if (!isAnimating) return;
+
+  update();
+  requestAnimationFrame(animate);
+}
+
+// 開始
+function start() {
+  isAnimating = true;
+  requestAnimationFrame(animate);
+}
+
+// 停止
+function stop() {
+  isAnimating = false;
+}
+```
+
+## よくあるユースケース
+
+### 1. カウンターアニメーション
+
+```javascript
+function animateCounter(element, target, duration = 1000) {
+  const start = 0;
+  const startTime = performance.now();
+
+  function update(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+
+    const current = Math.floor(start + (target - start) * progress);
+    element.textContent = current;
+
+    if (progress < 1) {
+      requestAnimationFrame(update);
+    }
+  }
+
+  requestAnimationFrame(update);
+}
+
+// 使用例
+animateCounter(document.getElementById('counter'), 1000);
+```
+
+### 2. パララックス効果
+
+```javascript
+function parallax() {
+  const scrollY = window.scrollY;
+
+  document.querySelectorAll('.parallax').forEach(el => {
+    const speed = el.dataset.speed || 0.5;
+    const yPos = -(scrollY * speed);
+    el.style.transform = `translate3d(0, ${yPos}px, 0)`;
+  });
+
+  requestAnimationFrame(parallax);
+}
+
+requestAnimationFrame(parallax);
+```
+
+### 3. ゲームループ
+
+```javascript
+class Game {
+  constructor() {
+    this.lastTime = 0;
+    this.isRunning = false;
+  }
+
+  start() {
+    this.isRunning = true;
+    requestAnimationFrame((time) => this.gameLoop(time));
+  }
+
+  stop() {
+    this.isRunning = false;
+  }
+
+  gameLoop(currentTime) {
+    if (!this.isRunning) return;
+
+    const deltaTime = (currentTime - this.lastTime) / 1000;
+    this.lastTime = currentTime;
+
+    // ゲームロジックの更新
+    this.update(deltaTime);
+
+    // 描画
+    this.render();
+
+    // 次のフレーム
+    requestAnimationFrame((time) => this.gameLoop(time));
+  }
+
+  update(deltaTime) {
+    // ゲームの状態を更新
+  }
+
+  render() {
+    // 画面を描画
+  }
+}
+
+const game = new Game();
+game.start();
+```
+
+## ベストプラクティス
+
+### チェックリスト
+
+- [ ] `setTimeout`/`setInterval` の代わりに `requestAnimationFrame` を使用
+- [ ] `deltaTime` を使って一定速度を維持
+- [ ] `cancelAnimationFrame` でアニメーションを適切に停止
+- [ ] 不要な再描画を避ける（条件分岐で制御）
+- [ ] 重い処理は分離して実行
+- [ ] タブが非表示の時は自動的に停止される（rAF の仕様）
+
+### アンチパターン
+
+```javascript
+// ❌ 悪い例: setInterval
+setInterval(() => {
+  element.style.transform = `translateX(${x}px)`;
+  x += 2;
+}, 16);
+
+// ✅ 良い例: requestAnimationFrame
+function animate() {
+  element.style.transform = `translateX(${x}px)`;
+  x += 2;
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+```
+
+## タブの可視性への対応
+
+`requestAnimationFrame` はタブが非表示の時に自動的に停止しますが、明示的に制御することもできます：
+
+```javascript
+let animationId;
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // タブが非表示になった
+    cancelAnimationFrame(animationId);
+  } else {
+    // タブが表示された
+    animationId = requestAnimationFrame(animate);
+  }
+});
+```
+
+## まとめ
+
+1. **rAF を優先** - setTimeout/setInterval より滑らかで効率的
+2. **deltaTime を使う** - フレームレートに依存しない動きを実現
+3. **適切に停止** - cancelAnimationFrame でメモリリークを防ぐ
+4. **パフォーマンス重視** - 重い処理は分離し、条件付きで実行
+5. **60fps を目指す** - 1フレーム 16.67ms 以内に処理を完了
+
+## 参考リンク
+
+- [requestAnimationFrame - MDN](https://developer.mozilla.org/ja/docs/Web/API/window/requestAnimationFrame)
+- [Rendering Performance - web.dev](https://web.dev/rendering-performance/)
+- [Using requestAnimationFrame - CSS-Tricks](https://css-tricks.com/using-requestanimationframe/)

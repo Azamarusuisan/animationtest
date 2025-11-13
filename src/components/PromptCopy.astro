@@ -1,0 +1,46 @@
+---
+interface Props {
+  prompt: string;
+}
+
+const { prompt } = Astro.props;
+---
+
+<div class="prompt-copy" style="margin: 2rem 0;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+    <h3 style="margin: 0; font-size: 1.25rem;">📋 プロンプト</h3>
+    <button
+      class="btn btn-copy"
+      data-prompt={prompt}
+      style="padding: 0.5rem 1rem; font-size: 0.875rem;"
+    >
+      コピー
+    </button>
+  </div>
+  <pre style="background-color: var(--color-bg-alt); padding: 1rem; border-radius: var(--border-radius); overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;"><code>{prompt}</code></pre>
+</div>
+
+<script>
+  document.querySelectorAll('.btn-copy').forEach(button => {
+    button.addEventListener('click', async (e) => {
+      const target = e.target as HTMLButtonElement;
+      const prompt = target.dataset.prompt;
+      if (!prompt) return;
+
+      try {
+        await navigator.clipboard.writeText(prompt);
+        const originalText = target.textContent;
+        target.textContent = '✓ コピーしました！';
+        setTimeout(() => {
+          target.textContent = originalText;
+        }, 2000);
+      } catch (err) {
+        console.error('コピーに失敗しました:', err);
+        target.textContent = '❌ コピー失敗';
+        setTimeout(() => {
+          target.textContent = 'コピー';
+        }, 2000);
+      }
+    });
+  });
+</script>

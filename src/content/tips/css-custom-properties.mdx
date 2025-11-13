@@ -1,0 +1,778 @@
+---
+title: CSS変数（カスタムプロパティ）の実践活用法
+description: テーマ切替、動的スタイル変更、コンポーネント設計で威力を発揮するCSS変数の使い方
+tags: [css, variables, theming, dynamic-styles]
+category: css
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## CSS変数がもたらす設計革命
+
+CSS変数（CSS Custom Properties）は、単なる「変数」ではありません。JavaScriptから動的に変更でき、カスケーディングの恩恵を受け、メディアクエリやセレクタで上書きできる、強力な設計ツールです。
+
+Sassなどのプリプロセッサ変数と異なり、CSS変数はブラウザのレンダリング時に評価されます。つまり、ページをリロードせずにテーマを切り替えたり、ユーザーのインタラクションに応じてスタイルを動的に変更したりできるのです。
+
+このガイドでは、ダークモード切替、動的なカラースキーム、コンポーネントごとのカスタマイズなど、実務で即使えるテクニックを解説します。
+
+<LiveDemo
+  title="ダークモード切替 - CSS変数でテーマ管理"
+  height="500px"
+  html={`
+<div class="theme-demo">
+  <div class="theme-controls">
+    <button class="theme-btn active" data-theme="dark">🌙 ダーク</button>
+    <button class="theme-btn" data-theme="light">☀️ ライト</button>
+    <button class="theme-btn" data-theme="blue">🌊 ブルー</button>
+    <button class="theme-btn" data-theme="forest">🌲 フォレスト</button>
+  </div>
+
+  <div class="content-card">
+    <h2>CSS変数でテーマ切替</h2>
+    <p>ボタンをクリックしてテーマを切り替えてみましょう。すべてのスタイルが瞬時に変わります。</p>
+
+    <div class="feature-grid">
+      <div class="feature-item">
+        <div class="icon">🎨</div>
+        <h3>デザイン</h3>
+        <p>統一されたカラースキーム</p>
+      </div>
+      <div class="feature-item">
+        <div class="icon">⚡</div>
+        <h3>パフォーマンス</h3>
+        <p>リロード不要の高速切替</p>
+      </div>
+      <div class="feature-item">
+        <div class="icon">🔧</div>
+        <h3>保守性</h3>
+        <p>一箇所で色を管理</p>
+      </div>
+    </div>
+
+    <div class="demo-box">
+      <p>この要素も自動的にテーマカラーを適用</p>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+:root {
+  /* ダークテーマ（デフォルト） */
+  --bg-primary: #0c1218;
+  --bg-secondary: #1f2a37;
+  --bg-tertiary: #374151;
+  --text-primary: #e5edf4;
+  --text-secondary: #9ca3af;
+  --accent: #60a5fa;
+  --accent-hover: #3b82f6;
+  --border: #374151;
+  --shadow: rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f3f4f6;
+  --bg-tertiary: #e5e7eb;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --border: #d1d5db;
+  --shadow: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="blue"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --accent: #38bdf8;
+  --accent-hover: #0ea5e9;
+  --border: #334155;
+  --shadow: rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="forest"] {
+  --bg-primary: #0a1810;
+  --bg-secondary: #1a2e23;
+  --bg-tertiary: #2d4436;
+  --text-primary: #e7f5ed;
+  --text-secondary: #9cb5a5;
+  --accent: #4ade80;
+  --accent-hover: #22c55e;
+  --border: #2d4436;
+  --shadow: rgba(0, 0, 0, 0.4);
+}
+
+.theme-demo {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100%;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.theme-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.theme-btn {
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.theme-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--accent);
+}
+
+.theme-btn.active {
+  background: var(--accent);
+  color: var(--bg-primary);
+  border-color: var(--accent);
+}
+
+.content-card {
+  background: var(--bg-secondary);
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 6px var(--shadow);
+}
+
+.content-card h2 {
+  margin: 0 0 1rem 0;
+  color: var(--text-primary);
+}
+
+.content-card p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.feature-item {
+  background: var(--bg-tertiary);
+  padding: 1.5rem;
+  border-radius: 10px;
+  text-align: center;
+  transition: transform 0.2s ease;
+}
+
+.feature-item:hover {
+  transform: translateY(-4px);
+}
+
+.icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.feature-item h3 {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.feature-item p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.demo-box {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  padding: 1.5rem;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.demo-box p {
+  margin: 0;
+  color: var(--bg-primary);
+  font-weight: 600;
+}
+  `}
+  js={`
+const themeBtns = document.querySelectorAll('.theme-btn');
+const themeDemo = document.querySelector('.theme-demo');
+
+themeBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const theme = btn.dataset.theme;
+
+    // データ属性でテーマを切替
+    themeDemo.setAttribute('data-theme', theme);
+
+    // アクティブ状態を更新
+    themeBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+  `}
+/>
+
+### テーマ切替の実装パターン
+
+```css
+/* ルート要素にデフォルトテーマを定義 */
+:root {
+  --bg-primary: #0c1218;
+  --text-primary: #e5edf4;
+  --accent: #60a5fa;
+}
+
+/* データ属性でテーマを切替 */
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --text-primary: #111827;
+  --accent: #3b82f6;
+}
+
+/* すべての要素で変数を使用 */
+.card {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+```
+
+**JavaScript での切替:**
+```javascript
+document.documentElement.setAttribute('data-theme', 'light');
+```
+
+<LiveDemo
+  title="動的スタイル - JavaScriptでCSS変数を操作"
+  height="450px"
+  html={`
+<div class="dynamic-demo">
+  <div class="controls">
+    <div class="control-group">
+      <label>🎨 メインカラー</label>
+      <input type="color" id="colorPicker" value="#60a5fa">
+    </div>
+
+    <div class="control-group">
+      <label>📏 ボーダー半径: <span id="radiusValue">12</span>px</label>
+      <input type="range" id="radiusSlider" min="0" max="50" value="12">
+    </div>
+
+    <div class="control-group">
+      <label>💫 影の強さ: <span id="shadowValue">20</span>%</label>
+      <input type="range" id="shadowSlider" min="0" max="100" value="20">
+    </div>
+  </div>
+
+  <div class="preview-card">
+    <h3>プレビュー</h3>
+    <p>スライダーを動かして、リアルタイムでスタイルが変わるのを確認しましょう。</p>
+    <button class="preview-btn">アクションボタン</button>
+  </div>
+</div>
+  `}
+  css={`
+.dynamic-demo {
+  --dynamic-color: #60a5fa;
+  --dynamic-radius: 12px;
+  --dynamic-shadow: 0.2;
+}
+
+.controls {
+  background: #1f2a37;
+  padding: 1.5rem;
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+}
+
+.control-group {
+  margin-bottom: 1.5rem;
+}
+
+.control-group:last-child {
+  margin-bottom: 0;
+}
+
+.control-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.control-group input[type="color"] {
+  width: 100%;
+  height: 50px;
+  border: 2px solid #374151;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #0c1218;
+}
+
+.control-group input[type="range"] {
+  width: 100%;
+  height: 8px;
+  background: #374151;
+  border-radius: 10px;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.control-group input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: var(--dynamic-color);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.control-group input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: var(--dynamic-color);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.preview-card {
+  background: linear-gradient(135deg, #1f2a37, #374151);
+  padding: 2rem;
+  border-radius: var(--dynamic-radius);
+  border: 2px solid var(--dynamic-color);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, var(--dynamic-shadow));
+  transition: all 0.3s ease;
+}
+
+.preview-card h3 {
+  margin: 0 0 1rem 0;
+  color: var(--dynamic-color);
+}
+
+.preview-card p {
+  color: #d1d5db;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.preview-btn {
+  background: var(--dynamic-color);
+  color: #0c1218;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--dynamic-radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, var(--dynamic-shadow));
+}
+
+.preview-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, var(--dynamic-shadow));
+}
+
+.preview-btn:active {
+  transform: translateY(0);
+}
+  `}
+  js={`
+const colorPicker = document.getElementById('colorPicker');
+const radiusSlider = document.getElementById('radiusSlider');
+const shadowSlider = document.getElementById('shadowSlider');
+const radiusValue = document.getElementById('radiusValue');
+const shadowValue = document.getElementById('shadowValue');
+const demo = document.querySelector('.dynamic-demo');
+
+// カラーピッカー
+colorPicker.addEventListener('input', (e) => {
+  demo.style.setProperty('--dynamic-color', e.target.value);
+});
+
+// ボーダー半径
+radiusSlider.addEventListener('input', (e) => {
+  const value = e.target.value;
+  radiusValue.textContent = value;
+  demo.style.setProperty('--dynamic-radius', value + 'px');
+});
+
+// 影の強さ
+shadowSlider.addEventListener('input', (e) => {
+  const value = e.target.value;
+  shadowValue.textContent = value;
+  demo.style.setProperty('--dynamic-shadow', value / 100);
+});
+  `}
+/>
+
+### JavaScriptでCSS変数を操作
+
+```javascript
+// CSS変数の取得
+const color = getComputedStyle(document.documentElement)
+  .getPropertyValue('--accent');
+
+// CSS変数の設定
+document.documentElement.style.setProperty('--accent', '#ff0000');
+
+// 特定の要素にのみ適用
+element.style.setProperty('--local-color', '#00ff00');
+```
+
+**スコープの活用:**
+```css
+/* グローバルスコープ */
+:root {
+  --spacing: 1rem;
+}
+
+/* ローカルスコープ */
+.card {
+  --spacing: 2rem; /* この要素とその子要素でのみ上書き */
+  padding: var(--spacing);
+}
+```
+
+<LiveDemo
+  title="コンポーネント設計 - 再利用可能なCSS変数"
+  height="500px"
+  html={`
+<div class="components-showcase">
+  <div class="component-card" style="--card-color: #60a5fa; --card-icon: '💼';">
+    <div class="card-header">
+      <span class="card-icon"></span>
+      <h3>ビジネス</h3>
+    </div>
+    <p>企業向けの包括的なソリューション</p>
+    <div class="card-footer">
+      <span class="card-badge">人気</span>
+      <span class="card-price">¥9,800/月</span>
+    </div>
+  </div>
+
+  <div class="component-card" style="--card-color: #f59e0b; --card-icon: '🎨';">
+    <div class="card-header">
+      <span class="card-icon"></span>
+      <h3>クリエイティブ</h3>
+    </div>
+    <p>デザイナー向けの特別プラン</p>
+    <div class="card-footer">
+      <span class="card-badge">新着</span>
+      <span class="card-price">¥5,800/月</span>
+    </div>
+  </div>
+
+  <div class="component-card" style="--card-color: #10b981; --card-icon: '⚡';">
+    <div class="card-header">
+      <span class="card-icon"></span>
+      <h3>スタートアップ</h3>
+    </div>
+    <p>成長企業向けの柔軟なプラン</p>
+    <div class="card-footer">
+      <span class="card-badge">お得</span>
+      <span class="card-price">¥2,980/月</span>
+    </div>
+  </div>
+
+  <div class="component-card" style="--card-color: #8b5cf6; --card-icon: '🚀';">
+    <div class="card-header">
+      <span class="card-icon"></span>
+      <h3>エンタープライズ</h3>
+    </div>
+    <p>大規模組織向けのカスタムプラン</p>
+    <div class="card-footer">
+      <span class="card-badge">推奨</span>
+      <span class="card-price">お問い合わせ</span>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.components-showcase {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.component-card {
+  /* デフォルト値を定義 */
+  --card-color: #60a5fa;
+  --card-icon: '📦';
+  --card-bg: #1f2a37;
+  --card-hover-scale: 1.05;
+
+  background: var(--card-bg);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.component-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--card-color);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+.component-card:hover {
+  border-color: var(--card-color);
+  transform: translateY(-4px) scale(var(--card-hover-scale));
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.component-card:hover::before {
+  transform: scaleX(1);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.card-icon::before {
+  content: var(--card-icon);
+  font-size: 2rem;
+  display: block;
+}
+
+.card-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--card-color);
+}
+
+.component-card p {
+  color: #9ca3af;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  min-height: 3rem;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid #374151;
+}
+
+.card-badge {
+  background: var(--card-color);
+  color: #0c1218;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.card-price {
+  font-weight: 600;
+  color: var(--card-color);
+  font-size: 0.875rem;
+}
+  `}
+/>
+
+### コンポーネント単位でカスタマイズ
+
+```html
+<!-- HTMLでインラインにCSS変数を指定 -->
+<div class="card" style="--card-color: #60a5fa; --card-icon: '💼';">
+  <span class="icon"></span>
+  <h3>タイトル</h3>
+</div>
+```
+
+```css
+.card {
+  /* デフォルト値を定義 */
+  --card-color: #60a5fa;
+  --card-icon: '📦';
+
+  /* 変数を使用 */
+  border-color: var(--card-color);
+}
+
+.icon::before {
+  content: var(--card-icon);
+}
+```
+
+この手法により、同じCSSクラスで異なるスタイルを簡単に適用できます。
+
+## Tips & Gotchas
+
+### ✅ 実践的なテクニック
+
+1. **フォールバック値を設定**
+   ```css
+   color: var(--text-color, #e5edf4); /* 変数が未定義なら #e5edf4 を使用 */
+   ```
+
+2. **calc() と組み合わせる**
+   ```css
+   :root {
+     --base-spacing: 1rem;
+   }
+
+   .element {
+     padding: calc(var(--base-spacing) * 2); /* 2rem */
+     margin: calc(var(--base-spacing) / 2);  /* 0.5rem */
+   }
+   ```
+
+3. **メディアクエリで変数を変更**
+   ```css
+   :root {
+     --font-size: 16px;
+   }
+
+   @media (max-width: 768px) {
+     :root {
+       --font-size: 14px;
+     }
+   }
+   ```
+
+4. **HSL値を分割して管理**
+   ```css
+   :root {
+     --hue: 210;
+     --saturation: 80%;
+     --lightness: 60%;
+     --color: hsl(var(--hue), var(--saturation), var(--lightness));
+   }
+
+   /* JavaScriptで色相だけ変更 */
+   element.style.setProperty('--hue', '120'); /* 青から緑へ */
+   ```
+
+### ⚠️ 注意点
+
+1. **プリプロセッサとの違い**
+   - Sass変数: コンパイル時に評価（静的）
+   - CSS変数: ランタイムで評価（動的）
+
+   ```scss
+   // ❌ Sass変数はメディアクエリで変更できない
+   $spacing: 1rem;
+
+   @media (max-width: 768px) {
+     $spacing: 0.5rem; // これは別の変数として扱われる
+   }
+   ```
+
+2. **パフォーマンス**
+   - CSS変数の変更は再描画をトリガー
+   - 頻繁に変更する場合は `transform` や `opacity` を優先
+
+   ```javascript
+   // ⚠️ スクロールイベントで毎回変更するのは避ける
+   window.addEventListener('scroll', () => {
+     root.style.setProperty('--scroll', window.scrollY);
+   });
+   ```
+
+3. **IE11非対応**
+   - IE11ではCSS変数は動作しない
+   - フォールバック値を必ず設定
+
+   ```css
+   .element {
+     color: #60a5fa; /* フォールバック */
+     color: var(--accent); /* モダンブラウザ */
+   }
+   ```
+
+## 実用例
+
+### ダークモードの実装
+
+```css
+:root {
+  --bg: #ffffff;
+  --text: #000000;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c1218;
+    --text: #e5edf4;
+  }
+}
+
+/* ユーザーの設定を優先 */
+[data-theme="dark"] {
+  --bg: #0c1218;
+  --text: #e5edf4;
+}
+```
+
+### コンポーネントライブラリ
+
+```css
+/* ボタンコンポーネント */
+.btn {
+  --btn-bg: #60a5fa;
+  --btn-color: #ffffff;
+  --btn-padding: 0.5rem 1rem;
+
+  background: var(--btn-bg);
+  color: var(--btn-color);
+  padding: var(--btn-padding);
+}
+
+/* バリエーション */
+.btn-large {
+  --btn-padding: 1rem 2rem;
+}
+
+.btn-success {
+  --btn-bg: #10b981;
+}
+```
+
+## まとめ
+
+CSS変数は以下のシーンで威力を発揮します:
+
+- **テーマ切替**: ダークモード、カラースキームの変更
+- **動的スタイル**: JavaScriptとの連携でリアルタイム変更
+- **コンポーネント設計**: 再利用可能で柔軟なスタイル
+- **保守性**: 一箇所で値を管理し、全体に反映
+
+Sassなどのプリプロセッサと併用することで、さらに強力な設計が可能になります。

@@ -1,0 +1,603 @@
+---
+title: clamp()関数でレスポンシブな流動的タイポグラフィ
+description: メディアクエリ不要でスムーズにサイズが変化する、モダンなレスポンシブデザインの実装方法
+tags: [css, responsive, typography, fluid-design]
+category: css
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## clamp()で実現する次世代レスポンシブデザイン
+
+`clamp()` 関数は、最小値・推奨値・最大値の3つの値を指定することで、ビューポートサイズに応じて流動的に変化するスタイルを実現できる強力なツールです。従来はメディアクエリで段階的に変更していたフォントサイズやスペーシングを、たった1行で滑らかに変化させることができます。
+
+`clamp(最小値, 推奨値, 最大値)` という構文で、推奨値には `vw` などのビューポート単位を使うことで、画面幅に応じて自動的にサイズが調整されます。特に、モバイルからデスクトップまで一貫した読みやすさを保ちたいタイポグラフィで威力を発揮します。
+
+このガイドでは、clamp() を使った実践的なテクニックを、実際に動くデモとともに解説します。ブラウザのウィンドウサイズを変えて、スムーズに変化する様子を確認してください。
+
+<LiveDemo
+  title="流動的タイポグラフィ - 画面幅に応じて滑らかに変化"
+  height="550px"
+  html={`
+<div class="fluid-typography">
+  <h1 class="fluid-heading-xl">超大見出し</h1>
+  <p class="fluid-subtext">画面サイズに応じて滑らかにサイズが変化します</p>
+
+  <h2 class="fluid-heading-lg">大見出し</h2>
+  <p class="fluid-body">
+    このテキストも clamp() を使用しています。
+    モバイルでは 14px、デスクトップでは 18px になり、
+    その間は画面幅に応じて滑らかに変化します。
+    メディアクエリを使わずに、読みやすいサイズを維持できます。
+  </p>
+
+  <h3 class="fluid-heading-md">中見出し</h3>
+  <p class="fluid-body">
+    従来のレスポンシブデザインでは、ブレークポイントごとに
+    フォントサイズを段階的に変更していました。
+    しかし clamp() を使えば、連続的でより自然な変化を実現できます。
+  </p>
+
+  <div class="fluid-card">
+    <h4 class="card-title">カードタイトル</h4>
+    <p class="card-text">
+      カード内のテキストやパディングも clamp() で制御すれば、
+      あらゆる画面サイズで最適な見た目を保てます。
+    </p>
+    <button class="fluid-button">アクションボタン</button>
+  </div>
+</div>
+  `}
+  css={`
+.fluid-typography {
+  /* 流動的なパディング */
+  padding: clamp(1rem, 3vw, 3rem);
+  background: #1f2a37;
+  border-radius: clamp(8px, 1vw, 16px);
+}
+
+/* 超大見出し: 32px ~ 64px */
+.fluid-heading-xl {
+  font-size: clamp(2rem, 5vw + 1rem, 4rem);
+  margin: 0 0 clamp(0.5rem, 1vw, 1rem) 0;
+  color: #e5edf4;
+  line-height: 1.2;
+  font-weight: 800;
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* サブテキスト: 12px ~ 16px */
+.fluid-subtext {
+  font-size: clamp(0.75rem, 1.5vw, 1rem);
+  color: #9ca3af;
+  margin: 0 0 clamp(1.5rem, 3vw, 3rem) 0;
+  letter-spacing: 0.05em;
+}
+
+/* 大見出し: 24px ~ 40px */
+.fluid-heading-lg {
+  font-size: clamp(1.5rem, 3vw + 0.5rem, 2.5rem);
+  margin: clamp(2rem, 4vw, 3rem) 0 clamp(0.75rem, 1.5vw, 1.5rem) 0;
+  color: #e5edf4;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+/* 中見出し: 20px ~ 32px */
+.fluid-heading-md {
+  font-size: clamp(1.25rem, 2.5vw + 0.5rem, 2rem);
+  margin: clamp(1.5rem, 3vw, 2.5rem) 0 clamp(0.75rem, 1.5vw, 1.25rem) 0;
+  color: #e5edf4;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+/* 本文: 14px ~ 18px */
+.fluid-body {
+  font-size: clamp(0.875rem, 1vw + 0.5rem, 1.125rem);
+  line-height: 1.7;
+  color: #d1d5db;
+  margin: 0 0 clamp(1rem, 2vw, 1.5rem) 0;
+}
+
+/* 流動的カード */
+.fluid-card {
+  background: linear-gradient(135deg, #374151, #1f2a37);
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  border-radius: clamp(10px, 1.5vw, 16px);
+  margin-top: clamp(1.5rem, 3vw, 2rem);
+  border: 1px solid #374151;
+}
+
+.card-title {
+  font-size: clamp(1.125rem, 2vw + 0.5rem, 1.5rem);
+  margin: 0 0 clamp(0.75rem, 1.5vw, 1rem) 0;
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.card-text {
+  font-size: clamp(0.875rem, 1vw + 0.5rem, 1rem);
+  line-height: 1.6;
+  color: #9ca3af;
+  margin: 0 0 clamp(1rem, 2vw, 1.5rem) 0;
+}
+
+/* 流動的ボタン */
+.fluid-button {
+  background: #60a5fa;
+  color: #0c1218;
+  border: none;
+  padding: clamp(0.75rem, 1.5vw, 1rem) clamp(1.5rem, 3vw, 2.5rem);
+  border-radius: clamp(6px, 1vw, 10px);
+  font-size: clamp(0.875rem, 1vw + 0.25rem, 1rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.fluid-button:hover {
+  background: #3b82f6;
+  transform: translateY(-2px);
+}
+
+.fluid-button:active {
+  transform: translateY(0);
+}
+  `}
+/>
+
+### clamp()の基本構文
+
+```css
+/* clamp(最小値, 推奨値, 最大値) */
+font-size: clamp(1rem, 2vw + 0.5rem, 3rem);
+
+/* 計算方法:
+   - 2vw + 0.5rem が 1rem 未満 → 1rem を使用
+   - 2vw + 0.5rem が 1rem ~ 3rem → 計算値を使用
+   - 2vw + 0.5rem が 3rem 超過 → 3rem を使用
+*/
+```
+
+**推奨値の計算式:**
+- `2vw + 0.5rem`: ビューポート幅 + 固定ベース
+- `1vw + 1rem`: より緩やかな変化
+- `5vw`: ビューポート幅のみで変化
+
+<LiveDemo
+  title="流動的スペーシング - 余白も自動調整"
+  height="500px"
+  html={`
+<div class="fluid-spacing-demo">
+  <section class="spacing-section">
+    <h3>セクション1</h3>
+    <p>セクション間の余白も clamp() で制御。画面サイズに応じて最適な間隔を自動調整します。</p>
+  </section>
+
+  <section class="spacing-section">
+    <h3>セクション2</h3>
+    <div class="grid-fluid">
+      <div class="grid-item">アイテム 1</div>
+      <div class="grid-item">アイテム 2</div>
+      <div class="grid-item">アイテム 3</div>
+    </div>
+  </section>
+
+  <section class="spacing-section">
+    <h3>セクション3</h3>
+    <p>グリッドのgapも流動的。モバイルでは狭く、デスクトップでは広くなります。</p>
+  </section>
+</div>
+  `}
+  css={`
+.fluid-spacing-demo {
+  background: #0c1218;
+  padding: clamp(1rem, 3vw, 3rem);
+}
+
+.spacing-section {
+  background: linear-gradient(135deg, #1f2a37, #374151);
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  border-radius: clamp(8px, 1vw, 16px);
+  /* 流動的なマージン */
+  margin-bottom: clamp(1rem, 2vw, 2rem);
+}
+
+.spacing-section:last-child {
+  margin-bottom: 0;
+}
+
+.spacing-section h3 {
+  margin: 0 0 clamp(0.75rem, 1.5vw, 1.25rem) 0;
+  font-size: clamp(1.125rem, 2vw + 0.5rem, 1.5rem);
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.spacing-section p {
+  margin: 0;
+  font-size: clamp(0.875rem, 1vw + 0.5rem, 1rem);
+  line-height: 1.6;
+  color: #d1d5db;
+}
+
+/* 流動的グリッド */
+.grid-fluid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(120px, 20vw, 200px), 1fr));
+  gap: clamp(0.75rem, 2vw, 1.5rem);
+}
+
+.grid-item {
+  background: #0c1218;
+  padding: clamp(1rem, 2vw, 1.5rem);
+  border-radius: clamp(6px, 1vw, 10px);
+  text-align: center;
+  color: #e5edf4;
+  font-size: clamp(0.875rem, 1vw + 0.25rem, 1rem);
+  border: 2px solid #374151;
+  transition: all 0.2s;
+}
+
+.grid-item:hover {
+  border-color: #60a5fa;
+  transform: scale(1.05);
+}
+  `}
+/>
+
+### スペーシングでの活用
+
+```css
+/* パディング */
+.container {
+  padding: clamp(1rem, 3vw, 3rem);
+}
+
+/* マージン */
+.section {
+  margin-bottom: clamp(2rem, 5vw, 5rem);
+}
+
+/* gap */
+.grid {
+  gap: clamp(0.5rem, 2vw, 2rem);
+}
+
+/* コンポーネント全体のサイズ */
+.card {
+  width: clamp(300px, 50vw, 600px);
+  height: clamp(200px, 30vh, 400px);
+}
+```
+
+<LiveDemo
+  title="実践例 - レスポンシブなランディングページヒーロー"
+  height="550px"
+  html={`
+<div class="hero-section">
+  <div class="hero-content">
+    <div class="hero-badge">新登場</div>
+    <h1 class="hero-title">
+      次世代の<br>
+      Webデザイン体験
+    </h1>
+    <p class="hero-description">
+      clamp() を使った流動的なレスポンシブデザインで、
+      あらゆるデバイスで最高のユーザー体験を提供します。
+    </p>
+    <div class="hero-actions">
+      <button class="hero-btn primary">今すぐ始める</button>
+      <button class="hero-btn secondary">詳しく見る</button>
+    </div>
+  </div>
+
+  <div class="hero-stats">
+    <div class="stat-item">
+      <div class="stat-value">99%</div>
+      <div class="stat-label">顧客満足度</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">24/7</div>
+      <div class="stat-label">サポート</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">10k+</div>
+      <div class="stat-label">ユーザー</div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.hero-section {
+  background: linear-gradient(135deg, #1f2a37 0%, #374151 50%, #1f2a37 100%);
+  padding: clamp(2rem, 5vw, 4rem) clamp(1.5rem, 4vw, 3rem);
+  border-radius: clamp(12px, 2vw, 20px);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-section::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(96, 165, 250, 0.1), transparent);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.hero-content {
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  color: #0c1218;
+  padding: clamp(0.375rem, 0.75vw, 0.5rem) clamp(0.75rem, 1.5vw, 1.25rem);
+  border-radius: clamp(15px, 2vw, 25px);
+  font-size: clamp(0.75rem, 1vw + 0.25rem, 0.875rem);
+  font-weight: 600;
+  margin-bottom: clamp(1rem, 2vw, 1.5rem);
+}
+
+.hero-title {
+  font-size: clamp(2rem, 6vw + 1rem, 4.5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  margin: 0 0 clamp(1rem, 2vw, 1.5rem) 0;
+  color: #e5edf4;
+  letter-spacing: -0.02em;
+}
+
+.hero-description {
+  font-size: clamp(1rem, 1.5vw + 0.5rem, 1.25rem);
+  line-height: 1.6;
+  color: #9ca3af;
+  margin: 0 auto clamp(2rem, 4vw, 3rem) auto;
+  max-width: clamp(400px, 80%, 600px);
+}
+
+.hero-actions {
+  display: flex;
+  gap: clamp(0.75rem, 2vw, 1.25rem);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: clamp(2rem, 4vw, 3rem);
+}
+
+.hero-btn {
+  padding: clamp(0.75rem, 1.5vw, 1rem) clamp(1.5rem, 3vw, 2.5rem);
+  border-radius: clamp(8px, 1.5vw, 12px);
+  font-size: clamp(0.875rem, 1vw + 0.25rem, 1.125rem);
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.hero-btn.primary {
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  color: #0c1218;
+  box-shadow: 0 clamp(4px, 1vw, 10px) clamp(12px, 2vw, 20px) rgba(96, 165, 250, 0.3);
+}
+
+.hero-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 clamp(6px, 1.5vw, 15px) clamp(20px, 3vw, 30px) rgba(96, 165, 250, 0.4);
+}
+
+.hero-btn.secondary {
+  background: transparent;
+  color: #e5edf4;
+  border: 2px solid #374151;
+}
+
+.hero-btn.secondary:hover {
+  border-color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+}
+
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(100px, 20vw, 150px), 1fr));
+  gap: clamp(1rem, 3vw, 2rem);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.stat-item {
+  text-align: center;
+  padding: clamp(1rem, 2vw, 1.5rem);
+  background: rgba(96, 165, 250, 0.1);
+  border-radius: clamp(10px, 1.5vw, 14px);
+  border: 1px solid rgba(96, 165, 250, 0.2);
+}
+
+.stat-value {
+  font-size: clamp(1.75rem, 4vw + 0.5rem, 2.5rem);
+  font-weight: 800;
+  color: #60a5fa;
+  margin-bottom: clamp(0.25rem, 0.5vw, 0.5rem);
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: clamp(0.75rem, 1vw + 0.25rem, 0.875rem);
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+  `}
+/>
+
+### 実践的な計算式パターン
+
+```css
+/* パターン1: ベース + ビューポート */
+font-size: clamp(1rem, 1vw + 0.5rem, 2rem);
+/* 小: 1rem, 中: 1.5rem (50vw), 大: 2rem */
+
+/* パターン2: ビューポートのみ */
+font-size: clamp(1rem, 3vw, 3rem);
+/* より急な変化 */
+
+/* パターン3: より複雑な計算 */
+font-size: clamp(1rem, calc(1rem + 2vw), 3rem);
+/* calc() と組み合わせ */
+
+/* パターン4: 比率を保つ */
+.container {
+  width: clamp(300px, 90vw, 1200px);
+  padding: clamp(1rem, 3vw, 3rem);
+  /* 幅とパディングの比率が一定 */
+}
+```
+
+## Tips & Gotchas
+
+### ✅ 効果的な使い方
+
+1. **適切な最小値・最大値の設定**
+   ```css
+   /* ✅ 読みやすい範囲に制限 */
+   font-size: clamp(14px, 2vw, 20px);
+
+   /* ❌ 範囲が広すぎる */
+   font-size: clamp(10px, 5vw, 50px);
+   ```
+
+2. **相対単位を活用**
+   ```css
+   /* rem を基準にすることでアクセシビリティ向上 */
+   font-size: clamp(0.875rem, 1vw + 0.5rem, 1.25rem);
+   ```
+
+3. **一貫性のある計算式**
+   ```css
+   :root {
+     --fluid-base: 1rem;
+     --fluid-scale: 2vw;
+   }
+
+   h1 {
+     font-size: clamp(2rem, var(--fluid-scale) + var(--fluid-base), 4rem);
+   }
+
+   h2 {
+     font-size: clamp(1.5rem, var(--fluid-scale) + 0.5rem, 3rem);
+   }
+   ```
+
+4. **オンラインツールを活用**
+   - [Fluid Type Scale Calculator](https://www.fluid-type-scale.com/)
+   - [Utopia](https://utopia.fyi/)
+
+### ⚠️ 注意点
+
+1. **計算値が範囲外になる可能性**
+   ```css
+   /* 推奨値が最小値より小さくなる場合がある */
+   font-size: clamp(1rem, 0.5vw, 2rem);
+   /* 狭い画面では 0.5vw < 1rem なので 1rem が使われる */
+   ```
+
+2. **ブラウザサポート**
+   ```css
+   /* フォールバック値を提供 */
+   .element {
+     font-size: 1.125rem; /* フォールバック */
+     font-size: clamp(1rem, 2vw + 0.5rem, 1.5rem);
+   }
+   ```
+
+3. **過度な使用は避ける**
+   ```css
+   /* ❌ すべてのプロパティで使うとメンテナンスが困難 */
+   .element {
+     margin: clamp(...);
+     padding: clamp(...);
+     border-radius: clamp(...);
+     font-size: clamp(...);
+   }
+
+   /* ✅ 重要なプロパティに限定 */
+   .element {
+     font-size: clamp(...);
+     padding: clamp(...);
+     margin: 1rem; /* 固定値 */
+     border-radius: 8px; /* 固定値 */
+   }
+   ```
+
+4. **アクセシビリティ**
+   ```css
+   /* ユーザーのフォントサイズ設定を尊重 */
+   font-size: clamp(1rem, 2vw, 1.5rem);
+   /* 最小値を固定ピクセルにしない */
+
+   /* ❌ 悪い例 */
+   font-size: clamp(14px, 2vw, 20px);
+   ```
+
+## 実用的な組み合わせ
+
+### レスポンシブなコンテナ
+
+```css
+.container {
+  width: clamp(320px, 90vw, 1200px);
+  padding: clamp(1rem, 3vw, 3rem);
+  margin: 0 auto;
+}
+```
+
+### タイポグラフィスケール
+
+```css
+:root {
+  --text-xs: clamp(0.75rem, 0.5vw + 0.5rem, 0.875rem);
+  --text-sm: clamp(0.875rem, 1vw + 0.5rem, 1rem);
+  --text-base: clamp(1rem, 1.5vw + 0.5rem, 1.125rem);
+  --text-lg: clamp(1.125rem, 2vw + 0.5rem, 1.5rem);
+  --text-xl: clamp(1.5rem, 3vw + 1rem, 2.5rem);
+  --text-2xl: clamp(2rem, 5vw + 1rem, 4rem);
+}
+```
+
+### スペーシングシステム
+
+```css
+:root {
+  --space-xs: clamp(0.5rem, 1vw, 0.75rem);
+  --space-sm: clamp(0.75rem, 1.5vw, 1rem);
+  --space-md: clamp(1rem, 2vw, 1.5rem);
+  --space-lg: clamp(1.5rem, 3vw, 2.5rem);
+  --space-xl: clamp(2rem, 5vw, 4rem);
+}
+```
+
+## まとめ
+
+clamp() 関数により:
+
+- **メディアクエリの削減**: 段階的な変化から連続的な変化へ
+- **読みやすさの向上**: あらゆる画面サイズで最適なフォントサイズ
+- **保守性**: タイポグラフィとスペーシングを一元管理
+- **パフォーマンス**: ブラウザが最適化しやすい
+
+流動的なデザインシステムを構築することで、モダンでメンテナンスしやすいレスポンシブデザインを実現できます。

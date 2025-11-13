@@ -1,0 +1,332 @@
+---
+title: ライトボックス（画像ギャラリー）
+description: クリックで全画面表示。矢印キー・スワイプ・Esc対応。
+tags: [lightbox, gallery, images, accessibility]
+frameworks: [Vanilla, Any]
+level: intermediate
+prompt_template: |
+  目的: 画像ギャラリーのライトボックス実装
+  前提: Vanilla JS、依存ゼロ
+  要件:
+  - サムネイルクリックで全画面表示モーダル
+  - 前後矢印ボタン、キーボード操作（←→、Esc）対応
+  - スワイプ/ドラッグ対応（pointer events）
+  - フォーカストラップ（モーダル内に閉じ込め）
+  - role="dialog" aria-modal="true"
+  - prefers-reduced-motion: フェード無効
+  - 画像読み込み中のローディング表示
+  - 画像ズーム時のalt表示
+  納品: HTML+CSS+最小限のJS
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo height="500px">
+{`<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0c1218; color: #e5edf4; padding: 2rem; }
+
+    .gallery { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem; }
+    .thumb { border: 1px solid #1f2a37; border-radius: 8px; overflow: hidden; background: #0c1218; cursor: pointer; padding: 0; transition: transform 0.2s; }
+    .thumb:hover { transform: scale(1.05); }
+    .thumb img { display: block; width: 200px; height: 150px; object-fit: cover; }
+
+    .lightbox { display: none; position: fixed; inset: 0; z-index: 9999; }
+    .lightbox.active { display: block; }
+    .lb-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.9); }
+    .lb-container { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+    .lb-content { position: relative; max-width: 90vw; max-height: 90vh; }
+    .lb-image { display: block; max-width: 100%; max-height: 80vh; border-radius: 8px; opacity: 0; transition: opacity 0.3s; }
+    .lb-image.loaded { opacity: 1; }
+    .lb-loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #e5edf4; font-size: 1.2rem; }
+
+    .lb-close, .lb-prev, .lb-next { position: absolute; background: rgba(31, 42, 55, 0.8); border: 1px solid #374151; color: #e5edf4; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 1.5rem; transition: background 0.2s; }
+    .lb-close:hover, .lb-prev:hover, .lb-next:hover { background: rgba(55, 65, 81, 0.9); }
+    .lb-close { top: 1rem; right: 1rem; }
+    .lb-prev { left: 1rem; top: 50%; transform: translateY(-50%); }
+    .lb-next { right: 1rem; top: 50%; transform: translateY(-50%); }
+    .lb-prev:disabled, .lb-next:disabled { opacity: 0.5; cursor: not-allowed; }
+    .lb-counter { position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%); color: #e5edf4; background: rgba(12, 18, 24, 0.7); padding: 0.5rem 1rem; border-radius: 999px; font-size: 0.9rem; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .lb-image { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <h2 style="margin-bottom: 1rem;">ライトボックスギャラリー</h2>
+  <p style="margin-bottom: 1rem; color: #9ca3af;">画像をクリックして拡大表示。矢印キー(←→)やEscキーも使えます。</p>
+
+  <div class="gallery">
+    <button class="thumb" data-src="https://picsum.photos/800/600?random=1">
+      <img src="https://picsum.photos/200/150?random=1" alt="サンプル画像1">
+    </button>
+    <button class="thumb" data-src="https://picsum.photos/800/600?random=2">
+      <img src="https://picsum.photos/200/150?random=2" alt="サンプル画像2">
+    </button>
+    <button class="thumb" data-src="https://picsum.photos/800/600?random=3">
+      <img src="https://picsum.photos/200/150?random=3" alt="サンプル画像3">
+    </button>
+    <button class="thumb" data-src="https://picsum.photos/800/600?random=4">
+      <img src="https://picsum.photos/200/150?random=4" alt="サンプル画像4">
+    </button>
+  </div>
+
+  <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="画像ビューア">
+    <div class="lb-overlay"></div>
+    <div class="lb-container">
+      <button class="lb-close" aria-label="閉じる">×</button>
+      <button class="lb-prev" aria-label="前の画像">‹</button>
+      <button class="lb-next" aria-label="次の画像">›</button>
+      <div class="lb-content">
+        <img class="lb-image" src="" alt="">
+        <div class="lb-loading">読込中...</div>
+      </div>
+      <div class="lb-counter"></div>
+    </div>
+  </div>
+
+  <script>
+    const gallery = document.querySelector('.gallery');
+    const lightbox = document.getElementById('lightbox');
+    const lbImage = lightbox.querySelector('.lb-image');
+    const lbLoading = lightbox.querySelector('.lb-loading');
+    const lbCounter = lightbox.querySelector('.lb-counter');
+    const closeBtn = lightbox.querySelector('.lb-close');
+    const prevBtn = lightbox.querySelector('.lb-prev');
+    const nextBtn = lightbox.querySelector('.lb-next');
+    const overlay = lightbox.querySelector('.lb-overlay');
+
+    const thumbs = Array.from(gallery.querySelectorAll('.thumb'));
+    let currentIndex = 0;
+
+    function loadImage(index) {
+      currentIndex = (index + thumbs.length) % thumbs.length;
+      const thumb = thumbs[currentIndex];
+      const src = thumb.dataset.src;
+      const alt = thumb.querySelector('img')?.alt || '';
+
+      lbImage.classList.remove('loaded');
+      lbLoading.style.display = 'block';
+
+      const img = new Image();
+      img.onload = () => {
+        lbImage.src = src;
+        lbImage.alt = alt;
+        lbImage.classList.add('loaded');
+        lbLoading.style.display = 'none';
+      };
+      img.src = src;
+
+      lbCounter.textContent = \`\${currentIndex + 1} / \${thumbs.length}\`;
+      prevBtn.disabled = false;
+      nextBtn.disabled = false;
+    }
+
+    function open(index) {
+      lightbox.classList.add('active');
+      loadImage(index);
+      closeBtn.focus();
+    }
+
+    function close() {
+      lightbox.classList.remove('active');
+    }
+
+    thumbs.forEach((thumb, idx) => {
+      thumb.addEventListener('click', () => open(idx));
+    });
+
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', close);
+    prevBtn.addEventListener('click', () => loadImage(currentIndex - 1));
+    nextBtn.addEventListener('click', () => loadImage(currentIndex + 1));
+
+    document.addEventListener('keydown', (e) => {
+      if (!lightbox.classList.contains('active')) return;
+
+      if (e.key === 'Escape') close();
+      if (e.key === 'ArrowLeft') loadImage(currentIndex - 1);
+      if (e.key === 'ArrowRight') loadImage(currentIndex + 1);
+    });
+  </script>
+</body>
+</html>`}
+</LiveDemo>
+
+**HTML**
+```html
+<div class="gallery">
+  <button class="thumb" data-src="https://picsum.photos/800/600?random=1" aria-label="画像1を開く">
+    <img src="https://picsum.photos/200/150?random=1" alt="サンプル画像1">
+  </button>
+  <button class="thumb" data-src="https://picsum.photos/800/600?random=2" aria-label="画像2を開く">
+    <img src="https://picsum.photos/200/150?random=2" alt="サンプル画像2">
+  </button>
+  <button class="thumb" data-src="https://picsum.photos/800/600?random=3" aria-label="画像3を開く">
+    <img src="https://picsum.photos/200/150?random=3" alt="サンプル画像3">
+  </button>
+</div>
+
+<div id="lightbox" class="hidden" role="dialog" aria-modal="true" aria-label="画像ビューア">
+  <div class="lb-overlay"></div>
+  <div class="lb-container" role="document">
+    <button class="lb-close" aria-label="閉じる">×</button>
+    <button class="lb-prev" aria-label="前の画像">‹</button>
+    <button class="lb-next" aria-label="次の画像">›</button>
+    <div class="lb-content">
+      <img class="lb-image" src="" alt="">
+      <div class="lb-loading">読込中...</div>
+    </div>
+    <div class="lb-counter" aria-live="polite"></div>
+  </div>
+</div>
+```
+
+**CSS**
+```css
+.gallery { display: flex; gap: .5rem; flex-wrap: wrap; }
+.thumb { border: 1px solid #1f2a37; border-radius: 8px; overflow: hidden; background: #0c1218; cursor: pointer; padding: 0; transition: transform .2s; }
+.thumb:hover { transform: scale(1.05); }
+.thumb img { display: block; width: 100%; height: auto; }
+
+.hidden { display: none; }
+#lightbox { position: fixed; inset: 0; z-index: 9999; }
+.lb-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.9); }
+.lb-container { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.lb-content { position: relative; max-width: 90vw; max-height: 90vh; }
+.lb-image { display: block; max-width: 100%; max-height: 90vh; border-radius: 8px; opacity: 0; transition: opacity .3s; }
+.lb-image.loaded { opacity: 1; }
+.lb-loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #e5edf4; }
+@media (prefers-reduced-motion: reduce) { .lb-image { transition: none; } }
+
+.lb-close, .lb-prev, .lb-next { position: absolute; background: rgba(21,32,43,.8); border: 1px solid #1f2a37; color: #e5edf4; padding: .5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 1.5rem; transition: background .2s; }
+.lb-close:hover, .lb-prev:hover, .lb-next:hover { background: rgba(31,42,55,.9); }
+.lb-close { top: 1rem; right: 1rem; }
+.lb-prev { left: 1rem; top: 50%; transform: translateY(-50%); }
+.lb-next { right: 1rem; top: 50%; transform: translateY(-50%); }
+.lb-counter { position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%); color: #e5edf4; background: rgba(12,18,24,.7); padding: .3rem .8rem; border-radius: 999px; font-size: .9rem; }
+```
+
+**JS**
+```js
+(() => {
+  const gallery = document.querySelector('.gallery');
+  const lightbox = document.getElementById('lightbox');
+  const lbImage = lightbox?.querySelector('.lb-image');
+  const lbLoading = lightbox?.querySelector('.lb-loading');
+  const lbCounter = lightbox?.querySelector('.lb-counter');
+  const closeBtn = lightbox?.querySelector('.lb-close');
+  const prevBtn = lightbox?.querySelector('.lb-prev');
+  const nextBtn = lightbox?.querySelector('.lb-next');
+  const overlay = lightbox?.querySelector('.lb-overlay');
+
+  if (!gallery || !lightbox) return;
+
+  const thumbs = Array.from(gallery.querySelectorAll('.thumb'));
+  let currentIndex = 0;
+  let prevFocus;
+
+  const focusables = () => lightbox.querySelectorAll('button:not([disabled])');
+
+  function loadImage(index) {
+    currentIndex = (index + thumbs.length) % thumbs.length;
+    const thumb = thumbs[currentIndex];
+    const src = thumb.dataset.src;
+    const alt = thumb.querySelector('img')?.alt || '';
+
+    lbImage.classList.remove('loaded');
+    lbLoading.style.display = 'block';
+
+    const img = new Image();
+    img.onload = () => {
+      lbImage.src = src;
+      lbImage.alt = alt;
+      lbImage.classList.add('loaded');
+      lbLoading.style.display = 'none';
+    };
+    img.src = src;
+
+    lbCounter.textContent = `${currentIndex + 1} / ${thumbs.length}`;
+    prevBtn.disabled = thumbs.length <= 1;
+    nextBtn.disabled = thumbs.length <= 1;
+  }
+
+  function open(index) {
+    prevFocus = document.activeElement;
+    lightbox.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    loadImage(index);
+    closeBtn?.focus();
+  }
+
+  function close() {
+    lightbox.classList.add('hidden');
+    document.body.style.overflow = '';
+    prevFocus?.focus();
+  }
+
+  thumbs.forEach((thumb, idx) => {
+    thumb.addEventListener('click', () => open(idx));
+  });
+
+  closeBtn?.addEventListener('click', close);
+  overlay?.addEventListener('click', close);
+  prevBtn?.addEventListener('click', () => loadImage(currentIndex - 1));
+  nextBtn?.addEventListener('click', () => loadImage(currentIndex + 1));
+
+  // keyboard
+  document.addEventListener('keydown', (e) => {
+    if (lightbox.classList.contains('hidden')) return;
+
+    if (e.key === 'Escape') close();
+    if (e.key === 'ArrowLeft') loadImage(currentIndex - 1);
+    if (e.key === 'ArrowRight') loadImage(currentIndex + 1);
+
+    // focus trap
+    if (e.key === 'Tab') {
+      const nodes = Array.from(focusables());
+      const first = nodes[0], last = nodes[nodes.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        last.focus();
+        e.preventDefault();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        first.focus();
+        e.preventDefault();
+      }
+    }
+  });
+
+  // swipe
+  let startX = 0, deltaX = 0, dragging = false;
+  const onDown = e => {
+    if (lightbox.classList.contains('hidden')) return;
+    dragging = true;
+    startX = e.touches ? e.touches[0].clientX : e.clientX;
+  };
+  const onMove = e => {
+    if (!dragging) return;
+    deltaX = (e.touches ? e.touches[0].clientX : e.clientX) - startX;
+  };
+  const onUp = () => {
+    if (!dragging) return;
+    if (Math.abs(deltaX) > 50) {
+      loadImage(currentIndex + (deltaX > 0 ? -1 : 1));
+    }
+    dragging = false;
+    deltaX = 0;
+  };
+
+  lightbox.addEventListener('pointerdown', onDown);
+  lightbox.addEventListener('pointermove', onMove);
+  lightbox.addEventListener('pointerup', onUp);
+  lightbox.addEventListener('touchstart', onDown, { passive: true });
+  lightbox.addEventListener('touchmove', onMove, { passive: true });
+  lightbox.addEventListener('touchend', onUp);
+})();
+```

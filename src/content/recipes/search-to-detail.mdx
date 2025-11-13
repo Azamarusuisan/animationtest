@@ -1,0 +1,1330 @@
+---
+title: 検索一覧→詳細フロー
+description: 検索からデータ表示までの完全なワークフローを実現する統合レシピ
+tags: [recipe, search, workflow, data-flow]
+modules_used: [search-autocomplete, infinite-scroll, skeleton-ui, modal-dialog]
+level: intermediate
+use_case: EC サイトやデータベース検索アプリケーション。検索→結果一覧→詳細表示という典型的なユーザーフローを、複数のモジュールを組み合わせて実装。
+prompt_template: |
+  目的: 検索から詳細表示までのシームレスなデータフロー構築
+  組み合わせるモジュール:
+  - Search Autocomplete: リアルタイム検索候補
+  - Infinite Scroll: 結果の無限スクロール
+  - Skeleton UI: ローディング状態の表示
+  - Modal Dialog: 詳細情報のモーダル表示
+  要件:
+  - 検索バーでオートコンプリート
+  - 検索結果の無限スクロール
+  - スケルトン UI でローディング表示
+  - アイテムクリックでモーダル詳細表示
+  - エラー/空状態のハンドリング
+  - レスポンシブデザイン
+  納品: 完全な検索→詳細フローシステム
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## 概要
+
+このレシピでは、**Search Autocomplete**、**Infinite Scroll**、**Skeleton UI**、**Modal Dialog** を組み合わせて、完全な検索から詳細表示までのワークフローを構築します。
+
+### このレシピが実現すること
+
+- **スマートな検索**: リアルタイムの候補表示とキーボード操作
+- **効率的なデータ表示**: 無限スクロールによる段階的な読み込み
+- **優れた UX**: ローディング中もスケルトン UI で視覚的フィードバック
+- **詳細情報の表示**: モーダルで非侵襲的に詳細を確認
+- **状態管理**: 検索/ローディング/エラー/空状態を適切にハンドリング
+
+## インタラクティブデモ
+
+<LiveDemo
+  title="検索一覧→詳細フロー - 完全版"
+  height="800px"
+  html={`
+<div class="search-app">
+  <!-- Search Header -->
+  <header class="search-header">
+    <div class="search-container">
+      <h1 class="search-title">商品検索</h1>
+
+      <!-- Search Bar with Autocomplete -->
+      <div class="search-autocomplete">
+        <div class="search-input-wrapper">
+          <span class="search-icon">🔍</span>
+          <input
+            type="text"
+            id="search-input"
+            class="search-input"
+            placeholder="商品名、カテゴリで検索..."
+            autocomplete="off"
+            aria-autocomplete="list"
+            aria-controls="suggestions"
+            aria-expanded="false"
+            role="combobox"
+          />
+          <button class="search-clear" aria-label="クリア" hidden>×</button>
+          <div class="search-spinner" hidden></div>
+        </div>
+        <ul id="suggestions" class="suggestions" role="listbox" hidden></ul>
+      </div>
+
+      <!-- Search Stats -->
+      <div class="search-stats" id="search-stats" role="status" aria-live="polite"></div>
+    </div>
+  </header>
+
+  <!-- Results Container -->
+  <main class="results-container">
+    <!-- Welcome State -->
+    <div class="empty-state" id="welcome-state">
+      <div class="empty-icon">🔍</div>
+      <h2>商品を検索してください</h2>
+      <p>キーワードを入力すると、リアルタイムで候補が表示されます</p>
+      <div class="popular-searches">
+        <p class="popular-title">人気の検索:</p>
+        <div class="popular-tags">
+          <button class="popular-tag">スマートフォン</button>
+          <button class="popular-tag">ノートPC</button>
+          <button class="popular-tag">ヘッドホン</button>
+          <button class="popular-tag">カメラ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Grid -->
+    <div class="results-grid" id="results-grid" hidden>
+      <!-- Results will be dynamically added here -->
+    </div>
+
+    <!-- Skeleton Loading -->
+    <div class="skeleton-container" id="skeleton-loader" hidden>
+      <div class="skeleton-card">
+        <div class="skeleton-image"></div>
+        <div class="skeleton-content">
+          <div class="skeleton-line skeleton-title"></div>
+          <div class="skeleton-line skeleton-text"></div>
+          <div class="skeleton-line skeleton-text short"></div>
+        </div>
+      </div>
+      <div class="skeleton-card">
+        <div class="skeleton-image"></div>
+        <div class="skeleton-content">
+          <div class="skeleton-line skeleton-title"></div>
+          <div class="skeleton-line skeleton-text"></div>
+          <div class="skeleton-line skeleton-text short"></div>
+        </div>
+      </div>
+      <div class="skeleton-card">
+        <div class="skeleton-image"></div>
+        <div class="skeleton-content">
+          <div class="skeleton-line skeleton-title"></div>
+          <div class="skeleton-line skeleton-text"></div>
+          <div class="skeleton-line skeleton-text short"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Infinite Scroll Sentinel -->
+    <div id="sentinel" aria-hidden="true"></div>
+
+    <!-- Loading Indicator -->
+    <div class="loading-more" id="loading-more" hidden>
+      <div class="spinner"></div>
+      <span>さらに読み込み中...</span>
+    </div>
+
+    <!-- No Results State -->
+    <div class="empty-state" id="no-results" hidden>
+      <div class="empty-icon">😢</div>
+      <h2>検索結果が見つかりません</h2>
+      <p>別のキーワードで試してみてください</p>
+    </div>
+
+    <!-- Error State -->
+    <div class="empty-state error" id="error-state" hidden>
+      <div class="empty-icon">⚠️</div>
+      <h2>エラーが発生しました</h2>
+      <p>しばらくしてから再度お試しください</p>
+      <button class="retry-btn" id="retry-btn">再試行</button>
+    </div>
+  </main>
+
+  <!-- Detail Modal -->
+  <div id="detail-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-overlay"></div>
+    <section class="modal-panel" role="document">
+      <button class="modal-close" aria-label="閉じる">×</button>
+
+      <div class="modal-content">
+        <div class="modal-image-container">
+          <img id="modal-image" src="" alt="" class="modal-image">
+        </div>
+
+        <div class="modal-details">
+          <h2 id="modal-title" class="modal-title"></h2>
+          <div class="modal-category" id="modal-category"></div>
+          <div class="modal-price" id="modal-price"></div>
+          <p class="modal-description" id="modal-description"></p>
+
+          <div class="modal-specs" id="modal-specs"></div>
+
+          <div class="modal-actions">
+            <button class="modal-btn modal-btn-primary">カートに追加</button>
+            <button class="modal-btn modal-btn-secondary">お気に入り</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+  `}
+  css={`
+/* Layout */
+.search-app {
+  background: #0c1218;
+  color: #e5edf4;
+  min-height: 100vh;
+}
+
+/* Search Header */
+.search-header {
+  background: #1f2a37;
+  border-bottom: 1px solid #374151;
+  padding: 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.search-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.search-title {
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  color: #e5edf4;
+}
+
+/* Search Autocomplete */
+.search-autocomplete {
+  position: relative;
+  max-width: 600px;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  font-size: 1.125rem;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.875rem 3rem 0.875rem 3rem;
+  background: #0c1218;
+  border: 2px solid #374151;
+  border-radius: 8px;
+  color: #e5edf4;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+.search-clear {
+  position: absolute;
+  right: 3rem;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.search-clear:hover {
+  color: #e5edf4;
+}
+
+.search-spinner {
+  position: absolute;
+  right: 1rem;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #374151;
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Suggestions */
+.suggestions {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  right: 0;
+  background: #1f2a37;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  max-height: 300px;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0;
+  z-index: 1000;
+}
+
+.suggestion {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  color: #e5edf4;
+}
+
+.suggestion:hover {
+  background: #374151;
+}
+
+.suggestion[aria-selected="true"] {
+  background: #2563eb;
+}
+
+.suggestion mark {
+  background: #fbbf24;
+  color: #111827;
+  font-weight: 600;
+  padding: 0;
+}
+
+/* Search Stats */
+.search-stats {
+  margin-top: 1rem;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+/* Results Container */
+.results-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  min-height: 400px;
+}
+
+/* Results Grid */
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Result Card */
+.result-card {
+  background: #1f2a37;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.result-card:hover {
+  border-color: #60a5fa;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(96, 165, 250, 0.2);
+}
+
+.result-image {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  background: #374151;
+}
+
+.result-content {
+  padding: 1rem;
+}
+
+.result-category {
+  font-size: 0.75rem;
+  color: #60a5fa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.result-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  color: #e5edf4;
+}
+
+.result-price {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #10b981;
+  margin-bottom: 0.5rem;
+}
+
+.result-description {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  line-height: 1.5;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Skeleton UI */
+.skeleton-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.skeleton-card {
+  background: #1f2a37;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.skeleton-image {
+  width: 100%;
+  height: 200px;
+  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-content {
+  padding: 1rem;
+}
+
+.skeleton-line {
+  height: 12px;
+  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+}
+
+.skeleton-title {
+  height: 16px;
+  width: 80%;
+}
+
+.skeleton-text {
+  width: 100%;
+}
+
+.skeleton-text.short {
+  width: 60%;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #9ca3af;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.empty-state h2 {
+  color: #e5edf4;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  margin-bottom: 2rem;
+}
+
+.popular-searches {
+  margin-top: 2rem;
+}
+
+.popular-title {
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  color: #9ca3af;
+}
+
+.popular-tags {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.popular-tag {
+  padding: 0.5rem 1rem;
+  background: #374151;
+  border: 1px solid #4b5563;
+  color: #e5edf4;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.popular-tag:hover {
+  background: #4b5563;
+  border-color: #60a5fa;
+  color: #60a5fa;
+}
+
+.retry-btn {
+  padding: 0.75rem 1.5rem;
+  background: #60a5fa;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.retry-btn:hover {
+  background: #3b82f6;
+}
+
+/* Loading More */
+#sentinel {
+  height: 1px;
+  margin: 2rem 0;
+}
+
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  color: #9ca3af;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #374151;
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-backdrop.hidden {
+  display: none;
+}
+
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+}
+
+.modal-panel {
+  position: relative;
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  background: #1f2a37;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  overflow-y: auto;
+  transform: scale(0.95);
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.modal-backdrop:not(.hidden) .modal-panel {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 40px;
+  height: 40px;
+  background: rgba(12, 18, 24, 0.8);
+  border: 1px solid #374151;
+  border-radius: 50%;
+  color: #e5edf4;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.modal-close:hover {
+  background: #374151;
+  transform: rotate(90deg);
+}
+
+.modal-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  padding: 2rem;
+}
+
+.modal-image-container {
+  position: sticky;
+  top: 0;
+}
+
+.modal-image {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  background: #374151;
+}
+
+.modal-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-title {
+  font-size: 1.75rem;
+  margin: 0;
+  color: #e5edf4;
+}
+
+.modal-category {
+  font-size: 0.875rem;
+  color: #60a5fa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.modal-price {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #10b981;
+}
+
+.modal-description {
+  line-height: 1.7;
+  color: #d1d5db;
+}
+
+.modal-specs {
+  padding: 1rem;
+  background: #0c1218;
+  border-radius: 8px;
+  border: 1px solid #374151;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.modal-btn {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn-primary {
+  background: #60a5fa;
+  color: white;
+}
+
+.modal-btn-primary:hover {
+  background: #3b82f6;
+}
+
+.modal-btn-secondary {
+  background: #374151;
+  color: #e5edf4;
+  border: 1px solid #4b5563;
+}
+
+.modal-btn-secondary:hover {
+  background: #4b5563;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .results-grid,
+  .skeleton-container {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-content {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-image-container {
+    position: relative;
+  }
+
+  .search-header {
+    padding: 1rem;
+  }
+
+  .results-container {
+    padding: 1rem;
+  }
+}
+  `}
+  js={`
+// Mock Data
+const mockProducts = [
+  { id: 1, name: 'スマートフォン X1', category: 'スマートフォン', price: 89800, image: 'https://picsum.photos/300/200?random=1', description: '最新の5G対応スマートフォン。高性能カメラと長時間バッテリーを搭載。' },
+  { id: 2, name: 'ノートPC Pro 15', category: 'ノートPC', price: 159800, image: 'https://picsum.photos/300/200?random=2', description: 'プロフェッショナル向けの高性能ノートPC。4K ディスプレイ搭載。' },
+  { id: 3, name: 'ワイヤレスヘッドホン', category: 'ヘッドホン', price: 29800, image: 'https://picsum.photos/300/200?random=3', description: 'ノイズキャンセリング機能付きの高音質ワイヤレスヘッドホン。' },
+  { id: 4, name: 'デジタルカメラ Z5', category: 'カメラ', price: 149800, image: 'https://picsum.photos/300/200?random=4', description: 'プロ仕様のミラーレスカメラ。4K動画撮影対応。' },
+  { id: 5, name: 'タブレット T10', category: 'タブレット', price: 69800, image: 'https://picsum.photos/300/200?random=5', description: '10インチの高解像度ディスプレイ搭載タブレット。' },
+  { id: 6, name: 'スマートウォッチ W2', category: 'ウェアラブル', price: 39800, image: 'https://picsum.photos/300/200?random=6', description: '健康管理機能が充実したスマートウォッチ。防水仕様。' },
+  { id: 7, name: 'ゲーミングモニター 27"', category: 'モニター', price: 54800, image: 'https://picsum.photos/300/200?random=7', description: '144Hz リフレッシュレート対応の27インチゲーミングモニター。' },
+  { id: 8, name: 'ワイヤレスマウス', category: 'アクセサリ', price: 7980, image: 'https://picsum.photos/300/200?random=8', description: 'エルゴノミクスデザインのワイヤレスマウス。' },
+  { id: 9, name: 'メカニカルキーボード', category: 'アクセサリ', price: 15800, image: 'https://picsum.photos/300/200?random=9', description: 'RGB バックライト付きメカニカルキーボード。' },
+  { id: 10, name: 'ポータブルSSD 1TB', category: 'ストレージ', price: 18800, image: 'https://picsum.photos/300/200?random=10', description: '高速転送可能なポータブル SSD。コンパクトサイズ。' }
+];
+
+// Elements
+const searchInput = document.getElementById('search-input');
+const searchClear = document.querySelector('.search-clear');
+const searchSpinner = document.querySelector('.search-spinner');
+const suggestions = document.getElementById('suggestions');
+const searchStats = document.getElementById('search-stats');
+const welcomeState = document.getElementById('welcome-state');
+const resultsGrid = document.getElementById('results-grid');
+const skeletonLoader = document.getElementById('skeleton-loader');
+const noResults = document.getElementById('no-results');
+const errorState = document.getElementById('error-state');
+const sentinel = document.getElementById('sentinel');
+const loadingMore = document.getElementById('loading-more');
+const detailModal = document.getElementById('detail-modal');
+
+// State
+let currentQuery = '';
+let currentResults = [];
+let displayedCount = 0;
+let isLoading = false;
+let activeIndex = -1;
+
+// Search with autocomplete
+let debounceTimer;
+
+function showState(state) {
+  welcomeState.hidden = state !== 'welcome';
+  resultsGrid.hidden = state !== 'results';
+  skeletonLoader.hidden = state !== 'loading';
+  noResults.hidden = state !== 'no-results';
+  errorState.hidden = state !== 'error';
+}
+
+async function search(query) {
+  if (!query.trim()) {
+    currentQuery = '';
+    currentResults = [];
+    showState('welcome');
+    searchStats.textContent = '';
+    closeSuggestions();
+    return;
+  }
+
+  currentQuery = query;
+  showState('loading');
+  searchStats.textContent = '';
+
+  // Simulate API call
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  const results = mockProducts.filter(product =>
+    product.name.toLowerCase().includes(query.toLowerCase()) ||
+    product.category.toLowerCase().includes(query.toLowerCase())
+  );
+
+  currentResults = results;
+  displayedCount = 0;
+
+  if (results.length === 0) {
+    showState('no-results');
+  } else {
+    showState('results');
+    resultsGrid.innerHTML = '';
+    loadMore();
+  }
+}
+
+function loadMore() {
+  const itemsPerPage = 6;
+  const nextBatch = currentResults.slice(displayedCount, displayedCount + itemsPerPage);
+
+  nextBatch.forEach(product => {
+    const card = createResultCard(product);
+    resultsGrid.appendChild(card);
+  });
+
+  displayedCount += nextBatch.length;
+
+  searchStats.textContent = \`\${currentResults.length} 件の結果を表示中\`;
+
+  if (displayedCount >= currentResults.length) {
+    sentinel.style.display = 'none';
+  } else {
+    sentinel.style.display = 'block';
+  }
+}
+
+function createResultCard(product) {
+  const card = document.createElement('article');
+  card.className = 'result-card';
+  card.innerHTML = \`
+    <img src="\${product.image}" alt="\${product.name}" class="result-image" loading="lazy">
+    <div class="result-content">
+      <div class="result-category">\${product.category}</div>
+      <h3 class="result-title">\${product.name}</h3>
+      <div class="result-price">¥\${product.price.toLocaleString()}</div>
+      <p class="result-description">\${product.description}</p>
+    </div>
+  \`;
+  card.addEventListener('click', () => openDetailModal(product));
+  return card;
+}
+
+// Autocomplete
+searchInput.addEventListener('input', (e) => {
+  const value = e.target.value;
+  searchClear.hidden = !value;
+
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    if (value) {
+      showSuggestions(value);
+    } else {
+      closeSuggestions();
+      search('');
+    }
+  }, 300);
+});
+
+function showSuggestions(query) {
+  const matches = mockProducts
+    .filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
+    .slice(0, 5);
+
+  if (matches.length === 0) {
+    closeSuggestions();
+    return;
+  }
+
+  suggestions.innerHTML = '';
+  activeIndex = -1;
+
+  matches.forEach((product, idx) => {
+    const li = document.createElement('li');
+    li.className = 'suggestion';
+    li.setAttribute('role', 'option');
+    li.setAttribute('id', \`suggestion-\${idx}\`);
+
+    const regex = new RegExp(\`(\${query})\`, 'gi');
+    li.innerHTML = product.name.replace(regex, '<mark>$1</mark>');
+
+    li.addEventListener('click', () => {
+      searchInput.value = product.name;
+      closeSuggestions();
+      search(product.name);
+    });
+
+    suggestions.appendChild(li);
+  });
+
+  openSuggestions();
+}
+
+function openSuggestions() {
+  suggestions.hidden = false;
+  searchInput.setAttribute('aria-expanded', 'true');
+}
+
+function closeSuggestions() {
+  suggestions.hidden = true;
+  searchInput.setAttribute('aria-expanded', 'false');
+  activeIndex = -1;
+}
+
+// Keyboard navigation
+searchInput.addEventListener('keydown', (e) => {
+  const items = suggestions.querySelectorAll('.suggestion');
+
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (activeIndex >= 0 && items[activeIndex]) {
+      items[activeIndex].click();
+    } else {
+      closeSuggestions();
+      search(searchInput.value);
+    }
+  } else if (e.key === 'Escape') {
+    closeSuggestions();
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (items.length === 0) return;
+    items[activeIndex]?.setAttribute('aria-selected', 'false');
+    activeIndex = (activeIndex + 1) % items.length;
+    items[activeIndex].setAttribute('aria-selected', 'true');
+    items[activeIndex].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (items.length === 0) return;
+    items[activeIndex]?.setAttribute('aria-selected', 'false');
+    activeIndex = activeIndex <= 0 ? items.length - 1 : activeIndex - 1;
+    items[activeIndex].setAttribute('aria-selected', 'true');
+    items[activeIndex].scrollIntoView({ block: 'nearest' });
+  }
+});
+
+// Clear button
+searchClear.addEventListener('click', () => {
+  searchInput.value = '';
+  searchClear.hidden = true;
+  closeSuggestions();
+  search('');
+  searchInput.focus();
+});
+
+// Popular tags
+document.querySelectorAll('.popular-tag').forEach(tag => {
+  tag.addEventListener('click', () => {
+    const query = tag.textContent;
+    searchInput.value = query;
+    searchClear.hidden = false;
+    search(query);
+  });
+});
+
+// Infinite scroll
+const observer = new IntersectionObserver(
+  (entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && !isLoading && displayedCount < currentResults.length) {
+        isLoading = true;
+        loadingMore.hidden = false;
+
+        setTimeout(() => {
+          loadMore();
+          isLoading = false;
+          loadingMore.hidden = true;
+        }, 800);
+      }
+    });
+  },
+  { threshold: 0.1 }
+);
+
+observer.observe(sentinel);
+
+// Detail Modal
+function openDetailModal(product) {
+  document.getElementById('modal-title').textContent = product.name;
+  document.getElementById('modal-category').textContent = product.category;
+  document.getElementById('modal-price').textContent = \`¥\${product.price.toLocaleString()}\`;
+  document.getElementById('modal-description').textContent = product.description;
+  document.getElementById('modal-image').src = product.image;
+  document.getElementById('modal-image').alt = product.name;
+
+  const specs = document.getElementById('modal-specs');
+  specs.innerHTML = \`
+    <h3 style="margin: 0 0 0.75rem 0; color: #e5edf4; font-size: 0.875rem;">仕様</h3>
+    <dl style="display: grid; gap: 0.5rem; font-size: 0.875rem;">
+      <div style="display: flex; justify-content: space-between;">
+        <dt style="color: #9ca3af;">商品ID:</dt>
+        <dd style="color: #e5edf4; margin: 0;">#\${product.id.toString().padStart(6, '0')}</dd>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <dt style="color: #9ca3af;">カテゴリ:</dt>
+        <dd style="color: #e5edf4; margin: 0;">\${product.category}</dd>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <dt style="color: #9ca3af;">在庫:</dt>
+        <dd style="color: #10b981; margin: 0;">在庫あり</dd>
+      </div>
+    </dl>
+  \`;
+
+  detailModal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  detailModal.querySelector('.modal-close').focus();
+}
+
+function closeDetailModal() {
+  detailModal.classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+detailModal.querySelector('.modal-close').addEventListener('click', closeDetailModal);
+detailModal.querySelector('.modal-overlay').addEventListener('click', closeDetailModal);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !detailModal.classList.contains('hidden')) {
+    closeDetailModal();
+  }
+});
+
+// Close suggestions on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.search-autocomplete')) {
+    closeSuggestions();
+  }
+});
+
+// Retry button
+document.getElementById('retry-btn')?.addEventListener('click', () => {
+  search(currentQuery);
+});
+
+// Initialize
+showState('welcome');
+  `}
+/>
+
+## 使用モジュール
+
+このレシピでは以下のモジュールを統合しています:
+
+1. **Search Autocomplete (検索オートコンプリート)** - リアルタイム候補表示
+2. **Infinite Scroll (無限スクロール)** - 段階的なデータ読み込み
+3. **Skeleton UI (スケルトンローディング)** - ローディング状態の可視化
+4. **Modal Dialog (モーダルダイアログ)** - 詳細情報の非侵襲的表示
+
+## 実装の要点
+
+### 1. 検索とオートコンプリートの統合
+
+```javascript
+let debounceTimer;
+
+searchInput.addEventListener('input', (e) => {
+  const value = e.target.value;
+
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    if (value) {
+      showSuggestions(value);
+    } else {
+      search('');
+    }
+  }, 300);
+});
+```
+
+### 2. 無限スクロールの実装
+
+```javascript
+const observer = new IntersectionObserver(
+  (entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && !isLoading && hasMoreItems) {
+        isLoading = true;
+        loadMore();
+      }
+    });
+  },
+  { threshold: 0.1 }
+);
+
+observer.observe(sentinel);
+```
+
+### 3. 状態管理の一元化
+
+```javascript
+function showState(state) {
+  welcomeState.hidden = state !== 'welcome';
+  resultsGrid.hidden = state !== 'results';
+  skeletonLoader.hidden = state !== 'loading';
+  noResults.hidden = state !== 'no-results';
+  errorState.hidden = state !== 'error';
+}
+
+// 使用例
+showState('loading'); // ローディング状態
+showState('results'); // 結果表示
+showState('no-results'); // 結果なし
+```
+
+### 4. モーダル詳細表示
+
+```javascript
+function openDetailModal(product) {
+  // データを動的に設定
+  document.getElementById('modal-title').textContent = product.name;
+  document.getElementById('modal-price').textContent = \`¥\${product.price.toLocaleString()}\`;
+
+  // モーダル表示
+  detailModal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+```
+
+## カスタマイズのポイント
+
+### API 統合
+
+```javascript
+async function search(query) {
+  try {
+    showState('loading');
+
+    const response = await fetch(\`/api/search?q=\${encodeURIComponent(query)}\`);
+    const data = await response.json();
+
+    currentResults = data.results;
+
+    if (data.results.length === 0) {
+      showState('no-results');
+    } else {
+      showState('results');
+      renderResults();
+    }
+  } catch (error) {
+    showState('error');
+  }
+}
+```
+
+### フィルターの追加
+
+```javascript
+function addFilters() {
+  const filters = {
+    category: '',
+    priceMin: 0,
+    priceMax: Infinity,
+    sortBy: 'relevance'
+  };
+
+  function applyFilters(results) {
+    return results
+      .filter(item =>
+        (!filters.category || item.category === filters.category) &&
+        item.price >= filters.priceMin &&
+        item.price <= filters.priceMax
+      )
+      .sort((a, b) => {
+        if (filters.sortBy === 'price-asc') return a.price - b.price;
+        if (filters.sortBy === 'price-desc') return b.price - a.price;
+        return 0;
+      });
+  }
+}
+```
+
+### ページネーション追加
+
+```javascript
+const pagination = {
+  currentPage: 1,
+  itemsPerPage: 12,
+  totalPages: 0
+};
+
+function loadPage(page) {
+  const start = (page - 1) * pagination.itemsPerPage;
+  const end = start + pagination.itemsPerPage;
+  const pageItems = currentResults.slice(start, end);
+
+  renderResults(pageItems);
+  updatePaginationUI(page);
+}
+```
+
+## よくある問題と解決策
+
+### 問題: 無限スクロール中に重複データが表示される
+
+**解決策**: ローディングフラグで制御
+
+```javascript
+let isLoading = false;
+
+async function loadMore() {
+  if (isLoading) return; // 既にローディング中は何もしない
+
+  isLoading = true;
+  // データ読み込み処理
+  isLoading = false;
+}
+```
+
+### 問題: モバイルでモーダルが画面外に出る
+
+**解決策**: オーバーフロー制御とレスポンシブ対応
+
+```css
+@media (max-width: 768px) {
+  .modal-panel {
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .modal-content {
+    grid-template-columns: 1fr;
+  }
+}
+```
+
+### 問題: 検索クエリが頻繁に変わる
+
+**解決策**: デバウンスとキャンセレーション
+
+```javascript
+let abortController = null;
+
+async function search(query) {
+  // 前回のリクエストをキャンセル
+  if (abortController) {
+    abortController.abort();
+  }
+
+  abortController = new AbortController();
+
+  try {
+    const response = await fetch(\`/api/search?q=\${query}\`, {
+      signal: abortController.signal
+    });
+    // 処理...
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      // キャンセルされた場合は無視
+      return;
+    }
+    throw error;
+  }
+}
+```
+
+## パフォーマンス最適化
+
+### 仮想スクロール
+
+大量のデータを扱う場合は仮想スクロールを検討:
+
+```javascript
+// 表示領域内のアイテムのみレンダリング
+function renderVisibleItems() {
+  const scrollTop = window.scrollY;
+  const viewportHeight = window.innerHeight;
+
+  const startIndex = Math.floor(scrollTop / itemHeight);
+  const endIndex = Math.ceil((scrollTop + viewportHeight) / itemHeight);
+
+  // startIndex から endIndex までのみレンダリング
+}
+```
+
+### 画像の遅延読み込み
+
+```javascript
+// Lazy loading
+card.innerHTML = \`
+  <img src="\${product.image}"
+       alt="\${product.name}"
+       loading="lazy"
+       class="result-image">
+\`;
+```
+
+## アクセシビリティの考慮事項
+
+- 検索結果の件数を `aria-live="polite"` で通知
+- モーダルに適切な `role="dialog"` と `aria-modal="true"`
+- キーボードナビゲーション (Tab, Enter, Escape) の完全サポート
+- スクリーンリーダー用のステータスメッセージ
+- フォーカス管理 (モーダル開閉時)
+
+## まとめ
+
+このレシピは、検索から詳細表示までの完全なデータフローを実現する方法を示しています。重要なポイントは:
+
+- **段階的な表示**: スケルトン UI → データ表示 → 無限スクロール
+- **状態管理**: Welcome/Loading/Results/NoResults/Error の適切な切り替え
+- **パフォーマンス**: デバウンス、IntersectionObserver、遅延読み込み
+- **UX**: スムーズな遷移、明確なフィードバック、直感的な操作
+
+これらを組み合わせることで、EC サイトやデータベース検索など、実用的なアプリケーションを構築できます。

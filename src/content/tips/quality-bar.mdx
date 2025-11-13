@@ -1,0 +1,1438 @@
+---
+title: モジュール品質バー（出荷条件）
+description: コレクション内のすべてのモジュールが満たすべき品質基準
+tags: [documentation, quality, standards, best-practices]
+category: documentation
+level: basic
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="モジュール品質スコアカード"
+  height="900px"
+  html={`
+<div class="quality-container">
+  <div class="header">
+    <h2>モジュール品質スコアカード</h2>
+    <div class="sample-selector">
+      <label for="sampleModule">サンプルモジュール:</label>
+      <select id="sampleModule" class="module-select">
+        <option value="good">高品質モジュール（合格）</option>
+        <option value="poor">改善が必要なモジュール（不合格）</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="scorecard" id="scorecard-good">
+    <div class="overall-score pass">
+      <div class="score-number">95</div>
+      <div class="score-label">総合スコア</div>
+      <div class="score-status">✓ 出荷可能</div>
+    </div>
+
+    <div class="categories">
+      <div class="category">
+        <div class="category-header">
+          <h3>
+            <span class="icon">♿</span>
+            アクセシビリティ
+          </h3>
+          <div class="category-score pass">100%</div>
+        </div>
+        <div class="criteria-list">
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">ARIA属性が完全に実装されている</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">キーボードナビゲーションが機能する</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">スクリーンリーダー対応済み</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">prefers-reduced-motionを尊重</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">カラーコントラストWCAG AA準拠</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="category">
+        <div class="category-header">
+          <h3>
+            <span class="icon">🔌</span>
+            API/イベント
+          </h3>
+          <div class="category-score pass">100%</div>
+        </div>
+        <div class="criteria-list">
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">公開APIがドキュメント化されている</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">発行されるイベントが記載されている</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">設定オプションが明確</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">デフォルト値が指定されている</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">初期化方法が明確</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="category">
+        <div class="category-header">
+          <h3>
+            <span class="icon">🛡️</span>
+            エラーハンドリング
+          </h3>
+          <div class="category-score pass">100%</div>
+        </div>
+        <div class="criteria-list">
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">不正な入力を適切に処理</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">エラー状態がユーザーに表示される</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">開発者向けコンソールエラー</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">フォールバックUIが提供されている</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">ネットワーク障害への対応</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="category">
+        <div class="category-header">
+          <h3>
+            <span class="icon">🧪</span>
+            テスト
+          </h3>
+          <div class="category-score warning">80%</div>
+        </div>
+        <div class="criteria-list">
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">ユニットテストが存在する</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">統合テストシナリオ</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">手動テストチェックリスト</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">エッジケースが文書化されている</span>
+          </div>
+          <div class="criterion warning">
+            <span class="check-icon">△</span>
+            <span class="criterion-text">ブラウザ互換性テスト（一部）</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="category">
+        <div class="category-header">
+          <h3>
+            <span class="icon">⚡</span>
+            パフォーマンス
+          </h3>
+          <div class="category-score pass">100%</div>
+        </div>
+        <div class="criteria-list">
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">不要な再レンダリングなし</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">デバウンス/スロットル適用済み</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">大量リストに仮想スクロール</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">画像の遅延読み込み</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">60fpsアニメーション維持</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="category">
+        <div class="category-header">
+          <h3>
+            <span class="icon">📚</span>
+            ドキュメンテーション
+          </h3>
+          <div class="category-score pass">100%</div>
+        </div>
+        <div class="criteria-list">
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">目的が明確に記載されている</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">コード例が提供されている</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">LiveDemoが含まれている</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">よくある落とし穴が記載されている</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">参考リンクが提供されている</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scorecard" id="scorecard-poor" hidden>
+    <div class="overall-score fail">
+      <div class="score-number">45</div>
+      <div class="score-label">総合スコア</div>
+      <div class="score-status">✗ 改善が必要</div>
+    </div>
+
+    <div class="categories">
+      <div class="category">
+        <div class="category-header">
+          <h3>
+            <span class="icon">♿</span>
+            アクセシビリティ
+          </h3>
+          <div class="category-score fail">40%</div>
+        </div>
+        <div class="criteria-list">
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">ARIA属性が不足している</span>
+          </div>
+          <div class="criterion warning">
+            <span class="check-icon">△</span>
+            <span class="criterion-text">キーボードナビゲーションが部分的</span>
+          </div>
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">スクリーンリーダー未対応</span>
+          </div>
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">prefers-reduced-motion未対応</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">カラーコントラストは良好</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="category">
+        <div class="category-header">
+          <h3>
+            <span class="icon">🔌</span>
+            API/イベント
+          </h3>
+          <div class="category-score fail">40%</div>
+        </div>
+        <div class="criteria-list">
+          <div class="criterion warning">
+            <span class="check-icon">△</span>
+            <span class="criterion-text">APIドキュメントが不完全</span>
+          </div>
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">イベントが記載されていない</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">設定オプションは明確</span>
+          </div>
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">デフォルト値が不明</span>
+          </div>
+          <div class="criterion warning">
+            <span class="check-icon">△</span>
+            <span class="criterion-text">初期化方法が曖昧</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="category">
+        <div class="category-header">
+          <h3>
+            <span class="icon">🛡️</span>
+            エラーハンドリング
+          </h3>
+          <div class="category-score fail">20%</div>
+        </div>
+        <div class="criteria-list">
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">不正な入力でエラー発生</span>
+          </div>
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">エラー状態が表示されない</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">コンソールエラーは出力される</span>
+          </div>
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">フォールバックUIなし</span>
+          </div>
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">ネットワーク障害で停止</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="category">
+        <div class="category-header">
+          <h3>
+            <span class="icon">🧪</span>
+            テスト
+          </h3>
+          <div class="category-score fail">20%</div>
+        </div>
+        <div class="criteria-list">
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">ユニットテストなし</span>
+          </div>
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">統合テストなし</span>
+          </div>
+          <div class="criterion warning">
+            <span class="check-icon">△</span>
+            <span class="criterion-text">簡易的なチェックのみ</span>
+          </div>
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">エッジケース未検証</span>
+          </div>
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">ブラウザ互換性未確認</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="category">
+        <div class="category-header">
+          <h3>
+            <span class="icon">⚡</span>
+            パフォーマンス
+          </h3>
+          <div class="category-score warning">60%</div>
+        </div>
+        <div class="criteria-list">
+          <div class="criterion warning">
+            <span class="check-icon">△</span>
+            <span class="criterion-text">一部で不要な再レンダリング</span>
+          </div>
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">デバウンス未実装</span>
+          </div>
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">大量データでパフォーマンス低下</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">画像の遅延読み込み対応</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">アニメーションは滑らか</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="category">
+        <div class="category-header">
+          <h3>
+            <span class="icon">📚</span>
+            ドキュメンテーション
+          </h3>
+          <div class="category-score warning">60%</div>
+        </div>
+        <div class="criteria-list">
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">目的は記載されている</span>
+          </div>
+          <div class="criterion warning">
+            <span class="check-icon">△</span>
+            <span class="criterion-text">コード例が不十分</span>
+          </div>
+          <div class="criterion pass">
+            <span class="check-icon">✓</span>
+            <span class="criterion-text">LiveDemoあり</span>
+          </div>
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">落とし穴の記載なし</span>
+          </div>
+          <div class="criterion fail">
+            <span class="check-icon">✗</span>
+            <span class="criterion-text">参考リンクなし</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+    .quality-container {
+      background: #0c1218;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .header {
+      background: #1f2a37;
+      padding: 1.5rem;
+      border-bottom: 2px solid #374151;
+    }
+
+    .header h2 {
+      margin: 0 0 1rem 0;
+      color: #e5edf4;
+      font-size: 1.5rem;
+    }
+
+    .sample-selector {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .sample-selector label {
+      color: #9ca3af;
+      font-weight: 600;
+    }
+
+    .module-select {
+      padding: 0.5rem 1rem;
+      background: #374151;
+      color: #e5edf4;
+      border: 2px solid #4b5563;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      min-height: 44px;
+    }
+
+    .module-select:focus {
+      outline: 2px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    .scorecard {
+      padding: 2rem;
+    }
+
+    .overall-score {
+      text-align: center;
+      padding: 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      border: 3px solid;
+    }
+
+    .overall-score.pass {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: #10b981;
+    }
+
+    .overall-score.fail {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: #ef4444;
+    }
+
+    .score-number {
+      font-size: 4rem;
+      font-weight: bold;
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+
+    .overall-score.pass .score-number {
+      color: #10b981;
+    }
+
+    .overall-score.fail .score-number {
+      color: #ef4444;
+    }
+
+    .score-label {
+      color: #9ca3af;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .score-status {
+      font-size: 1.25rem;
+      font-weight: bold;
+      margin-top: 1rem;
+    }
+
+    .overall-score.pass .score-status {
+      color: #10b981;
+    }
+
+    .overall-score.fail .score-status {
+      color: #ef4444;
+    }
+
+    .categories {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .category {
+      background: #1f2a37;
+      border: 1px solid #374151;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .category-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 1.5rem;
+      background: #1a2332;
+      border-bottom: 1px solid #374151;
+    }
+
+    .category-header h3 {
+      margin: 0;
+      color: #e5edf4;
+      font-size: 1.125rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .category-header .icon {
+      font-size: 1.5rem;
+    }
+
+    .category-score {
+      font-size: 1.25rem;
+      font-weight: bold;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+    }
+
+    .category-score.pass {
+      color: #10b981;
+      background: rgba(16, 185, 129, 0.15);
+    }
+
+    .category-score.warning {
+      color: #f59e0b;
+      background: rgba(245, 158, 11, 0.15);
+    }
+
+    .category-score.fail {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    .criteria-list {
+      padding: 1rem 1.5rem;
+    }
+
+    .criterion {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+
+    .criterion:last-child {
+      margin-bottom: 0;
+    }
+
+    .criterion:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .criterion.pass {
+      border-left: 3px solid #10b981;
+    }
+
+    .criterion.warning {
+      border-left: 3px solid #f59e0b;
+    }
+
+    .criterion.fail {
+      border-left: 3px solid #ef4444;
+    }
+
+    .check-icon {
+      font-size: 1.25rem;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .criterion.pass .check-icon {
+      color: #10b981;
+    }
+
+    .criterion.warning .check-icon {
+      color: #f59e0b;
+    }
+
+    .criterion.fail .check-icon {
+      color: #ef4444;
+    }
+
+    .criterion-text {
+      color: #e5edf4;
+      font-size: 0.9375rem;
+    }
+  `}
+  js={`
+    const moduleSelect = document.getElementById('sampleModule');
+    const scorecardGood = document.getElementById('scorecard-good');
+    const scorecardPoor = document.getElementById('scorecard-poor');
+
+    moduleSelect.addEventListener('change', (e) => {
+      if (e.target.value === 'good') {
+        scorecardGood.hidden = false;
+        scorecardPoor.hidden = true;
+      } else {
+        scorecardGood.hidden = true;
+        scorecardPoor.hidden = false;
+      }
+    });
+  `}
+/>
+
+## モジュール品質バーとは
+
+このドキュメントは、当コレクションに含まれるすべてのモジュールが満たすべき最低品質基準（出荷条件）を定義します。新規モジュールの作成時、および既存モジュールの監査時に使用してください。
+
+**品質バーの目的:**
+- すべてのモジュールに一貫した品質を保証
+- ユーザーに安心して使えるコンポーネントを提供
+- メンテナンス性と拡張性を確保
+- アクセシビリティとパフォーマンスの基準を明確化
+
+---
+
+## スコアリングシステム
+
+### 総合スコアの計算
+
+各カテゴリーのスコアの平均値が総合スコアになります。
+
+```
+総合スコア = (アクセシビリティ + API/イベント + エラーハンドリング
+            + テスト + パフォーマンス + ドキュメンテーション) / 6
+```
+
+### 合格基準
+
+| スコア | 評価 | 出荷可否 |
+|--------|------|---------|
+| **80-100** | 優秀 | ✓ 出荷可能 |
+| **60-79** | 良好 | △ 条件付き合格 |
+| **40-59** | 要改善 | ✗ 改善が必要 |
+| **0-39** | 不合格 | ✗ 大幅な改善が必要 |
+
+**条件付き合格の条件:**
+- アクセシビリティは必ず80%以上
+- エラーハンドリングは必ず60%以上
+- 他のカテゴリーで補える
+
+---
+
+## カテゴリー別品質基準
+
+### 1. アクセシビリティ ♿
+
+**重要度: 最高**
+
+すべてのユーザーが使えるモジュールを提供することは必須です。
+
+#### チェック項目
+
+| 項目 | 必須/推奨 | 説明 |
+|------|----------|------|
+| **ARIA属性完全実装** | 必須 | role, aria-label, aria-expanded などを適切に設定 |
+| **キーボード操作** | 必須 | Tab, Enter, Escape, 矢印キーで全機能を操作可能 |
+| **スクリーンリーダー対応** | 必須 | VoiceOver/NVDAで問題なく使用できる |
+| **prefers-reduced-motion** | 必須 | アニメーション設定を尊重 |
+| **カラーコントラスト** | 必須 | WCAG AA基準（4.5:1）を満たす |
+| **フォーカス表示** | 必須 | フォーカス中の要素が明確に見える |
+| **テキストサイズ変更** | 推奨 | 200%拡大でも機能する |
+
+#### 実装例
+
+```html
+<!-- ✓ 良い例: 完全なアクセシビリティ -->
+<button
+  role="button"
+  aria-label="メニューを開く"
+  aria-expanded="false"
+  aria-controls="menu"
+  tabindex="0"
+  class="menu-button"
+>
+  メニュー
+</button>
+
+<ul
+  id="menu"
+  role="menu"
+  aria-labelledby="menu-button"
+  hidden
+>
+  <li role="menuitem"><a href="/">ホーム</a></li>
+</ul>
+```
+
+```css
+/* フォーカススタイル */
+.menu-button:focus-visible {
+  outline: 3px solid #60a5fa;
+  outline-offset: 3px;
+}
+
+/* モーション設定を尊重 */
+@media (prefers-reduced-motion: reduce) {
+  .menu {
+    animation: none;
+    transition: none;
+  }
+}
+```
+
+#### テスト方法
+
+```
+□ キーボードだけで全機能を操作
+□ Lighthouse でスコア 90 以上
+□ axe DevTools でエラー0件
+□ VoiceOverで実際に操作テスト
+□ prefers-reduced-motion 設定で確認
+```
+
+---
+
+### 2. API/イベント 🔌
+
+**重要度: 高**
+
+明確なAPIは、他の開発者がモジュールを使いやすくします。
+
+#### チェック項目
+
+| 項目 | 必須/推奨 | 説明 |
+|------|----------|------|
+| **公開API文書化** | 必須 | メソッド、プロパティ、パラメータを明記 |
+| **イベント文書化** | 必須 | 発行されるイベント名とペイロードを記載 |
+| **設定オプション明確** | 必須 | 利用可能なオプションをリスト化 |
+| **デフォルト値指定** | 必須 | すべてのオプションのデフォルト値を明記 |
+| **初期化方法明確** | 必須 | セットアップ手順を明確に説明 |
+| **破棄メソッド** | 推奨 | クリーンアップ用のdestroy()メソッド |
+
+#### 実装例
+
+```javascript
+/**
+ * モーダルダイアログコンポーネント
+ * @class Modal
+ */
+class Modal {
+  /**
+   * @param {Object} options - 設定オプション
+   * @param {string} options.trigger - モーダルを開くボタンのセレクタ
+   * @param {boolean} [options.closeOnEscape=true] - Escキーで閉じるか
+   * @param {boolean} [options.closeOnBackdrop=true] - 背景クリックで閉じるか
+   * @param {Function} [options.onOpen] - 開いた時のコールバック
+   * @param {Function} [options.onClose] - 閉じた時のコールバック
+   */
+  constructor(options = {}) {
+    this.options = {
+      closeOnEscape: true,
+      closeOnBackdrop: true,
+      ...options
+    };
+
+    this.init();
+  }
+
+  /**
+   * モーダルを開く
+   * @fires Modal#open
+   */
+  open() {
+    this.modal.hidden = false;
+    this.modal.dispatchEvent(new CustomEvent('modal:open', {
+      detail: { modalId: this.modal.id }
+    }));
+  }
+
+  /**
+   * モーダルを閉じる
+   * @fires Modal#close
+   */
+  close() {
+    this.modal.hidden = true;
+    this.modal.dispatchEvent(new CustomEvent('modal:close', {
+      detail: { modalId: this.modal.id }
+    }));
+  }
+
+  /**
+   * モーダルを破棄
+   */
+  destroy() {
+    // イベントリスナーを削除
+    this.cleanup();
+  }
+}
+
+/**
+ * モーダルが開いた時に発行
+ * @event Modal#open
+ * @type {CustomEvent}
+ * @property {Object} detail - イベントの詳細
+ * @property {string} detail.modalId - モーダルのID
+ */
+
+/**
+ * モーダルが閉じた時に発行
+ * @event Modal#close
+ * @type {CustomEvent}
+ * @property {Object} detail - イベントの詳細
+ * @property {string} detail.modalId - モーダルのID
+ */
+```
+
+#### ドキュメントテンプレート
+
+```markdown
+## API
+
+### コンストラクタ
+
+\`\`\`javascript
+new Modal(options)
+\`\`\`
+
+### オプション
+
+| オプション | 型 | デフォルト | 説明 |
+|-----------|-----|-----------|------|
+| trigger | string | 必須 | モーダルを開くボタンのセレクタ |
+| closeOnEscape | boolean | true | Escキーで閉じるか |
+| closeOnBackdrop | boolean | true | 背景クリックで閉じるか |
+
+### メソッド
+
+- **open()**: モーダルを開く
+- **close()**: モーダルを閉じる
+- **destroy()**: モーダルを破棄
+
+### イベント
+
+- **modal:open**: モーダルが開いた時
+  - detail.modalId: モーダルのID
+- **modal:close**: モーダルが閉じた時
+  - detail.modalId: モーダルのID
+```
+
+---
+
+### 3. エラーハンドリング 🛡️
+
+**重要度: 高**
+
+予期しない入力やエラーに対して適切に対応します。
+
+#### チェック項目
+
+| 項目 | 必須/推奨 | 説明 |
+|------|----------|------|
+| **不正入力の処理** | 必須 | null/undefined/不正な型を適切に処理 |
+| **エラー状態表示** | 必須 | ユーザーにエラーをわかりやすく表示 |
+| **コンソールエラー** | 必須 | 開発者向けに詳細なエラーメッセージ |
+| **フォールバックUI** | 必須 | エラー時の代替表示を提供 |
+| **ネットワーク障害対応** | 推奨 | タイムアウト、リトライ処理 |
+| **グレースフルデグラデーション** | 推奨 | 機能が使えない環境でも基本動作 |
+
+#### 実装例
+
+```javascript
+class DataLoader {
+  async loadData(url) {
+    // 入力検証
+    if (!url || typeof url !== 'string') {
+      console.error('DataLoader: 有効なURLを指定してください', { url });
+      this.showError('データの読み込みに失敗しました');
+      return null;
+    }
+
+    try {
+      // タイムアウト設定
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(url, {
+        signal: controller.signal
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data;
+
+    } catch (error) {
+      // エラーの種類に応じた処理
+      if (error.name === 'AbortError') {
+        console.error('DataLoader: リクエストがタイムアウトしました', { url });
+        this.showError('読み込みに時間がかかっています。もう一度お試しください。');
+      } else if (error instanceof TypeError) {
+        console.error('DataLoader: ネットワークエラー', { url, error });
+        this.showError('ネットワーク接続を確認してください。');
+      } else {
+        console.error('DataLoader: データの読み込みに失敗', { url, error });
+        this.showError('データの読み込みに失敗しました。');
+      }
+
+      // フォールバックデータを返す
+      return this.getFallbackData();
+    }
+  }
+
+  showError(message) {
+    // ユーザーにエラーを表示
+    const errorElement = document.getElementById('error-message');
+    if (errorElement) {
+      errorElement.textContent = message;
+      errorElement.hidden = false;
+      errorElement.setAttribute('role', 'alert');
+    }
+  }
+
+  getFallbackData() {
+    // キャッシュされたデータやダミーデータを返す
+    return { items: [], cached: true };
+  }
+}
+```
+
+#### エラーUI例
+
+```html
+<!-- エラー表示領域 -->
+<div
+  id="error-message"
+  role="alert"
+  class="error-banner"
+  hidden
+>
+  <span class="error-icon" aria-hidden="true">⚠️</span>
+  <span class="error-text"></span>
+  <button aria-label="エラーを閉じる" class="close-error">×</button>
+</div>
+```
+
+---
+
+### 4. テスト 🧪
+
+**重要度: 中**
+
+テストは品質を保証し、リグレッションを防ぎます。
+
+#### チェック項目
+
+| 項目 | 必須/推奨 | 説明 |
+|------|----------|------|
+| **ユニットテスト** | 推奨 | 主要な関数・メソッドのテスト |
+| **統合テスト** | 推奨 | コンポーネント全体の動作テスト |
+| **手動テストリスト** | 必須 | 人間が確認すべき項目のリスト |
+| **エッジケース文書化** | 必須 | 特殊な入力や状況を記載 |
+| **ブラウザ互換性** | 必須 | 対応ブラウザでの動作確認 |
+
+#### 手動テストチェックリスト例
+
+```markdown
+## 手動テストチェックリスト
+
+### 基本動作
+- [ ] モジュールが正しく初期化される
+- [ ] すべての主要機能が動作する
+- [ ] 複数回実行しても正常に動作
+
+### キーボード操作
+- [ ] Tabキーで全要素に移動できる
+- [ ] Enterキーでアクションを実行できる
+- [ ] Escキーで閉じることができる
+
+### エラーケース
+- [ ] 必須パラメータなしで呼び出した場合
+- [ ] 不正な型の引数を渡した場合
+- [ ] DOM要素が存在しない場合
+- [ ] ネットワークエラーが発生した場合
+
+### ブラウザ互換性
+- [ ] Chrome（最新版）
+- [ ] Firefox（最新版）
+- [ ] Safari（最新版）
+- [ ] Edge（最新版）
+- [ ] モバイルブラウザ（iOS Safari, Chrome Android）
+
+### パフォーマンス
+- [ ] 大量データで動作が遅くならない
+- [ ] メモリリークがない
+- [ ] アニメーションが60fps維持
+
+### アクセシビリティ
+- [ ] スクリーンリーダーで操作できる
+- [ ] キーボードだけで操作できる
+- [ ] フォーカス表示が明確
+```
+
+#### エッジケース文書化
+
+```markdown
+## 既知のエッジケース
+
+### 同時実行
+- **ケース**: 短時間に複数回open()を呼び出す
+- **動作**: 最初の呼び出しのみ有効、以降は無視
+- **理由**: 二重開きを防ぐため
+
+### データなし
+- **ケース**: APIが空配列を返す
+- **動作**: 「データがありません」メッセージを表示
+- **代替**: フォールバックUIを表示
+
+### 古いブラウザ
+- **ケース**: IntersectionObserver非対応ブラウザ
+- **動作**: 要素は常に表示される
+- **代替**: ポリフィルの使用を推奨
+```
+
+---
+
+### 5. パフォーマンス ⚡
+
+**重要度: 中**
+
+快適なユーザー体験のためにパフォーマンスを最適化します。
+
+#### チェック項目
+
+| 項目 | 必須/推奨 | 説明 |
+|------|----------|------|
+| **不要な再レンダリング回避** | 必須 | 状態が変わらない時は再描画しない |
+| **デバウンス/スロットル** | 必須 | scroll, resize イベントを最適化 |
+| **仮想スクロール** | 推奨 | 大量リスト（100件以上）で使用 |
+| **遅延読み込み** | 推奨 | 画像やコンテンツの遅延読み込み |
+| **60fps維持** | 必須 | アニメーションが滑らかに動作 |
+| **バンドルサイズ** | 推奨 | 圧縮後10KB以下を目標 |
+
+#### 実装例
+
+```javascript
+// デバウンス実装
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
+// スクロールイベントのデバウンス
+const handleScroll = debounce(() => {
+  console.log('スクロール処理');
+}, 150);
+
+window.addEventListener('scroll', handleScroll);
+```
+
+```javascript
+// requestAnimationFrameで60fps維持
+class SmoothScroller {
+  constructor() {
+    this.ticking = false;
+  }
+
+  handleScroll() {
+    if (!this.ticking) {
+      requestAnimationFrame(() => {
+        this.update();
+        this.ticking = false;
+      });
+      this.ticking = true;
+    }
+  }
+
+  update() {
+    // DOM操作をここで実行
+    const scrollY = window.scrollY;
+    this.element.style.transform = `translateY(${scrollY * 0.5}px)`;
+  }
+}
+```
+
+```css
+/* GPU アクセラレーションを活用 */
+.animated-element {
+  /* ✓ 良い例: transform を使用 */
+  transform: translateX(100px);
+  will-change: transform;
+}
+
+.animated-element-bad {
+  /* ✗ 悪い例: left を使用（リフロー発生） */
+  position: relative;
+  left: 100px;
+}
+```
+
+#### パフォーマンス測定
+
+```javascript
+// パフォーマンス測定
+performance.mark('operation-start');
+
+// 処理を実行
+doExpensiveOperation();
+
+performance.mark('operation-end');
+performance.measure('operation', 'operation-start', 'operation-end');
+
+const measure = performance.getEntriesByName('operation')[0];
+console.log(`処理時間: ${measure.duration}ms`);
+```
+
+---
+
+### 6. ドキュメンテーション 📚
+
+**重要度: 高**
+
+優れたドキュメントは、モジュールを使いやすくします。
+
+#### チェック項目
+
+| 項目 | 必須/推奨 | 説明 |
+|------|----------|------|
+| **目的の明記** | 必須 | 何のためのモジュールか明確に説明 |
+| **コード例** | 必須 | すぐに試せるコードスニペット |
+| **LiveDemo** | 必須 | インタラクティブなデモ |
+| **よくある落とし穴** | 必須 | ハマりやすいポイントを記載 |
+| **参考リンク** | 推奨 | 関連リソースへのリンク |
+| **ブラウザ対応** | 推奨 | 対応ブラウザのリスト |
+| **変更履歴** | 推奨 | バージョンごとの変更点 |
+
+#### ドキュメント構成例
+
+```markdown
+---
+title: モーダルダイアログ
+description: アクセシブルなモーダルダイアログの実装
+tags: [ui, modal, accessibility]
+category: components
+level: intermediate
+---
+
+## 概要
+
+このモジュールは、WCAGに準拠したアクセシブルなモーダルダイアログを提供します。
+キーボード操作、スクリーンリーダー対応、フォーカストラップなど、
+すべてのアクセシビリティ要件を満たしています。
+
+## 特徴
+
+- ✅ WCAG 2.1 AA準拠
+- ✅ キーボード操作完全対応
+- ✅ スクリーンリーダー対応
+- ✅ フォーカストラップ実装
+- ✅ カスタマイズ可能
+- ✅ 依存関係なし（Vanilla JS）
+
+## インストール
+
+\`\`\`bash
+npm install @example/modal
+\`\`\`
+
+## 基本的な使い方
+
+\`\`\`javascript
+import Modal from '@example/modal';
+
+const modal = new Modal({
+  trigger: '#open-modal',
+  onOpen: () => console.log('開きました'),
+  onClose: () => console.log('閉じました')
+});
+\`\`\`
+
+## LiveDemo
+
+[インタラクティブなデモをここに配置]
+
+## API
+
+[詳細なAPI仕様]
+
+## よくある落とし穴
+
+### 1. フォーカスが背景に残る
+
+**問題**: モーダルを開いたあと、フォーカスが背景に残ってしまう
+
+**解決策**: open()を呼び出した後、必ずフォーカスを移動する
+\`\`\`javascript
+modal.open();
+modal.focusFirstElement(); // フォーカスを移動
+\`\`\`
+
+### 2. z-index が足りない
+
+**問題**: モーダルが他の要素の下に隠れる
+
+**解決策**: z-index を十分に高く設定（1000以上推奨）
+\`\`\`css
+.modal {
+  z-index: 1000;
+}
+\`\`\`
+
+## ブラウザ対応
+
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+
+古いブラウザ向けには、Intersection Observer のポリフィルが必要です。
+
+## 参考リンク
+
+- [ARIA Authoring Practices - Dialog](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/)
+- [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
+
+## ライセンス
+
+MIT
+```
+
+---
+
+## 新規モジュール作成テンプレート
+
+新しいモジュールを作成する際は、このテンプレートを使用してください。
+
+### ファイル構造
+
+```
+src/content/modules/
+└── your-module/
+    ├── index.mdx          # メインドキュメント
+    ├── demo.html          # デモファイル
+    ├── style.css          # スタイル
+    └── script.js          # JavaScript
+```
+
+### index.mdx テンプレート
+
+```markdown
+---
+title: [モジュール名]
+description: [簡潔な説明]
+tags: [関連タグ]
+category: [カテゴリ]
+level: basic | intermediate | advanced
+date: YYYY-MM-DD
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="[デモタイトル]"
+  height="600px"
+  html={`<!-- HTML -->`}
+  css={`/* CSS */`}
+  js={`// JavaScript`}
+/>
+
+## 概要
+
+[このモジュールが何をするのか説明]
+
+## 特徴
+
+- 特徴1
+- 特徴2
+- 特徴3
+
+## 使い方
+
+[基本的な使用方法]
+
+## API
+
+[詳細なAPI仕様]
+
+## アクセシビリティ
+
+[A11y対応状況]
+
+## パフォーマンス
+
+[パフォーマンスに関する注意点]
+
+## ブラウザ対応
+
+[対応ブラウザ]
+
+## よくある落とし穴
+
+[注意点]
+
+## 参考リンク
+
+[関連リソース]
+```
+
+---
+
+## レビュープロセス
+
+### 新規モジュールのレビュー
+
+1. **セルフチェック**: 作成者が品質チェックリストを確認
+2. **自動テスト**: Lighthouse、axe でスコアを確認
+3. **ピアレビュー**: 他の開発者がコードとドキュメントをレビュー
+4. **手動テスト**: 実際にブラウザで動作確認
+5. **承認**: すべての基準を満たしたら承認
+
+### 既存モジュールの監査
+
+定期的に（3ヶ月ごと推奨）既存モジュールを監査します。
+
+1. **スコア測定**: このドキュメントの基準でスコアを算出
+2. **問題リスト作成**: 不合格項目をリストアップ
+3. **優先順位付け**: 重要度と影響範囲で優先順位を決定
+4. **改善実施**: 優先順位に従って修正
+5. **再測定**: 改善後のスコアを確認
+
+---
+
+## クイックリファレンス
+
+### 必須チェック項目（最低限これだけは）
+
+```
+□ キーボードで全機能を操作できる
+□ フォーカス表示が明確
+□ ARIA属性が適切に設定されている
+□ prefers-reduced-motionに対応
+□ エラーを適切に処理している
+□ 公開APIがドキュメント化されている
+□ LiveDemoが含まれている
+□ 使い方が明確に説明されている
+```
+
+### スコア計算シート
+
+| カテゴリ | 項目数 | 合格数 | スコア |
+|---------|--------|--------|--------|
+| アクセシビリティ | 5 | __ | __%  |
+| API/イベント | 5 | __ | __% |
+| エラーハンドリング | 5 | __ | __% |
+| テスト | 5 | __ | __% |
+| パフォーマンス | 5 | __ | __% |
+| ドキュメンテーション | 5 | __ | __% |
+| **総合** | **30** | **__** | **__%** |
+
+---
+
+## まとめ
+
+この品質バーを使用することで:
+
+1. **一貫性**: すべてのモジュールが同じ品質基準を満たす
+2. **信頼性**: ユーザーが安心して使えるコンポーネント
+3. **保守性**: 明確なドキュメントとテストで保守しやすい
+4. **アクセシビリティ**: すべてのユーザーが使える
+5. **パフォーマンス**: 快適なユーザー体験
+
+新規モジュール作成時および既存モジュール監査時に、このドキュメントを活用してください。
+
+## 参考リンク
+
+- [WCAG 2.1 ガイドライン](https://www.w3.org/WAI/WCAG21/quickref/)
+- [Lighthouse](https://developers.google.com/web/tools/lighthouse)
+- [axe DevTools](https://www.deque.com/axe/devtools/)
+- [Web.dev - Best Practices](https://web.dev/learn/)
+- [MDN Web Docs - Accessibility](https://developer.mozilla.org/ja/docs/Web/Accessibility)

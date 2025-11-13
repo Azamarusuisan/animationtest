@@ -1,0 +1,42 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'ZettAI Prompt Factory - あなた専用のプロンプト工房' } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content={description}>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <title>{title} | ZettAI Prompt Factory</title>
+  <link rel="stylesheet" href="/src/styles/global.css">
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <ul>
+        <li><a href="/">🏠 ホーム</a></li>
+        <li><a href="/modules">🧩 Modules</a></li>
+        <li><a href="/tips">💡 Tips</a></li>
+        <li><a href="/sites">🌐 Sites</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+    <slot />
+  </main>
+
+  <footer style="border-top: 1px solid var(--color-border); padding: 2rem 0; margin-top: 4rem; text-align: center; color: var(--color-text-light);">
+    <div class="container">
+      <p>&copy; 2024 ZettAI Prompt Factory. Built with Astro.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,629 @@
+---
+title: CSS Gridの実践的なレイアウトパターン
+description: Holy Grail、Dashboard、Magazine layoutなど、実務で使える Grid レイアウトの決定版
+tags: [css, grid, layout, responsive]
+category: css
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## CSS Grid で実現する3つの実践パターン
+
+CSS Grid は複雑なレイアウトを驚くほどシンプルに実装できる強力なツールです。`float` や `position` を駆使していた時代とは比較にならないほど、直感的で保守性の高いコードが書けます。
+
+このガイドでは、実務で頻繁に使われる3つの代表的なレイアウトパターンを紹介します。Holy Grail Layout（ヘッダー、フッター、サイドバーを持つ伝統的なレイアウト）、Dashboard Layout（管理画面やダッシュボードに最適なカード型レイアウト）、Magazine Layout（記事やブログに適した複雑なグリッドレイアウト）の実装方法を、実際に動くデモとともに解説します。
+
+<LiveDemo
+  title="Holy Grail Layout - 完璧な3カラムレイアウト"
+  height="500px"
+  html={`
+<div class="holy-grail">
+  <header class="header">
+    <h1>ヘッダー</h1>
+  </header>
+  <aside class="sidebar-left">
+    <h3>左サイドバー</h3>
+    <nav>
+      <ul>
+        <li>ナビ 1</li>
+        <li>ナビ 2</li>
+        <li>ナビ 3</li>
+      </ul>
+    </nav>
+  </aside>
+  <main class="main-content">
+    <h2>メインコンテンツ</h2>
+    <p>コンテンツエリアは自動的に伸縮します。Grid の <code>1fr</code> により、利用可能なスペースを最大限活用できます。</p>
+    <p>レスポンシブ対応も簡単。メディアクエリで <code>grid-template-areas</code> を切り替えるだけです。</p>
+  </main>
+  <aside class="sidebar-right">
+    <h3>右サイドバー</h3>
+    <div class="widget">ウィジェット 1</div>
+    <div class="widget">ウィジェット 2</div>
+  </aside>
+  <footer class="footer">
+    <p>&copy; 2025 Holy Grail Layout</p>
+  </footer>
+</div>
+  `}
+  css={`
+.holy-grail {
+  display: grid;
+  grid-template-columns: 200px 1fr 200px;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "header header header"
+    "sidebar-left main sidebar-right"
+    "footer footer footer";
+  min-height: 100vh;
+  gap: 1rem;
+}
+
+.header {
+  grid-area: header;
+  background: linear-gradient(135deg, #1f2a37 0%, #374151 100%);
+  padding: 1.5rem;
+  border-radius: 8px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.sidebar-left {
+  grid-area: sidebar-left;
+  background: #1f2a37;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.sidebar-left h3 {
+  margin-top: 0;
+  font-size: 1rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sidebar-left ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar-left li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #374151;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.sidebar-left li:hover {
+  color: #60a5fa;
+}
+
+.main-content {
+  grid-area: main;
+  background: #1f2a37;
+  padding: 2rem;
+  border-radius: 8px;
+}
+
+.main-content h2 {
+  margin-top: 0;
+  color: #e5edf4;
+}
+
+.main-content code {
+  background: #0c1218;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: #60a5fa;
+}
+
+.sidebar-right {
+  grid-area: sidebar-right;
+  background: #1f2a37;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.sidebar-right h3 {
+  margin-top: 0;
+  font-size: 1rem;
+  color: #9ca3af;
+}
+
+.widget {
+  background: #374151;
+  padding: 1rem;
+  margin: 0.75rem 0;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.footer {
+  grid-area: footer;
+  background: #1f2a37;
+  padding: 1rem;
+  text-align: center;
+  border-radius: 8px;
+}
+
+.footer p {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+  .holy-grail {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "main"
+      "sidebar-left"
+      "sidebar-right"
+      "footer";
+  }
+}
+  `}
+/>
+
+### Holy Grail Layout の実装ポイント
+
+```css
+.holy-grail {
+  display: grid;
+  grid-template-columns: 200px 1fr 200px; /* 固定幅 - 可変 - 固定幅 */
+  grid-template-rows: auto 1fr auto; /* ヘッダー - コンテンツ - フッター */
+  grid-template-areas:
+    "header header header"
+    "sidebar-left main sidebar-right"
+    "footer footer footer";
+  min-height: 100vh;
+  gap: 1rem;
+}
+```
+
+**重要なテクニック:**
+- `grid-template-areas` で視覚的にレイアウトを定義
+- `1fr` で残りのスペースを自動配分
+- `min-height: 100vh` でフッターを常に下部に固定
+- メディアクエリで `grid-template-areas` を書き換えるだけでレスポンシブ化
+
+<LiveDemo
+  title="Dashboard Layout - カード型レイアウト"
+  height="550px"
+  html={`
+<div class="dashboard">
+  <div class="card large">
+    <h3>📊 統計概要</h3>
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="stat-value">12,345</div>
+        <div class="stat-label">訪問者数</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">89%</div>
+        <div class="stat-label">コンバージョン率</div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>📈 売上</h3>
+    <p class="big-number">¥1,234,567</p>
+  </div>
+  <div class="card">
+    <h3>👥 ユーザー</h3>
+    <p class="big-number">8,901</p>
+  </div>
+  <div class="card wide">
+    <h3>📅 最近のアクティビティ</h3>
+    <div class="activity-item">新規登録: 田中太郎さん</div>
+    <div class="activity-item">購入: 商品A × 3</div>
+    <div class="activity-item">レビュー投稿: ★★★★★</div>
+  </div>
+  <div class="card tall">
+    <h3>🎯 タスク</h3>
+    <div class="task">✓ デザインレビュー</div>
+    <div class="task">✓ コードレビュー</div>
+    <div class="task">◯ デプロイ準備</div>
+    <div class="task">◯ ドキュメント更新</div>
+    <div class="task">◯ テスト作成</div>
+  </div>
+</div>
+  `}
+  css={`
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  grid-auto-rows: 150px;
+}
+
+.card {
+  background: linear-gradient(135deg, #1f2a37 0%, #374151 100%);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #374151;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.4);
+}
+
+.card h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: #9ca3af;
+}
+
+.card.large {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+.card.wide {
+  grid-column: span 2;
+}
+
+.card.tall {
+  grid-row: span 2;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  height: calc(100% - 2rem);
+}
+
+.stat {
+  background: #0c1218;
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #60a5fa;
+  margin-bottom: 0.5rem;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.big-number {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #60a5fa;
+  margin: 1rem 0 0 0;
+  text-align: center;
+}
+
+.activity-item, .task {
+  background: #0c1218;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.activity-item:first-of-type, .task:first-of-type {
+  margin-top: 0;
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .card.large, .card.wide {
+    grid-column: span 1;
+  }
+
+  .card.tall {
+    grid-row: span 1;
+  }
+}
+  `}
+/>
+
+### Dashboard Layout の実装ポイント
+
+```css
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  grid-auto-rows: 150px; /* 各行の高さを固定 */
+}
+
+/* カードのサイズを自由に指定 */
+.card.large {
+  grid-column: span 2; /* 横幅2倍 */
+  grid-row: span 2;    /* 高さ2倍 */
+}
+```
+
+**応用テクニック:**
+- `repeat(auto-fit, minmax())` でレスポンシブな列数を自動調整
+- `grid-column: span` と `grid-row: span` でカードサイズを柔軟に変更
+- `grid-auto-rows` で各行の基準高さを設定
+
+<LiveDemo
+  title="Magazine Layout - 複雑なグリッドレイアウト"
+  height="600px"
+  html={`
+<div class="magazine">
+  <article class="feature">
+    <div class="article-badge">特集</div>
+    <h2>CSS Grid で作る未来のレイアウト</h2>
+    <p>Grid Layout は Web デザインに革命をもたらしました。複雑なレイアウトも数行のコードで実現できます。</p>
+  </article>
+  <article class="story story-1">
+    <h3>🎨 デザインの基礎</h3>
+    <p>美しいUIを作るための原則とテクニック。</p>
+  </article>
+  <article class="story story-2">
+    <h3>⚡ パフォーマンス最適化</h3>
+    <p>60fps を維持する実践的な手法。</p>
+  </article>
+  <article class="story story-3">
+    <h3>🔧 実践ツール集</h3>
+    <p>開発効率を上げるツールとライブラリ。</p>
+  </article>
+  <aside class="sidebar">
+    <h3>💡 クイックTips</h3>
+    <div class="tip">Grid の gap プロパティで余白を一括管理</div>
+    <div class="tip">fr 単位で柔軟なサイズ調整</div>
+    <div class="tip">grid-template-areas で視覚的に設計</div>
+  </aside>
+  <article class="highlight">
+    <div class="highlight-tag">注目</div>
+    <h3>📱 モバイルファースト設計</h3>
+    <p>レスポンシブデザインの新しいアプローチ。Grid を使えばメディアクエリの記述量を大幅に削減できます。</p>
+  </article>
+</div>
+  `}
+  css={`
+.magazine {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-auto-rows: minmax(120px, auto);
+  gap: 1rem;
+}
+
+article, aside {
+  padding: 1.5rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1f2a37 0%, #374151 100%);
+  border: 1px solid #374151;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+article:hover, aside:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+}
+
+.feature {
+  grid-column: 1 / 5; /* 1列目から5列目まで */
+  grid-row: 1 / 3;    /* 1行目から3行目まで */
+  background: linear-gradient(135deg, #374151 0%, #1f2a37 100%);
+  position: relative;
+  padding: 2rem;
+}
+
+.article-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: #60a5fa;
+  color: #0c1218;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.feature h2 {
+  margin: 0 0 1rem 0;
+  font-size: 2rem;
+  color: #e5edf4;
+  line-height: 1.3;
+}
+
+.feature p {
+  font-size: 1.125rem;
+  line-height: 1.6;
+  color: #d1d5db;
+}
+
+.story {
+  grid-column: span 2;
+}
+
+.story h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.125rem;
+}
+
+.story p {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.sidebar {
+  grid-column: 5 / 7;
+  grid-row: 1 / 3;
+  background: #1f2a37;
+}
+
+.sidebar h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: #9ca3af;
+}
+
+.tip {
+  background: #374151;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  border-left: 3px solid #60a5fa;
+}
+
+.highlight {
+  grid-column: 1 / 4;
+  background: linear-gradient(135deg, #1f2a37 0%, #374151 100%);
+  position: relative;
+}
+
+.highlight-tag {
+  background: #f59e0b;
+  color: #0c1218;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  display: inline-block;
+  margin-bottom: 0.75rem;
+}
+
+.highlight h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.25rem;
+}
+
+.highlight p {
+  margin: 0;
+  color: #d1d5db;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 1024px) {
+  .magazine {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .feature {
+    grid-column: 1 / 5;
+  }
+
+  .sidebar {
+    grid-column: 1 / 5;
+    grid-row: auto;
+  }
+
+  .highlight {
+    grid-column: 1 / 5;
+  }
+}
+
+@media (max-width: 640px) {
+  .magazine {
+    grid-template-columns: 1fr;
+  }
+
+  .feature, .story, .sidebar, .highlight {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+  `}
+/>
+
+### Magazine Layout の実装ポイント
+
+```css
+.magazine {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr); /* 6列グリッド */
+  grid-auto-rows: minmax(120px, auto);   /* 最小120px、コンテンツに応じて伸縮 */
+  gap: 1rem;
+}
+
+/* 特集記事: 4列 × 2行 */
+.feature {
+  grid-column: 1 / 5; /* 1列目から5列目直前まで */
+  grid-row: 1 / 3;    /* 1行目から3行目直前まで */
+}
+
+/* サイドバー: 2列 × 2行 */
+.sidebar {
+  grid-column: 5 / 7; /* 5列目から7列目直前まで */
+  grid-row: 1 / 3;
+}
+```
+
+## Tips & Gotchas
+
+### ✅ 知っておくべきポイント
+
+1. **`fr` 単位は `flex-grow` のような動作**
+   - `1fr 1fr 1fr` = 均等に3分割
+   - `2fr 1fr 1fr` = 2:1:1 の比率
+
+2. **`minmax()` で最小・最大サイズを制御**
+   ```css
+   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+   /* 最小250px、それ以上は自動調整 */
+   ```
+
+3. **`gap` は `margin` より優れている**
+   - グリッド間の余白を一括管理
+   - 端の要素に不要な余白がつかない
+
+### ⚠️ よくある落とし穴
+
+1. **`grid-template-areas` の文法エラー**
+   ```css
+   /* ❌ 各行の列数が一致していない */
+   grid-template-areas:
+     "header header"
+     "sidebar main footer"; /* 3列になっている */
+   ```
+
+2. **`span` の使いすぎ**
+   - グリッドからはみ出る可能性
+   - メディアクエリで調整が必要
+
+3. **IE11 対応**
+   - `grid-template-areas` は部分的にしかサポートされていない
+   - Autoprefixer を使用するか、Flexbox にフォールバック
+
+## 実践的な使い分け
+
+| レイアウトパターン | 適用シーン | 難易度 |
+|---|---|---|
+| **Holy Grail** | ブログ、ドキュメントサイト、CMS | ⭐⭐ |
+| **Dashboard** | 管理画面、ダッシュボード、ポータル | ⭐⭐⭐ |
+| **Magazine** | ニュースサイト、雑誌風デザイン | ⭐⭐⭐⭐ |
+
+## まとめ
+
+CSS Grid は以下の点で優れています:
+
+- **視覚的な設計**: `grid-template-areas` でレイアウトを直感的に定義
+- **柔軟性**: `fr` 単位と `minmax()` で自動調整
+- **保守性**: レスポンシブ対応が簡潔に書ける
+- **パフォーマンス**: ブラウザが最適化しやすい
+
+これらのパターンをマスターすれば、ほとんどのレイアウトを短時間で実装できるようになります。

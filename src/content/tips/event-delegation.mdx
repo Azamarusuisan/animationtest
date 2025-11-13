@@ -1,0 +1,338 @@
+---
+title: イベントデリゲーションで効率的なイベント管理
+description: イベントリスナーを減らしてメモリとパフォーマンスを改善する実践テクニック
+tags: [javascript, events, performance, best-practices]
+category: javascript
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## イベントデリゲーションとは
+
+イベントデリゲーションは、個々の子要素にイベントリスナーを追加する代わりに、親要素に1つのリスナーを追加して複数の要素のイベントを管理する手法です。これによりメモリ使用量を削減し、動的に追加される要素にも自動的にイベントが適用されます。
+
+### 悪い例: 個別にリスナーを追加
+
+100個のボタンに個別にイベントリスナーを追加すると、100個のリスナーがメモリに保持されます。さらに、動的に追加されるボタンには手動でリスナーを再設定する必要があります。
+
+### 良い例: イベントデリゲーション
+
+親要素に1つのリスナーを追加し、`event.target`を使って実際にクリックされた要素を判定します。これにより1つのリスナーで全ての子要素を管理できます。
+
+<LiveDemo
+  title="イベントデリゲーションの比較デモ"
+  height="500px"
+  html={`
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+  <!-- 悪い例 -->
+  <div>
+    <h3 style="color: #ef4444; margin-bottom: 1rem; font-size: 1.1rem;">❌ 悪い例: 個別リスナー</h3>
+    <div id="bad-container" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 1rem;">
+      <!-- ボタンは動的に追加 -->
+    </div>
+    <button id="bad-add" style="padding: 0.5rem 1rem; background: #1f2a37; border: 1px solid #374151; border-radius: 6px; color: #e5edf4; cursor: pointer; width: 100%;">
+      ボタンを追加（手動で再設定が必要）
+    </button>
+    <div id="bad-info" style="margin-top: 1rem; padding: 0.75rem; background: #1f2a37; border-radius: 6px; font-size: 0.875rem;">
+      <div>リスナー数: <span id="bad-count" style="color: #ef4444; font-weight: bold;">0</span></div>
+      <div>クリック: <span id="bad-clicks" style="color: #60a5fa;">0回</span></div>
+    </div>
+  </div>
+
+  <!-- 良い例 -->
+  <div>
+    <h3 style="color: #10b981; margin-bottom: 1rem; font-size: 1.1rem;">✅ 良い例: イベントデリゲーション</h3>
+    <div id="good-container" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 1rem;">
+      <!-- ボタンは動的に追加 -->
+    </div>
+    <button id="good-add" style="padding: 0.5rem 1rem; background: #1f2a37; border: 1px solid #374151; border-radius: 6px; color: #e5edf4; cursor: pointer; width: 100%;">
+      ボタンを追加（自動で適用）
+    </button>
+    <div id="good-info" style="margin-top: 1rem; padding: 0.75rem; background: #1f2a37; border-radius: 6px; font-size: 0.875rem;">
+      <div>リスナー数: <span id="good-count" style="color: #10b981; font-weight: bold;">1</span></div>
+      <div>クリック: <span id="good-clicks" style="color: #60a5fa;">0回</span></div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+    button:hover {
+      background: #374151 !important;
+      transform: translateY(-1px);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    .item-btn {
+      padding: 0.5rem;
+      background: #1f2a37;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      color: #e5edf4;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+    .item-btn:hover {
+      background: #374151;
+      transform: scale(1.05);
+    }
+  `}
+  js={`
+    let badCount = 0;
+    let badClicks = 0;
+    let goodClicks = 0;
+
+    // 悪い例: 個別にリスナーを追加
+    const badContainer = document.getElementById('bad-container');
+    const badCountEl = document.getElementById('bad-count');
+    const badClicksEl = document.getElementById('bad-clicks');
+
+    function addBadButton() {
+      const btn = document.createElement('button');
+      btn.className = 'item-btn';
+      btn.textContent = ++badCount;
+
+      // 各ボタンに個別のリスナーを追加（メモリ消費）
+      btn.addEventListener('click', () => {
+        badClicksEl.textContent = ++badClicks + '回';
+        btn.style.background = '#10b981';
+        setTimeout(() => btn.style.background = '#1f2a37', 300);
+      });
+
+      badContainer.appendChild(btn);
+      badCountEl.textContent = badCount;
+    }
+
+    // 初期ボタンを追加
+    for (let i = 0; i < 6; i++) addBadButton();
+
+    document.getElementById('bad-add').addEventListener('click', addBadButton);
+
+    // 良い例: イベントデリゲーション
+    const goodContainer = document.getElementById('good-container');
+    const goodClicksEl = document.getElementById('good-clicks');
+    let goodCount = 0;
+
+    // 親要素に1つだけリスナーを追加
+    goodContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('item-btn')) {
+        goodClicksEl.textContent = ++goodClicks + '回';
+        e.target.style.background = '#10b981';
+        setTimeout(() => e.target.style.background = '#1f2a37', 300);
+      }
+    });
+
+    function addGoodButton() {
+      const btn = document.createElement('button');
+      btn.className = 'item-btn';
+      btn.textContent = ++goodCount;
+      goodContainer.appendChild(btn);
+      // リスナーの追加は不要！親要素が自動的に処理
+    }
+
+    // 初期ボタンを追加
+    for (let i = 0; i < 6; i++) addGoodButton();
+
+    document.getElementById('good-add').addEventListener('click', addGoodButton);
+  `}
+/>
+
+## 実装パターン
+
+### 基本的な実装
+
+```javascript
+// ❌ 悪い例: 個別にリスナーを追加
+document.querySelectorAll('.item').forEach(item => {
+  item.addEventListener('click', handleClick);
+});
+
+// ✅ 良い例: イベントデリゲーション
+document.getElementById('container').addEventListener('click', (e) => {
+  if (e.target.matches('.item')) {
+    handleClick(e);
+  }
+});
+```
+
+### data属性を使った高度な実装
+
+```javascript
+// HTML: <button data-action="delete" data-id="123">削除</button>
+
+document.getElementById('app').addEventListener('click', (e) => {
+  const action = e.target.dataset.action;
+  const id = e.target.dataset.id;
+
+  switch (action) {
+    case 'delete':
+      deleteItem(id);
+      break;
+    case 'edit':
+      editItem(id);
+      break;
+    case 'view':
+      viewItem(id);
+      break;
+  }
+});
+```
+
+### 最も近い親要素を探す（closest）
+
+```javascript
+// ボタンの中にアイコンがある場合など
+document.getElementById('list').addEventListener('click', (e) => {
+  const button = e.target.closest('.action-btn');
+
+  if (button) {
+    const action = button.dataset.action;
+    performAction(action);
+  }
+});
+```
+
+## パフォーマンス比較
+
+### メモリ使用量
+
+- **個別リスナー**: 1,000個の要素 = 1,000個のリスナー
+- **イベントデリゲーション**: 1,000個の要素 = 1個のリスナー
+
+### 動的要素への対応
+
+```javascript
+// ❌ 悪い例: 追加のたびにリスナーを再設定
+function addItem(text) {
+  const item = document.createElement('div');
+  item.className = 'item';
+  item.textContent = text;
+
+  // 毎回リスナーを追加する必要がある
+  item.addEventListener('click', handleClick);
+
+  container.appendChild(item);
+}
+
+// ✅ 良い例: 自動的に適用される
+function addItem(text) {
+  const item = document.createElement('div');
+  item.className = 'item';
+  item.textContent = text;
+
+  // リスナーの追加は不要
+  container.appendChild(item);
+}
+```
+
+## よくある落とし穴
+
+### 1. イベントのバブリングを忘れる
+
+```javascript
+// ボタンの中にアイコンがある場合
+// <button class="btn"><i class="icon"></i> クリック</button>
+
+container.addEventListener('click', (e) => {
+  // ❌ アイコンをクリックすると e.target は <i> になる
+  if (e.target.className === 'btn') {
+    // これは動作しない
+  }
+
+  // ✅ closest を使う
+  if (e.target.closest('.btn')) {
+    // これは正しく動作する
+  }
+});
+```
+
+### 2. preventDefault() の使い方
+
+```javascript
+// リンクやフォームでは preventDefault() が必要
+form.addEventListener('submit', (e) => {
+  if (e.target.matches('.ajax-form')) {
+    e.preventDefault(); // デフォルトの送信を防ぐ
+    submitViaAjax(e.target);
+  }
+});
+```
+
+### 3. パフォーマンスの考慮
+
+```javascript
+// ❌ 悪い例: 重い処理を毎回実行
+container.addEventListener('click', (e) => {
+  const items = document.querySelectorAll('.item'); // 毎回DOM検索
+  // ...
+});
+
+// ✅ 良い例: 必要な時だけ
+container.addEventListener('click', (e) => {
+  if (e.target.matches('.item')) {
+    // クリックされた時だけ処理
+  }
+});
+```
+
+## 実践的な使用例
+
+### Todo リストの実装
+
+```javascript
+const todoList = document.getElementById('todo-list');
+
+// 1つのリスナーで全てのアクションを管理
+todoList.addEventListener('click', (e) => {
+  const todo = e.target.closest('.todo-item');
+  if (!todo) return;
+
+  const id = todo.dataset.id;
+
+  if (e.target.matches('.delete-btn')) {
+    deleteTodo(id);
+  } else if (e.target.matches('.edit-btn')) {
+    editTodo(id);
+  } else if (e.target.matches('.checkbox')) {
+    toggleTodo(id);
+  }
+});
+
+// 新しいTodoを追加してもリスナーの設定は不要
+function addTodo(text) {
+  const todo = document.createElement('div');
+  todo.className = 'todo-item';
+  todo.dataset.id = Date.now();
+  todo.innerHTML = \`
+    <input type="checkbox" class="checkbox">
+    <span>\${text}</span>
+    <button class="edit-btn">編集</button>
+    <button class="delete-btn">削除</button>
+  \`;
+  todoList.appendChild(todo);
+}
+```
+
+## まとめ
+
+### イベントデリゲーションのメリット
+
+1. **メモリ効率**: リスナーの数が大幅に減少
+2. **動的要素**: 後から追加された要素にも自動適用
+3. **保守性**: イベント管理が一箇所に集約
+4. **パフォーマンス**: DOMの変更時の処理が軽量
+
+### 使用すべき場面
+
+- 同じ種類のイベントを複数の要素で扱う
+- 要素が動的に追加・削除される
+- リストやテーブルなど要素数が多い
+
+### 使用を避けるべき場面
+
+- 各要素で全く異なる処理が必要
+- イベントのバブリングが無効化されている
+- パフォーマンスが既に十分な単純なケース

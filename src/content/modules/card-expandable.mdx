@@ -1,0 +1,293 @@
+---
+title: カード展開（Expandable Card）
+description: クリックで詳細を展開。スムーズなアニメーション。
+tags: [card, expandable, accordion, animation]
+frameworks: [Vanilla, Any]
+level: intermediate
+prompt_template: |
+  カード展開を実装：
+  - ヘッダー + 折りたたみコンテンツ
+  - クリックで展開/折りたたみ
+  - max-heightアニメーション
+  - 展開アイコン回転（↓ → ↑）
+  - aria-expanded対応
+  - 複数カード対応
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="カード展開のデモ"
+  height="400px"
+  html={`
+<div class="card-grid">
+  <article class="expandable-card">
+    <button class="card-header" aria-expanded="false" aria-controls="card1">
+      <div class="card-title">
+        <h3>プロジェクトA</h3>
+        <p class="card-subtitle">クリックして詳細を表示</p>
+      </div>
+      <span class="expand-icon">▼</span>
+    </button>
+    <div id="card1" class="card-content" hidden>
+      <p>このプロジェクトは最新のWeb技術を使用して開発されています。レスポンシブデザイン、アクセシビリティ、パフォーマンスを重視しています。</p>
+      <button class="btn-primary">詳細を見る</button>
+    </div>
+  </article>
+
+  <article class="expandable-card">
+    <button class="card-header" aria-expanded="false" aria-controls="card2">
+      <div class="card-title">
+        <h3>プロジェクトB</h3>
+        <p class="card-subtitle">モバイルアプリケーション</p>
+      </div>
+      <span class="expand-icon">▼</span>
+    </button>
+    <div id="card2" class="card-content" hidden>
+      <p>iOS、Android両対応のモバイルアプリ。ネイティブのような滑らかなユーザー体験を提供します。</p>
+      <button class="btn-primary">詳細を見る</button>
+    </div>
+  </article>
+
+  <article class="expandable-card">
+    <button class="card-header" aria-expanded="false" aria-controls="card3">
+      <div class="card-title">
+        <h3>プロジェクトC</h3>
+        <p class="card-subtitle">データビジュアライゼーション</p>
+      </div>
+      <span class="expand-icon">▼</span>
+    </button>
+    <div id="card3" class="card-content" hidden>
+      <p>複雑なデータを視覚的に分かりやすく表現。インタラクティブなグラフとチャートで情報を効果的に伝達します。</p>
+      <button class="btn-primary">詳細を見る</button>
+    </div>
+  </article>
+</div>
+  `}
+  css={`
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.expandable-card {
+  background: #1f2a37;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+.expandable-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.card-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s ease;
+}
+
+.card-header:hover {
+  background: #374151;
+}
+
+.card-header:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: -2px;
+}
+
+.card-title h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #e5edf4;
+}
+
+.card-subtitle {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+.expand-icon {
+  font-size: 12px;
+  color: #9ca3af;
+  transition: transform 0.3s ease;
+}
+
+.card-header[aria-expanded="true"] .expand-icon {
+  transform: rotate(180deg);
+}
+
+.card-content {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+  padding: 0 16px;
+  color: #9ca3af;
+}
+
+.card-content[hidden] {
+  display: block;
+}
+
+.card-header[aria-expanded="true"] + .card-content {
+  max-height: 300px;
+  padding: 0 16px 16px;
+}
+
+.card-content p {
+  margin: 0 0 12px;
+  line-height: 1.6;
+}
+
+.btn-primary {
+  padding: 8px 16px;
+  background: #60a5fa;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: #3b82f6;
+}
+  `}
+  js={`
+document.querySelectorAll('.card-header').forEach(header => {
+  header.addEventListener('click', () => {
+    const expanded = header.getAttribute('aria-expanded') === 'true';
+    const contentId = header.getAttribute('aria-controls');
+    const content = document.getElementById(contentId);
+
+    header.setAttribute('aria-expanded', String(!expanded));
+    content.hidden = !expanded;
+  });
+});
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<div class="card-grid">
+  <article class="expandable-card">
+    <button class="card-header" aria-expanded="false" aria-controls="card1">
+      <div class="card-title">
+        <h3>カード1</h3>
+        <p class="card-subtitle">クリックして詳細を表示</p>
+      </div>
+      <span class="expand-icon">▼</span>
+    </button>
+    <div id="card1" class="card-content" hidden>
+      <p>ここに詳細なコンテンツが表示されます。画像、テキスト、リンクなど自由に配置できます。</p>
+      <button class="btn-primary">アクション</button>
+    </div>
+  </article>
+
+  <article class="expandable-card">
+    <button class="card-header" aria-expanded="false" aria-controls="card2">
+      <div class="card-title">
+        <h3>カード2</h3>
+        <p class="card-subtitle">もう一つのカード例</p>
+      </div>
+      <span class="expand-icon">▼</span>
+    </button>
+    <div id="card2" class="card-content" hidden>
+      <p>複数のカードを同時に展開できます。独立して動作します。</p>
+    </div>
+  </article>
+</div>
+```
+
+**CSS**
+```css
+.card-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px; padding: 16px;
+}
+
+.expandable-card {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+  overflow: hidden; transition: box-shadow .2s ease;
+}
+.expandable-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+.card-header {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  padding: 16px; background: transparent; border: none;
+  cursor: pointer; text-align: left; transition: background .2s ease;
+}
+.card-header:hover { background: #f9fafb; }
+.card-header:focus-visible { outline: 2px solid #3b82f6; outline-offset: -2px; }
+
+.card-title h3 { margin: 0; font-size: 18px; font-weight: 600; color: #111827; }
+.card-subtitle { margin: 4px 0 0; font-size: 14px; color: #6b7280; }
+
+.expand-icon {
+  font-size: 12px; color: #6b7280;
+  transition: transform .3s ease;
+}
+.card-header[aria-expanded="true"] .expand-icon {
+  transform: rotate(180deg);
+}
+
+.card-content {
+  overflow: hidden; max-height: 0;
+  transition: max-height .3s ease, padding .3s ease;
+  padding: 0 16px;
+}
+.card-content[hidden] { display: block; }
+.card-header[aria-expanded="true"] + .card-content {
+  max-height: 500px; padding: 0 16px 16px;
+}
+.card-content p { margin: 0 0 12px; color: #374151; line-height: 1.6; }
+
+.btn-primary {
+  padding: 8px 16px; background: #3b82f6; color: #fff;
+  border: none; border-radius: 6px; cursor: pointer;
+  font-size: 14px; font-weight: 500;
+  transition: background .2s ease;
+}
+.btn-primary:hover { background: #2563eb; }
+```
+
+**JS**
+```js
+(() => {
+  document.querySelectorAll('.card-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const expanded = header.getAttribute('aria-expanded') === 'true';
+      const contentId = header.getAttribute('aria-controls');
+      const content = document.getElementById(contentId);
+
+      // トグル
+      header.setAttribute('aria-expanded', String(!expanded));
+      content.hidden = !expanded;
+    });
+
+    // Enterキーでも動作
+    header.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        header.click();
+      }
+    });
+  });
+})();
+```

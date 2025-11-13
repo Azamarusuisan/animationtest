@@ -1,0 +1,499 @@
+---
+title: DebounceとThrottleの使い分け
+description: パフォーマンス改善の決定版テクニック。検索、スクロール、リサイズ処理を最適化
+tags: [javascript, performance, optimization, events]
+category: javascript
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## DebounceとThrottleの違い
+
+**Debounce（デバウンス）**: 連続したイベントの最後の1回だけを実行
+**Throttle（スロットル）**: 一定時間ごとに1回だけ実行
+
+どちらもイベント処理の頻度を制限してパフォーマンスを改善しますが、使用場面が異なります。
+
+<LiveDemo
+  title="Debounce vs Throttle の動作比較"
+  height="600px"
+  html={`
+<div style="max-width: 800px; margin: 0 auto;">
+  <h3 style="margin-bottom: 1rem; color: #60a5fa;">テキスト入力でテスト</h3>
+  <input
+    type="text"
+    id="search-input"
+    placeholder="何か入力してください..."
+    style="width: 100%; padding: 0.75rem; background: #1f2a37; border: 2px solid #374151; border-radius: 8px; color: #e5edf4; font-size: 1rem; margin-bottom: 2rem;"
+  >
+
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem;">
+    <!-- 通常 -->
+    <div style="padding: 1rem; background: #1f2a37; border-radius: 8px; border: 2px solid #ef4444;">
+      <h4 style="color: #ef4444; margin-bottom: 0.5rem; font-size: 0.875rem;">❌ 通常（制限なし）</h4>
+      <div style="font-size: 2rem; font-weight: bold; color: #e5edf4; margin-bottom: 0.5rem;" id="normal-count">0</div>
+      <div style="font-size: 0.75rem; color: #9ca3af;">実行回数</div>
+    </div>
+
+    <!-- Debounce -->
+    <div style="padding: 1rem; background: #1f2a37; border-radius: 8px; border: 2px solid #10b981;">
+      <h4 style="color: #10b981; margin-bottom: 0.5rem; font-size: 0.875rem;">✅ Debounce (500ms)</h4>
+      <div style="font-size: 2rem; font-weight: bold; color: #e5edf4; margin-bottom: 0.5rem;" id="debounce-count">0</div>
+      <div style="font-size: 0.75rem; color: #9ca3af;">実行回数</div>
+    </div>
+
+    <!-- Throttle -->
+    <div style="padding: 1rem; background: #1f2a37; border-radius: 8px; border: 2px solid #3b82f6;">
+      <h4 style="color: #3b82f6; margin-bottom: 0.5rem; font-size: 0.875rem;">✅ Throttle (500ms)</h4>
+      <div style="font-size: 2rem; font-weight: bold; color: #e5edf4; margin-bottom: 0.5rem;" id="throttle-count">0</div>
+      <div style="font-size: 0.75rem; color: #9ca3af;">実行回数</div>
+    </div>
+  </div>
+
+  <h3 style="margin-bottom: 1rem; color: #60a5fa;">スクロールでテスト</h3>
+  <div
+    id="scroll-area"
+    style="height: 300px; overflow-y: scroll; background: #1f2a37; border-radius: 8px; padding: 1rem; border: 2px solid #374151;"
+  >
+    <div style="height: 1000px; background: linear-gradient(to bottom, #1f2a37, #0c1218); border-radius: 8px; padding: 1rem;">
+      <p style="color: #9ca3af; margin-bottom: 1rem;">スクロールしてください（高さ1000px）</p>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+        <div style="padding: 0.75rem; background: #0c1218; border-radius: 6px;">
+          <div style="color: #ef4444; font-size: 0.875rem; margin-bottom: 0.25rem;">通常</div>
+          <div style="font-size: 1.5rem; font-weight: bold;" id="scroll-normal">0</div>
+        </div>
+        <div style="padding: 0.75rem; background: #0c1218; border-radius: 6px;">
+          <div style="color: #10b981; font-size: 0.875rem; margin-bottom: 0.25rem;">Debounce</div>
+          <div style="font-size: 1.5rem; font-weight: bold;" id="scroll-debounce">0</div>
+        </div>
+        <div style="padding: 0.75rem; background: #0c1218; border-radius: 6px;">
+          <div style="color: #3b82f6; font-size: 0.875rem; margin-bottom: 0.25rem;">Throttle</div>
+          <div style="font-size: 1.5rem; font-weight: bold;" id="scroll-throttle">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+  `}
+  js={`
+    // Debounce 実装
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    // Throttle 実装
+    function throttle(func, limit) {
+      let inThrottle;
+      return function(...args) {
+        if (!inThrottle) {
+          func.apply(this, args);
+          inThrottle = true;
+          setTimeout(() => inThrottle = false, limit);
+        }
+      };
+    }
+
+    // カウンター
+    let normalCount = 0;
+    let debounceCount = 0;
+    let throttleCount = 0;
+    let scrollNormalCount = 0;
+    let scrollDebounceCount = 0;
+    let scrollThrottleCount = 0;
+
+    // 入力イベント
+    const input = document.getElementById('search-input');
+
+    input.addEventListener('input', () => {
+      document.getElementById('normal-count').textContent = ++normalCount;
+    });
+
+    input.addEventListener('input', debounce(() => {
+      document.getElementById('debounce-count').textContent = ++debounceCount;
+    }, 500));
+
+    input.addEventListener('input', throttle(() => {
+      document.getElementById('throttle-count').textContent = ++throttleCount;
+    }, 500));
+
+    // スクロールイベント
+    const scrollArea = document.getElementById('scroll-area');
+
+    scrollArea.addEventListener('scroll', () => {
+      document.getElementById('scroll-normal').textContent = ++scrollNormalCount;
+    });
+
+    scrollArea.addEventListener('scroll', debounce(() => {
+      document.getElementById('scroll-debounce').textContent = ++scrollDebounceCount;
+    }, 500));
+
+    scrollArea.addEventListener('scroll', throttle(() => {
+      document.getElementById('scroll-throttle').textContent = ++scrollThrottleCount;
+    }, 500));
+  `}
+/>
+
+## Debounceの実装と使用例
+
+### 基本実装
+
+```javascript
+function debounce(func, wait) {
+  let timeout;
+
+  return function executedFunction(...args) {
+    // 前のタイマーをクリア
+    clearTimeout(timeout);
+
+    // 新しいタイマーをセット
+    timeout = setTimeout(() => {
+      func.apply(this, args);
+    }, wait);
+  };
+}
+```
+
+### 検索ボックスでの使用
+
+```javascript
+const searchInput = document.getElementById('search');
+
+// ❌ 悪い例: 入力のたびにAPI呼び出し
+searchInput.addEventListener('input', (e) => {
+  fetchSearchResults(e.target.value); // 毎回実行される
+});
+
+// ✅ 良い例: 入力が止まってから実行
+const debouncedSearch = debounce((value) => {
+  fetchSearchResults(value); // 500ms後に1回だけ実行
+}, 500);
+
+searchInput.addEventListener('input', (e) => {
+  debouncedSearch(e.target.value);
+});
+```
+
+### フォームバリデーション
+
+```javascript
+const emailInput = document.getElementById('email');
+
+const validateEmail = debounce(async (email) => {
+  const isValid = await checkEmailAvailability(email);
+  updateValidationUI(isValid);
+}, 500);
+
+emailInput.addEventListener('input', (e) => {
+  validateEmail(e.target.value);
+});
+```
+
+## Throttleの実装と使用例
+
+### 基本実装
+
+```javascript
+function throttle(func, limit) {
+  let inThrottle;
+
+  return function(...args) {
+    if (!inThrottle) {
+      func.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => {
+        inThrottle = false;
+      }, limit);
+    }
+  };
+}
+```
+
+### スクロールイベントでの使用
+
+```javascript
+// ❌ 悪い例: スクロールのたびに実行（毎秒100回以上）
+window.addEventListener('scroll', () => {
+  updateScrollProgress(); // 大量に実行される
+  checkLazyLoadImages();
+});
+
+// ✅ 良い例: 100msごとに実行（毎秒10回）
+const throttledScroll = throttle(() => {
+  updateScrollProgress();
+  checkLazyLoadImages();
+}, 100);
+
+window.addEventListener('scroll', throttledScroll);
+```
+
+### リサイズイベントでの使用
+
+```javascript
+const handleResize = throttle(() => {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+
+  // レイアウトの再計算
+  recalculateLayout(width, height);
+}, 200);
+
+window.addEventListener('resize', handleResize);
+```
+
+## 使い分けガイド
+
+### Debounceを使うべき場面
+
+| 場面 | 理由 |
+|------|------|
+| 検索ボックス | 入力が完了してから検索 |
+| フォームバリデーション | 入力が止まってからチェック |
+| ウィンドウリサイズ（最終サイズ） | リサイズ完了後に再計算 |
+| オートセーブ | 編集が止まってから保存 |
+
+```javascript
+// 検索
+const search = debounce(fetchResults, 500);
+
+// オートセーブ
+const autoSave = debounce(saveData, 2000);
+
+// リサイズ完了後
+const onResizeEnd = debounce(recalculateLayout, 300);
+```
+
+### Throttleを使うべき場面
+
+| 場面 | 理由 |
+|------|------|
+| スクロール位置の追跡 | 定期的に更新が必要 |
+| マウス移動の追跡 | 滑らかな動きが必要 |
+| アニメーションの更新 | 一定間隔で実行 |
+| ゲームのループ | 継続的な処理 |
+
+```javascript
+// スクロール進捗
+const updateProgress = throttle(calculateProgress, 100);
+
+// マウストラッキング
+const trackMouse = throttle(updatePosition, 50);
+
+// 無限スクロール
+const checkLoadMore = throttle(loadMoreItems, 300);
+```
+
+## 高度な実装パターン
+
+### Leading と Trailing オプション付きDebounce
+
+```javascript
+function debounce(func, wait, options = {}) {
+  let timeout;
+  const { leading = false, trailing = true } = options;
+
+  return function executedFunction(...args) {
+    const callNow = leading && !timeout;
+
+    const later = () => {
+      timeout = null;
+      if (trailing) {
+        func.apply(this, args);
+      }
+    };
+
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+
+    if (callNow) {
+      func.apply(this, args);
+    }
+  };
+}
+
+// 即座に実行し、その後は500ms待機
+const search = debounce(fetchResults, 500, { leading: true });
+```
+
+### キャンセル可能なDebounce
+
+```javascript
+function debounce(func, wait) {
+  let timeout;
+
+  const debounced = function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+
+  // キャンセルメソッドを追加
+  debounced.cancel = function() {
+    clearTimeout(timeout);
+  };
+
+  return debounced;
+}
+
+const search = debounce(fetchResults, 500);
+
+// 使用例
+searchInput.addEventListener('input', search);
+
+// コンポーネントが破棄される時にキャンセル
+onUnmount(() => {
+  search.cancel();
+});
+```
+
+## パフォーマンス比較
+
+### API呼び出しの削減
+
+```javascript
+// シミュレーション: "JavaScript" と入力
+// 文字数: 10文字
+
+// 通常: 10回のAPI呼び出し
+// Debounce: 1回のAPI呼び出し
+// 削減率: 90%
+
+// 1日1000ユーザーが平均10文字入力する場合
+// 通常: 100,000 リクエスト
+// Debounce: 10,000 リクエスト
+// 節約: 90,000 リクエスト/日
+```
+
+### スクロールイベントの削減
+
+```javascript
+// スクロール時間: 2秒
+// イベント発火頻度: 約60fps = 120イベント
+
+// 通常: 120回実行
+// Throttle (100ms): 20回実行
+// 削減率: 83%
+```
+
+## よくある間違い
+
+### 1. 毎回新しい関数を作成
+
+```javascript
+// ❌ 悪い例: debounceが効かない
+input.addEventListener('input', (e) => {
+  debounce(() => search(e.target.value), 500)();
+});
+
+// ✅ 良い例: 1回だけ作成
+const debouncedSearch = debounce(search, 500);
+input.addEventListener('input', (e) => {
+  debouncedSearch(e.target.value);
+});
+```
+
+### 2. thisの扱い
+
+```javascript
+class SearchComponent {
+  constructor() {
+    // ❌ thisが失われる
+    this.search = debounce(this.performSearch, 500);
+
+    // ✅ bind を使う
+    this.search = debounce(this.performSearch.bind(this), 500);
+
+    // ✅ アロー関数を使う
+    this.search = debounce((query) => {
+      this.performSearch(query);
+    }, 500);
+  }
+
+  performSearch(query) {
+    console.log(this); // SearchComponentのインスタンス
+  }
+}
+```
+
+### 3. メモリリーク
+
+```javascript
+// ❌ 悪い例: イベントリスナーが残る
+function setupSearch() {
+  const input = document.getElementById('search');
+  const search = debounce(fetchResults, 500);
+  input.addEventListener('input', search);
+}
+
+// ✅ 良い例: クリーンアップ
+function setupSearch() {
+  const input = document.getElementById('search');
+  const search = debounce(fetchResults, 500);
+
+  input.addEventListener('input', search);
+
+  // クリーンアップ関数を返す
+  return () => {
+    input.removeEventListener('input', search);
+    search.cancel?.(); // タイマーもキャンセル
+  };
+}
+```
+
+## Lodash/Underscore.jsとの比較
+
+```javascript
+// Lodashの高機能版
+import { debounce, throttle } from 'lodash';
+
+// leading: 最初の呼び出しを即座に実行
+const search = debounce(fetchResults, 500, {
+  leading: true,
+  trailing: false
+});
+
+// maxWait: 最大待機時間
+const save = debounce(saveData, 1000, {
+  maxWait: 5000 // 5秒経ったら強制実行
+});
+
+// throttle with leading and trailing
+const scroll = throttle(updateUI, 100, {
+  leading: true,
+  trailing: true
+});
+```
+
+## まとめ
+
+### Debounce
+
+- **用途**: 入力完了後の処理
+- **例**: 検索、バリデーション、オートセーブ
+- **特徴**: 最後の1回だけ実行
+
+### Throttle
+
+- **用途**: 継続的な処理の間引き
+- **例**: スクロール、マウス移動、リサイズ
+- **特徴**: 定期的に実行
+
+### 選択のポイント
+
+1. **最終結果だけ必要** → Debounce
+2. **定期的な更新が必要** → Throttle
+3. **迷ったら** → まずDebounceを試す
+
+### パフォーマンス改善の目安
+
+- API呼び出し: 80-95%削減
+- イベント処理: 70-90%削減
+- ユーザー体験: 遅延を感じさせない

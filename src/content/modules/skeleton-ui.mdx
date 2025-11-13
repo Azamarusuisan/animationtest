@@ -1,0 +1,453 @@
+---
+title: スケルトンUI（ローディング状態）
+description: コンテンツ読み込み中のプレースホルダー。シマー効果付き。
+tags: [skeleton, loading, ux, animation]
+frameworks: [Vanilla, Any]
+level: basic
+prompt_template: |
+  コンテンツ読み込み中のスケルトンUIを実装：
+  - CSSのみのシマーアニメーション
+  - カード/テキスト/画像/リスト用パターン
+  - レスポンシブ対応
+  - prefers-reduced-motionでシマー無効
+  - ダークモード対応
+  - グラデーションアニメーション
+  - カスタマイズ可能な色・速度
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="スケルトンUIのデモ"
+  height="450px"
+  html={`
+<div style="max-width: 600px; margin: 0 auto;">
+  <button id="loadBtn" class="load-btn">読み込み完了</button>
+
+  <div id="content">
+    <div class="skeleton-card">
+      <div class="skeleton skeleton-image"></div>
+      <div class="skeleton-body">
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-text"></div>
+        <div class="skeleton skeleton-text"></div>
+        <div class="skeleton skeleton-text short"></div>
+      </div>
+    </div>
+
+    <div class="skeleton-list" style="margin-top: 1rem;">
+      <div class="skeleton-list-item">
+        <div class="skeleton skeleton-avatar"></div>
+        <div class="skeleton-list-content">
+          <div class="skeleton skeleton-text"></div>
+          <div class="skeleton skeleton-text short"></div>
+        </div>
+      </div>
+      <div class="skeleton-list-item">
+        <div class="skeleton skeleton-avatar"></div>
+        <div class="skeleton-list-content">
+          <div class="skeleton skeleton-text"></div>
+          <div class="skeleton skeleton-text short"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.load-btn {
+  display: block; margin: 0 auto 1rem; padding: .6rem 1.2rem;
+  background: #3b82f6; color: white; border: none; border-radius: 6px;
+  cursor: pointer; font-weight: 500; transition: background .2s;
+}
+.load-btn:hover { background: #2563eb; }
+
+.skeleton {
+  background: linear-gradient(90deg, #374151 0%, #4b5563 50%, #374151 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-card {
+  background: #1f2a37; border: 1px solid #374151; border-radius: 8px;
+  overflow: hidden;
+}
+.skeleton-image { width: 100%; height: 200px; border-radius: 0; }
+.skeleton-body { padding: 1rem; display: grid; gap: 0.75rem; }
+.skeleton-title { height: 24px; width: 70%; }
+.skeleton-text { height: 16px; width: 100%; }
+.skeleton-text.short { width: 60%; }
+
+.skeleton-list { display: grid; gap: 1rem; }
+.skeleton-list-item { display: flex; gap: 1rem; align-items: center; }
+.skeleton-avatar { width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0; }
+.skeleton-list-content { flex: 1; display: grid; gap: 0.5rem; }
+
+.real-card {
+  background: #1f2a37; border: 1px solid #374151; border-radius: 8px;
+  overflow: hidden; opacity: 0; animation: fadeIn .3s forwards;
+}
+@keyframes fadeIn { to { opacity: 1; } }
+.real-card img { width: 100%; height: 200px; object-fit: cover; }
+.real-card-body { padding: 1rem; color: #e5edf4; }
+.real-card-title { font-size: 1.25rem; font-weight: 600; margin-bottom: .5rem; }
+.real-card-text { color: #9ca3af; line-height: 1.6; }
+
+.real-list { display: grid; gap: 1rem; margin-top: 1rem; }
+.real-list-item { display: flex; gap: 1rem; align-items: center; background: #1f2a37; padding: 1rem; border-radius: 8px; border: 1px solid #374151; opacity: 0; animation: fadeIn .3s forwards; }
+.real-list-item:nth-child(2) { animation-delay: .1s; }
+.real-avatar { width: 48px; height: 48px; border-radius: 50%; background: #3b82f6; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; }
+.real-list-content { flex: 1; }
+.real-list-title { color: #e5edf4; font-weight: 500; margin-bottom: .25rem; }
+.real-list-desc { color: #9ca3af; font-size: .875rem; }
+  `}
+  js={`
+const btn = document.getElementById('loadBtn');
+const content = document.getElementById('content');
+let isLoaded = false;
+
+btn.addEventListener('click', () => {
+  if (isLoaded) {
+    content.innerHTML = \`
+      <div class="skeleton-card">
+        <div class="skeleton skeleton-image"></div>
+        <div class="skeleton-body">
+          <div class="skeleton skeleton-title"></div>
+          <div class="skeleton skeleton-text"></div>
+          <div class="skeleton skeleton-text"></div>
+          <div class="skeleton skeleton-text short"></div>
+        </div>
+      </div>
+      <div class="skeleton-list" style="margin-top: 1rem;">
+        <div class="skeleton-list-item">
+          <div class="skeleton skeleton-avatar"></div>
+          <div class="skeleton-list-content">
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text short"></div>
+          </div>
+        </div>
+        <div class="skeleton-list-item">
+          <div class="skeleton skeleton-avatar"></div>
+          <div class="skeleton-list-content">
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text short"></div>
+          </div>
+        </div>
+      </div>
+    \`;
+    btn.textContent = '読み込み完了';
+    isLoaded = false;
+  } else {
+    content.innerHTML = \`
+      <div class="real-card">
+        <img src="https://picsum.photos/seed/demo/400/200" alt="Sample">
+        <div class="real-card-body">
+          <h3 class="real-card-title">コンテンツが読み込まれました</h3>
+          <p class="real-card-text">スケルトンUIが実際のコンテンツに置き換わりました。ローディング中のユーザー体験が向上します。</p>
+        </div>
+      </div>
+      <div class="real-list">
+        <div class="real-list-item">
+          <div class="real-avatar">A</div>
+          <div class="real-list-content">
+            <div class="real-list-title">ユーザー A</div>
+            <div class="real-list-desc">最近オンライン</div>
+          </div>
+        </div>
+        <div class="real-list-item">
+          <div class="real-avatar">B</div>
+          <div class="real-list-content">
+            <div class="real-list-title">ユーザー B</div>
+            <div class="real-list-desc">2時間前にオンライン</div>
+          </div>
+        </div>
+      </div>
+    \`;
+    btn.textContent = 'スケルトン表示に戻す';
+    isLoaded = true;
+  }
+});
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<!-- カード型スケルトン -->
+<div class="skeleton-card">
+  <div class="skeleton skeleton-image"></div>
+  <div class="skeleton-body">
+    <div class="skeleton skeleton-title"></div>
+    <div class="skeleton skeleton-text"></div>
+    <div class="skeleton skeleton-text"></div>
+    <div class="skeleton skeleton-text short"></div>
+  </div>
+</div>
+
+<!-- テキスト行スケルトン -->
+<div class="skeleton-lines">
+  <div class="skeleton skeleton-text"></div>
+  <div class="skeleton skeleton-text"></div>
+  <div class="skeleton skeleton-text short"></div>
+</div>
+
+<!-- リスト型スケルトン -->
+<div class="skeleton-list">
+  <div class="skeleton-list-item">
+    <div class="skeleton skeleton-avatar"></div>
+    <div class="skeleton-list-content">
+      <div class="skeleton skeleton-text"></div>
+      <div class="skeleton skeleton-text short"></div>
+    </div>
+  </div>
+  <div class="skeleton-list-item">
+    <div class="skeleton skeleton-avatar"></div>
+    <div class="skeleton-list-content">
+      <div class="skeleton skeleton-text"></div>
+      <div class="skeleton skeleton-text short"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 読み込み完了後は .loaded クラスで非表示 -->
+<div class="skeleton-card loaded">
+  <!-- 実際のコンテンツ -->
+</div>
+```
+
+**CSS**
+```css
+/* ベーススケルトンスタイル */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #e5e7eb 0%,
+    #f3f4f6 50%,
+    #e5e7eb 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* カード型 */
+.skeleton-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 400px;
+}
+
+.skeleton-image {
+  width: 100%;
+  height: 200px;
+  border-radius: 0;
+}
+
+.skeleton-body {
+  padding: 1rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.skeleton-title {
+  height: 24px;
+  width: 70%;
+}
+
+.skeleton-text {
+  height: 16px;
+  width: 100%;
+}
+
+.skeleton-text.short {
+  width: 60%;
+}
+
+/* リスト型 */
+.skeleton-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.skeleton-list-item {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.skeleton-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeleton-list-content {
+  flex: 1;
+  display: grid;
+  gap: 0.5rem;
+}
+
+/* テキスト行 */
+.skeleton-lines {
+  display: grid;
+  gap: 0.75rem;
+}
+
+/* ダークモード */
+@media (prefers-color-scheme: dark) {
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      #1f2937 0%,
+      #374151 50%,
+      #1f2937 100%
+    );
+  }
+
+  .skeleton-card {
+    background: #111827;
+    border-color: #1f2937;
+  }
+}
+
+/* Reduced Motion対応 */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background: #e5e7eb;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .skeleton {
+      background: #1f2937;
+    }
+  }
+}
+
+/* 読み込み完了時のフェードイン */
+.skeleton-card {
+  transition: opacity 0.3s ease;
+}
+
+.skeleton-card.loaded .skeleton {
+  display: none;
+}
+
+.skeleton-card.loaded {
+  opacity: 1;
+}
+
+/* カスタマイズ可能なCSS変数 */
+:root {
+  --skeleton-color-base: #e5e7eb;
+  --skeleton-color-highlight: #f3f4f6;
+  --skeleton-animation-duration: 1.5s;
+}
+
+.skeleton.custom {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-color-base) 0%,
+    var(--skeleton-color-highlight) 50%,
+    var(--skeleton-color-base) 100%
+  );
+  animation-duration: var(--skeleton-animation-duration);
+}
+```
+
+**JS**
+```js
+(() => {
+  // スケルトンUIを表示し、コンテンツ読み込み後に置き換える
+  window.showSkeleton = (container, skeletonType = 'card') => {
+    const skeletonTemplates = {
+      card: `
+        <div class="skeleton-card">
+          <div class="skeleton skeleton-image"></div>
+          <div class="skeleton-body">
+            <div class="skeleton skeleton-title"></div>
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text short"></div>
+          </div>
+        </div>
+      `,
+      list: `
+        <div class="skeleton-list-item">
+          <div class="skeleton skeleton-avatar"></div>
+          <div class="skeleton-list-content">
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text short"></div>
+          </div>
+        </div>
+      `,
+      lines: `
+        <div class="skeleton-lines">
+          <div class="skeleton skeleton-text"></div>
+          <div class="skeleton skeleton-text"></div>
+          <div class="skeleton skeleton-text short"></div>
+        </div>
+      `
+    };
+
+    const template = skeletonTemplates[skeletonType] || skeletonTemplates.card;
+    container.innerHTML = template;
+  };
+
+  // コンテンツを読み込んでスケルトンを置き換える
+  window.loadContent = async (container, fetchFn) => {
+    try {
+      const content = await fetchFn();
+
+      // フェードアウト
+      container.style.opacity = '0';
+
+      setTimeout(() => {
+        container.innerHTML = content;
+
+        // フェードイン
+        requestAnimationFrame(() => {
+          container.style.opacity = '1';
+        });
+      }, 300);
+
+    } catch (error) {
+      console.error('コンテンツの読み込みに失敗:', error);
+      container.innerHTML = '<p>読み込みに失敗しました。</p>';
+    }
+  };
+
+  // 使用例:
+  // const container = document.getElementById('content');
+  // showSkeleton(container, 'card');
+  // loadContent(container, async () => {
+  //   const response = await fetch('/api/content');
+  //   return await response.text();
+  // });
+
+  // 複数のスケルトンを一度に表示
+  window.showMultipleSkeletons = (container, skeletonType = 'list', count = 3) => {
+    const skeletons = Array.from({ length: count }, () => {
+      const div = document.createElement('div');
+      showSkeleton(div, skeletonType);
+      return div.innerHTML;
+    }).join('');
+
+    container.innerHTML = skeletons;
+  };
+})();
+```

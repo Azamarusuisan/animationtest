@@ -1,0 +1,236 @@
+---
+title: トグルスイッチ（ON/OFF切替）
+description: iOS風スイッチ。<input type="checkbox">ベース。
+tags: [toggle, switch, form, checkbox]
+frameworks: [Vanilla, Any]
+level: basic
+prompt_template: |
+  iOS風トグルスイッチ：
+  - <input type="checkbox">をベースにカスタムスタイル
+  - スライドアニメーション、ラベル表示
+  - aria-checked、キーボード操作対応
+  - サイズバリエーション、無効状態対応
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="トグルスイッチのデモ"
+  height="250px"
+  html={`
+<div class="toggle-group">
+  <label class="toggle">
+    <input type="checkbox" class="toggle-input">
+    <span class="toggle-slider"></span>
+    <span class="toggle-label">ダークモード</span>
+  </label>
+
+  <label class="toggle toggle--small">
+    <input type="checkbox" class="toggle-input" checked>
+    <span class="toggle-slider"></span>
+    <span class="toggle-label">通知（小サイズ）</span>
+  </label>
+
+  <label class="toggle toggle--large">
+    <input type="checkbox" class="toggle-input">
+    <span class="toggle-slider"></span>
+    <span class="toggle-label">自動更新（大サイズ）</span>
+  </label>
+
+  <label class="toggle">
+    <input type="checkbox" class="toggle-input" disabled>
+    <span class="toggle-slider"></span>
+    <span class="toggle-label">メンテナンスモード（無効）</span>
+  </label>
+</div>
+  `}
+  css={`
+.toggle-group { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
+
+.toggle {
+  display: inline-flex; align-items: center; gap: 12px;
+  cursor: pointer; user-select: none;
+}
+.toggle:has(.toggle-input:disabled) { opacity: 0.5; cursor: not-allowed; }
+
+.toggle-input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+
+.toggle-slider {
+  position: relative;
+  width: 44px; height: 24px;
+  background: #374151;
+  border-radius: 24px;
+  transition: background 0.2s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute; left: 2px; top: 2px;
+  width: 20px; height: 20px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.toggle-input:checked + .toggle-slider {
+  background: #60a5fa;
+}
+
+.toggle-input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.toggle--small .toggle-slider { width: 36px; height: 20px; }
+.toggle--small .toggle-slider::before { width: 16px; height: 16px; }
+.toggle--small .toggle-input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+.toggle--large .toggle-slider { width: 56px; height: 32px; }
+.toggle--large .toggle-slider::before { width: 28px; height: 28px; }
+.toggle--large .toggle-input:checked + .toggle-slider::before { transform: translateX(24px); }
+
+.toggle-label { color: #e5edf4; font-size: 14px; }
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<div class="toggle-group">
+  <label class="toggle">
+    <input type="checkbox" class="toggle-input" aria-checked="false">
+    <span class="toggle-slider"></span>
+    <span class="toggle-label">ダークモード</span>
+  </label>
+
+  <label class="toggle toggle--small">
+    <input type="checkbox" class="toggle-input" checked aria-checked="true">
+    <span class="toggle-slider"></span>
+    <span class="toggle-label">通知</span>
+  </label>
+
+  <label class="toggle toggle--large">
+    <input type="checkbox" class="toggle-input" disabled>
+    <span class="toggle-slider"></span>
+    <span class="toggle-label">メンテナンスモード（無効）</span>
+  </label>
+</div>
+```
+
+**CSS**
+```css
+.toggle-group { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
+
+.toggle {
+  display: inline-flex; align-items: center; gap: 12px;
+  cursor: pointer; user-select: none;
+}
+.toggle:has(.toggle-input:disabled) { opacity: 0.5; cursor: not-allowed; }
+
+.toggle-input {
+  position: absolute; opacity: 0; width: 0; height: 0;
+  pointer-events: none;
+}
+
+/* Medium size (default) */
+.toggle-slider {
+  position: relative; width: 48px; height: 26px;
+  background: #64748b; border-radius: 13px;
+  transition: background .2s ease;
+  flex-shrink: 0;
+}
+.toggle-slider::before {
+  content: ''; position: absolute; left: 2px; top: 2px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: transform .2s ease;
+}
+
+/* Checked state */
+.toggle-input:checked + .toggle-slider { background: #2563eb; }
+.toggle-input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+/* Focus state */
+.toggle-input:focus-visible + .toggle-slider {
+  outline: 2px solid #60a5fa; outline-offset: 2px;
+}
+
+/* Disabled state */
+.toggle-input:disabled + .toggle-slider {
+  background: #475569; cursor: not-allowed;
+}
+
+/* Small size */
+.toggle--small .toggle-slider { width: 36px; height: 20px; border-radius: 10px; }
+.toggle--small .toggle-slider::before { width: 16px; height: 16px; }
+.toggle--small .toggle-input:checked + .toggle-slider::before { transform: translateX(16px); }
+.toggle--small .toggle-label { font-size: 14px; }
+
+/* Large size */
+.toggle--large .toggle-slider { width: 60px; height: 32px; border-radius: 16px; }
+.toggle--large .toggle-slider::before { width: 28px; height: 28px; }
+.toggle--large .toggle-input:checked + .toggle-slider::before { transform: translateX(28px); }
+.toggle--large .toggle-label { font-size: 18px; }
+
+/* Label styling */
+.toggle-label {
+  color: #e2e8f0; font-size: 16px;
+}
+
+/* ON/OFF indicator (optional) */
+.toggle-slider::after {
+  content: ''; position: absolute; top: 50%; right: 6px;
+  transform: translateY(-50%); font-size: 10px; font-weight: 600;
+  color: rgba(255, 255, 255, 0.8); opacity: 0;
+  transition: opacity .2s ease;
+}
+.toggle-input:checked + .toggle-slider::after {
+  content: ''; left: 6px; right: auto; opacity: 0;
+}
+
+/* Hover effect */
+.toggle:hover .toggle-slider:not(:has(+ .toggle-input:disabled)) {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle-slider, .toggle-slider::before { transition: none; }
+}
+```
+
+**JS**
+```js
+(() => {
+  const toggles = document.querySelectorAll('.toggle-input');
+
+  toggles.forEach(input => {
+    // Initialize aria-checked
+    input.setAttribute('aria-checked', input.checked);
+
+    // Update aria-checked on change
+    input.addEventListener('change', () => {
+      input.setAttribute('aria-checked', input.checked);
+
+      // Optional: Dispatch custom event
+      input.dispatchEvent(new CustomEvent('toggleChange', {
+        detail: { checked: input.checked },
+        bubbles: true
+      }));
+    });
+
+    // Keyboard support (Space key)
+    input.addEventListener('keydown', (e) => {
+      if (e.key === ' ') {
+        e.preventDefault();
+        input.click();
+      }
+    });
+  });
+
+  // Example: Listen to toggle changes
+  document.addEventListener('toggleChange', (e) => {
+    const label = e.target.parentElement.querySelector('.toggle-label');
+    console.log(`${label?.textContent}: ${e.detail.checked ? 'ON' : 'OFF'}`);
+  });
+})();
+```

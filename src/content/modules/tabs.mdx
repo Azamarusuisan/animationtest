@@ -1,0 +1,196 @@
+---
+title: タブ（キーボード操作対応）
+description: roletab/tabpanelのWAI-ARIAガイドライン準拠。
+tags: [tabs, accessibility, ui]
+frameworks: [Vanilla, Any]
+level: basic
+prompt_template: |
+  アクセシブルなタブUI：
+  - roletab/tabpanel、aria-selected/aria-controls同期
+  - キー: ← → Home End で移動、Enter/Spaceで確定
+  - コンテンツは表示/非表示制御
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="タブのデモ"
+  height="300px"
+  html={`
+<div style="max-width: 500px; margin: 0 auto;">
+  <div class="tabs" role="tablist" aria-label="サンプルタブ">
+    <button role="tab" aria-selected="true" aria-controls="panel1" id="tab1" class="tab-btn">
+      プロフィール
+    </button>
+    <button role="tab" aria-selected="false" aria-controls="panel2" id="tab2" class="tab-btn">
+      設定
+    </button>
+    <button role="tab" aria-selected="false" aria-controls="panel3" id="tab3" class="tab-btn">
+      通知
+    </button>
+  </div>
+
+  <div id="panel1" role="tabpanel" aria-labelledby="tab1" class="tab-panel">
+    <h3 style="color: #e5edf4; margin-top: 0;">プロフィール情報</h3>
+    <p style="color: #9ca3af;">ユーザー名、メールアドレス、プロフィール画像などを管理できます。</p>
+  </div>
+
+  <div id="panel2" role="tabpanel" aria-labelledby="tab2" class="tab-panel" hidden>
+    <h3 style="color: #e5edf4; margin-top: 0;">設定</h3>
+    <p style="color: #9ca3af;">アカウント設定、プライバシー設定、テーマ設定などを変更できます。</p>
+  </div>
+
+  <div id="panel3" role="tabpanel" aria-labelledby="tab3" class="tab-panel" hidden>
+    <h3 style="color: #e5edf4; margin-top: 0;">通知</h3>
+    <p style="color: #9ca3af;">メール通知、プッシュ通知などの設定を管理できます。</p>
+  </div>
+
+  <div style="margin-top: 1rem; padding: 0.75rem; background: #1f2a37; border: 1px solid #374151; border-radius: 6px;">
+    <small style="color: #9ca3af;">ヒント: 矢印キー（← →）やHome/Endキーでタブを切り替えられます</small>
+  </div>
+</div>
+  `}
+  css={`
+.tabs {
+  display: flex;
+  border-bottom: 2px solid #374151;
+  gap: 4px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.tab-btn:hover {
+  color: #e5edf4;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.tab-btn[aria-selected="true"] {
+  color: #60a5fa;
+  border-bottom-color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+}
+
+.tab-panel {
+  padding: 1.5rem;
+  background: #1f2a37;
+  border: 1px solid #374151;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-panel { animation: none; }
+}
+  `}
+  js={`
+const list = document.querySelector('[role="tablist"]');
+const tabs = Array.from(list.querySelectorAll('[role="tab"]'));
+
+function activate(idx) {
+  tabs.forEach((t, i) => {
+    const sel = i === idx;
+    t.setAttribute('aria-selected', String(sel));
+    const panel = document.getElementById(t.getAttribute('aria-controls'));
+    panel.hidden = !sel;
+    if (sel) t.focus();
+  });
+}
+
+list.addEventListener('click', (e) => {
+  const btn = e.target.closest('[role="tab"]');
+  if (!btn) return;
+  const i = tabs.indexOf(btn);
+  if (i >= 0) activate(i);
+});
+
+list.addEventListener('keydown', (e) => {
+  let i = tabs.findIndex(t => t.getAttribute('aria-selected') === 'true');
+
+  if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    i = (i + 1) % tabs.length;
+    activate(i);
+  }
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    i = (i - 1 + tabs.length) % tabs.length;
+    activate(i);
+  }
+  if (e.key === 'Home') {
+    e.preventDefault();
+    activate(0);
+  }
+  if (e.key === 'End') {
+    e.preventDefault();
+    activate(tabs.length - 1);
+  }
+});
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<div class="tabs" role="tablist" aria-label="Example">
+  <button role="tab" aria-selected="true" aria-controls="p1" id="t1">Tab1</button>
+  <button role="tab" aria-selected="false" aria-controls="p2" id="t2">Tab2</button>
+  <button role="tab" aria-selected="false" aria-controls="p3" id="t3">Tab3</button>
+</div>
+<div id="p1" role="tabpanel" aria-labelledby="t1">Pane 1</div>
+<div id="p2" role="tabpanel" aria-labelledby="t2" hidden>Pane 2</div>
+<div id="p3" role="tabpanel" aria-labelledby="t3" hidden>Pane 3</div>
+```
+
+**JS**
+```js
+(() => {
+  const list = document.querySelector('[role="tablist"]');
+  if (!list) return;
+  const tabs = Array.from(list.querySelectorAll('[role="tab"]'));
+  function activate(idx) {
+    tabs.forEach((t, i) => {
+      const sel = i === idx;
+      t.setAttribute('aria-selected', String(sel));
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !sel;
+      if (sel) t.focus();
+    });
+  }
+  list.addEventListener('click', (e) => {
+    const btn = e.target.closest('[role="tab"]');
+    if (!btn) return;
+    const i = tabs.indexOf(btn);
+    if (i >= 0) activate(i);
+  });
+  list.addEventListener('keydown', (e) => {
+    let i = tabs.findIndex(t => t.getAttribute('aria-selected') === 'true');
+    if (e.key === 'ArrowRight') { i = (i+1)%tabs.length; activate(i); }
+    if (e.key === 'ArrowLeft') { i = (i-1+tabs.length)%tabs.length; activate(i); }
+    if (e.key === 'Home') { activate(0); }
+    if (e.key === 'End') { activate(tabs.length-1); }
+  });
+})();
+```

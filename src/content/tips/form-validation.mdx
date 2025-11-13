@@ -1,0 +1,1325 @@
+---
+title: フォームバリデーション（リアルタイム）
+description: ユーザーフレンドリーなリアルタイムバリデーションとエラーハンドリングの実装
+tags: [form, validation, input, error-handling, webapp]
+category: webapp
+level: intermediate
+date: 2025-11-12
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## フォームバリデーションとは
+
+会員登録フォームで「パスワードは8文字以上」と言われたことありますよね？
+入力欄に文字を打つと「✓ OK」とか「✗ 短すぎます」って表示されるアレです。
+
+**バリデーション** = 「入力チェック」のこと
+
+### なぜ必要？
+
+1. **間違いを早く見つける**
+   - 送信ボタンを押してから「全部入力し直し」は嫌ですよね
+
+2. **正しいデータだけ受け取る**
+   - メールアドレスに電話番号が入力されたら困る
+
+3. **使いやすくする**
+   - 「何が間違ってるの？」と迷わせない
+
+## リアルタイムバリデーションの実装
+
+<LiveDemo
+  title="フォームバリデーション デモ"
+  height="750px"
+  html={`
+<div class="validation-demo">
+  <div class="demo-header">
+    <h3>✅ フォームバリデーションデモ</h3>
+    <p class="subtitle">リアルタイムでエラーチェック</p>
+  </div>
+
+  <div class="form-container">
+    <div class="form-card">
+      <h4 class="form-title">ユーザー登録</h4>
+      <p class="form-description">すべての項目を正しく入力してください</p>
+
+      <form id="registrationForm" novalidate>
+        <!-- ユーザー名 -->
+        <div class="form-group">
+          <label for="username" class="form-label">
+            <span>ユーザー名</span>
+            <span class="required">*</span>
+          </label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            class="form-input"
+            placeholder="3文字以上の英数字"
+            autocomplete="off"
+          />
+          <div class="input-feedback">
+            <div class="error-message" data-error="username"></div>
+            <div class="success-message" data-success="username">✓ 使用可能です</div>
+          </div>
+          <div class="input-hint">3〜20文字の英数字とアンダースコア</div>
+        </div>
+
+        <!-- メールアドレス -->
+        <div class="form-group">
+          <label for="email" class="form-label">
+            <span>メールアドレス</span>
+            <span class="required">*</span>
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            class="form-input"
+            placeholder="example@email.com"
+            autocomplete="off"
+          />
+          <div class="input-feedback">
+            <div class="error-message" data-error="email"></div>
+            <div class="success-message" data-success="email">✓ 有効なメールアドレスです</div>
+          </div>
+        </div>
+
+        <!-- パスワード -->
+        <div class="form-group">
+          <label for="password" class="form-label">
+            <span>パスワード</span>
+            <span class="required">*</span>
+          </label>
+          <div class="input-wrapper">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="form-input"
+              placeholder="8文字以上"
+              autocomplete="off"
+            />
+            <button type="button" class="toggle-password" data-toggle="password">
+              <span class="icon">👁️</span>
+            </button>
+          </div>
+          <div class="input-feedback">
+            <div class="error-message" data-error="password"></div>
+          </div>
+
+          <!-- パスワード強度インジケーター -->
+          <div class="password-strength">
+            <div class="strength-bar">
+              <div class="strength-fill" id="strengthFill"></div>
+            </div>
+            <div class="strength-text" id="strengthText">パスワードを入力してください</div>
+          </div>
+
+          <div class="password-requirements">
+            <div class="requirement" data-req="length">
+              <span class="req-icon">○</span>
+              <span>8文字以上</span>
+            </div>
+            <div class="requirement" data-req="lowercase">
+              <span class="req-icon">○</span>
+              <span>小文字を含む</span>
+            </div>
+            <div class="requirement" data-req="uppercase">
+              <span class="req-icon">○</span>
+              <span>大文字を含む</span>
+            </div>
+            <div class="requirement" data-req="number">
+              <span class="req-icon">○</span>
+              <span>数字を含む</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- パスワード確認 -->
+        <div class="form-group">
+          <label for="confirmPassword" class="form-label">
+            <span>パスワード（確認）</span>
+            <span class="required">*</span>
+          </label>
+          <input
+            type="password"
+            id="confirmPassword"
+            name="confirmPassword"
+            class="form-input"
+            placeholder="もう一度入力"
+            autocomplete="off"
+          />
+          <div class="input-feedback">
+            <div class="error-message" data-error="confirmPassword"></div>
+            <div class="success-message" data-success="confirmPassword">✓ パスワードが一致します</div>
+          </div>
+        </div>
+
+        <!-- 利用規約 -->
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input
+              type="checkbox"
+              id="terms"
+              name="terms"
+              class="form-checkbox"
+            />
+            <span class="checkbox-text">
+              利用規約に同意する
+              <span class="required">*</span>
+            </span>
+          </label>
+          <div class="input-feedback">
+            <div class="error-message" data-error="terms"></div>
+          </div>
+        </div>
+
+        <!-- 送信ボタン -->
+        <button type="submit" class="submit-btn" id="submitBtn" disabled>
+          <span class="btn-icon">🚀</span>
+          <span>登録する</span>
+        </button>
+      </form>
+
+      <!-- フォーム状態表示 -->
+      <div class="form-status">
+        <div class="status-item">
+          <span class="status-label">検証状態:</span>
+          <span class="status-value" id="validationStatus">未入力</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">エラー数:</span>
+          <span class="status-value error" id="errorCount">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="event-log">
+    <div class="log-header">バリデーションイベント</div>
+    <div class="log-content" id="logContent">
+      <div class="log-empty">イベントを待機中...</div>
+    </div>
+  </div>
+</div>
+
+<!-- 成功モーダル -->
+<div class="success-modal" id="successModal" style="display: none;">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content">
+    <div class="modal-icon">🎉</div>
+    <h3>登録完了！</h3>
+    <p>すべてのバリデーションをクリアしました</p>
+    <button class="modal-btn" id="closeModal">閉じる</button>
+  </div>
+</div>
+  `}
+  css={`
+.validation-demo {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.demo-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.demo-header h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  color: #e5edf4;
+}
+
+.subtitle {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 0.9375rem;
+}
+
+.form-container {
+  margin-bottom: 1.5rem;
+}
+
+.form-card {
+  background: #1f2a37;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.form-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  color: #e5edf4;
+}
+
+.form-description {
+  margin: 0 0 2rem 0;
+  color: #9ca3af;
+  font-size: 0.9375rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+  color: #e5edf4;
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.required {
+  color: #ef4444;
+}
+
+.input-wrapper {
+  position: relative;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #0c1218;
+  border: 2px solid #374151;
+  border-radius: 8px;
+  color: #e5edf4;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+.form-input.error {
+  border-color: #ef4444;
+}
+
+.form-input.success {
+  border-color: #10b981;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.toggle-password:hover {
+  opacity: 1;
+}
+
+.input-feedback {
+  min-height: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.error-message,
+.success-message {
+  font-size: 0.875rem;
+  display: none;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.error-message {
+  color: #ef4444;
+}
+
+.success-message {
+  color: #10b981;
+}
+
+.error-message.show,
+.success-message.show {
+  display: block;
+}
+
+.input-hint {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.password-strength {
+  margin-top: 0.75rem;
+}
+
+.strength-bar {
+  height: 4px;
+  background: #374151;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.strength-fill {
+  height: 100%;
+  width: 0;
+  background: #6b7280;
+  transition: all 0.3s;
+  border-radius: 2px;
+}
+
+.strength-fill.weak {
+  width: 33%;
+  background: #ef4444;
+}
+
+.strength-fill.medium {
+  width: 66%;
+  background: #f59e0b;
+}
+
+.strength-fill.strong {
+  width: 100%;
+  background: #10b981;
+}
+
+.strength-text {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+}
+
+.password-requirements {
+  margin-top: 0.75rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.requirement {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: #9ca3af;
+}
+
+.req-icon {
+  color: #6b7280;
+  font-weight: bold;
+}
+
+.requirement.met {
+  color: #10b981;
+}
+
+.requirement.met .req-icon {
+  color: #10b981;
+}
+
+.requirement.met .req-icon::before {
+  content: '✓';
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.form-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.checkbox-text {
+  color: #e5edf4;
+  font-size: 0.9375rem;
+}
+
+.submit-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 1.125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 1rem;
+}
+
+.submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(96, 165, 250, 0.4);
+}
+
+.submit-btn:disabled {
+  background: #374151;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-icon {
+  font-size: 1.25rem;
+}
+
+.form-status {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #374151;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+}
+
+.status-label {
+  color: #9ca3af;
+}
+
+.status-value {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.status-value.error {
+  color: #ef4444;
+}
+
+.event-log {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.log-header {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #e5edf4;
+  margin-bottom: 1rem;
+}
+
+.log-content {
+  background: #0c1218;
+  border-radius: 6px;
+  padding: 1rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.log-empty {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+  padding: 1rem;
+}
+
+.log-entry {
+  display: flex;
+  align-items: start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: #1f2a37;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.log-time {
+  color: #60a5fa;
+  font-weight: 600;
+  min-width: 65px;
+  font-family: monospace;
+}
+
+.log-message {
+  color: #d1d5db;
+  flex: 1;
+}
+
+.log-field {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.success-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  position: relative;
+  background: #1f2a37;
+  border-radius: 16px;
+  padding: 2.5rem;
+  text-align: center;
+  max-width: 400px;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.modal-content h3 {
+  margin: 0 0 0.5rem 0;
+  color: #e5edf4;
+  font-size: 1.5rem;
+}
+
+.modal-content p {
+  margin: 0 0 1.5rem 0;
+  color: #9ca3af;
+}
+
+.modal-btn {
+  padding: 0.75rem 2rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+  `}
+  js={`
+// バリデーションルール
+const validators = {
+  username: {
+    required: true,
+    minLength: 3,
+    maxLength: 20,
+    pattern: /^[a-zA-Z0-9_]+$/,
+    messages: {
+      required: 'ユーザー名は必須です',
+      minLength: '3文字以上で入力してください',
+      maxLength: '20文字以内で入力してください',
+      pattern: '英数字とアンダースコアのみ使用できます'
+    }
+  },
+  email: {
+    required: true,
+    pattern: /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/,
+    messages: {
+      required: 'メールアドレスは必須です',
+      pattern: '有効なメールアドレスを入力してください'
+    }
+  },
+  password: {
+    required: true,
+    minLength: 8,
+    custom: (value) => {
+      const checks = {
+        length: value.length >= 8,
+        lowercase: /[a-z]/.test(value),
+        uppercase: /[A-Z]/.test(value),
+        number: /[0-9]/.test(value)
+      };
+      return Object.values(checks).every(v => v);
+    },
+    messages: {
+      required: 'パスワードは必須です',
+      minLength: '8文字以上で入力してください',
+      custom: 'すべての条件を満たしてください'
+    }
+  },
+  confirmPassword: {
+    required: true,
+    match: 'password',
+    messages: {
+      required: 'パスワード（確認）は必須です',
+      match: 'パスワードが一致しません'
+    }
+  },
+  terms: {
+    required: true,
+    messages: {
+      required: '利用規約に同意してください'
+    }
+  }
+};
+
+const form = document.getElementById('registrationForm');
+const submitBtn = document.getElementById('submitBtn');
+const logContent = document.getElementById('logContent');
+const validationStatus = document.getElementById('validationStatus');
+const errorCount = document.getElementById('errorCount');
+const successModal = document.getElementById('successModal');
+
+let errors = {};
+
+// ログ追加
+function addLog(message, field = null) {
+  if (logContent.querySelector('.log-empty')) {
+    logContent.innerHTML = '';
+  }
+
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('ja-JP', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+
+  const fieldHtml = field ? \` <span class="log-field">\${field}</span>\` : '';
+  entry.innerHTML = \`
+    <span class="log-time">\${timeStr}</span>
+    <span class="log-message">\${message}\${fieldHtml}</span>
+  \`;
+
+  logContent.insertBefore(entry, logContent.firstChild);
+
+  while (logContent.children.length > 10) {
+    logContent.removeChild(logContent.lastChild);
+  }
+}
+
+// バリデーション実行
+function validateField(name, value) {
+  const rules = validators[name];
+  if (!rules) return null;
+
+  // 必須チェック
+  if (rules.required && !value) {
+    return rules.messages.required;
+  }
+
+  // 最小文字数
+  if (rules.minLength && value.length < rules.minLength) {
+    return rules.messages.minLength;
+  }
+
+  // 最大文字数
+  if (rules.maxLength && value.length > rules.maxLength) {
+    return rules.messages.maxLength;
+  }
+
+  // パターンチェック
+  if (rules.pattern && !rules.pattern.test(value)) {
+    return rules.messages.pattern;
+  }
+
+  // マッチチェック（パスワード確認用）
+  if (rules.match) {
+    const matchField = document.getElementById(rules.match);
+    if (value !== matchField.value) {
+      return rules.messages.match;
+    }
+  }
+
+  // カスタムバリデーション
+  if (rules.custom && !rules.custom(value)) {
+    return rules.messages.custom;
+  }
+
+  return null;
+}
+
+// エラー表示
+function showError(name, message) {
+  const input = document.getElementById(name);
+  const errorEl = document.querySelector(\`[data-error="\${name}"]\`);
+  const successEl = document.querySelector(\`[data-success="\${name}"]\`);
+
+  input.classList.add('error');
+  input.classList.remove('success');
+
+  if (errorEl) {
+    errorEl.textContent = message;
+    errorEl.classList.add('show');
+  }
+
+  if (successEl) {
+    successEl.classList.remove('show');
+  }
+
+  errors[name] = message;
+}
+
+// 成功表示
+function showSuccess(name) {
+  const input = document.getElementById(name);
+  const errorEl = document.querySelector(\`[data-error="\${name}"]\`);
+  const successEl = document.querySelector(\`[data-success="\${name}"]\`);
+
+  input.classList.remove('error');
+  input.classList.add('success');
+
+  if (errorEl) {
+    errorEl.classList.remove('show');
+  }
+
+  if (successEl) {
+    successEl.classList.add('show');
+  }
+
+  delete errors[name];
+}
+
+// パスワード強度チェック
+function checkPasswordStrength(password) {
+  const strengthFill = document.getElementById('strengthFill');
+  const strengthText = document.getElementById('strengthText');
+
+  const checks = {
+    length: password.length >= 8,
+    lowercase: /[a-z]/.test(password),
+    uppercase: /[A-Z]/.test(password),
+    number: /[0-9]/.test(password)
+  };
+
+  // 要件の表示を更新
+  Object.keys(checks).forEach(key => {
+    const req = document.querySelector(\`[data-req="\${key}"]\`);
+    if (checks[key]) {
+      req.classList.add('met');
+    } else {
+      req.classList.remove('met');
+    }
+  });
+
+  const metCount = Object.values(checks).filter(v => v).length;
+
+  strengthFill.className = 'strength-fill';
+  if (metCount === 0) {
+    strengthFill.style.width = '0';
+    strengthText.textContent = 'パスワードを入力してください';
+    strengthText.style.color = '#9ca3af';
+  } else if (metCount <= 2) {
+    strengthFill.classList.add('weak');
+    strengthText.textContent = '弱い';
+    strengthText.style.color = '#ef4444';
+  } else if (metCount === 3) {
+    strengthFill.classList.add('medium');
+    strengthText.textContent = '中程度';
+    strengthText.style.color = '#f59e0b';
+  } else {
+    strengthFill.classList.add('strong');
+    strengthText.textContent = '強い';
+    strengthText.style.color = '#10b981';
+  }
+}
+
+// フォーム状態の更新
+function updateFormStatus() {
+  const errorNum = Object.keys(errors).length;
+  errorCount.textContent = errorNum;
+
+  if (errorNum === 0 && form.checkValidity()) {
+    validationStatus.textContent = '✓ 検証成功';
+    validationStatus.style.color = '#10b981';
+    submitBtn.disabled = false;
+  } else {
+    validationStatus.textContent = '検証中';
+    validationStatus.style.color = '#f59e0b';
+    submitBtn.disabled = true;
+  }
+}
+
+// 入力イベント
+form.querySelectorAll('input').forEach(input => {
+  // リアルタイムバリデーション
+  input.addEventListener('input', (e) => {
+    const name = e.target.name;
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+
+    // パスワード強度チェック
+    if (name === 'password') {
+      checkPasswordStrength(value);
+    }
+
+    // バリデーション実行
+    const error = validateField(name, value);
+
+    if (error) {
+      showError(name, error);
+      addLog(\`❌ 検証エラー:\`, name);
+    } else if (value) {
+      showSuccess(name);
+      addLog(\`✅ 検証成功:\`, name);
+    }
+
+    updateFormStatus();
+  });
+
+  // フォーカスアウト時にも検証
+  input.addEventListener('blur', (e) => {
+    const name = e.target.name;
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+
+    if (value || validators[name]?.required) {
+      const error = validateField(name, value);
+      if (error) {
+        showError(name, error);
+      }
+    }
+
+    updateFormStatus();
+  });
+});
+
+// パスワード表示切り替え
+document.querySelectorAll('.toggle-password').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const targetId = btn.getAttribute('data-toggle');
+    const input = document.getElementById(targetId);
+
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.querySelector('.icon').textContent = '🙈';
+    } else {
+      input.type = 'password';
+      btn.querySelector('.icon').textContent = '👁️';
+    }
+  });
+});
+
+// フォーム送信
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+
+  // すべてのフィールドを検証
+  const formData = new FormData(form);
+  let hasErrors = false;
+
+  for (const [name, value] of formData.entries()) {
+    const error = validateField(name, value);
+    if (error) {
+      showError(name, error);
+      hasErrors = true;
+    }
+  }
+
+  // チェックボックスの検証
+  const terms = document.getElementById('terms');
+  if (!terms.checked) {
+    showError('terms', validators.terms.messages.required);
+    hasErrors = true;
+  }
+
+  if (hasErrors) {
+    addLog('❌ フォーム送信失敗: エラーがあります');
+    return;
+  }
+
+  // 成功
+  addLog('🎉 フォーム送信成功！');
+  successModal.style.display = 'flex';
+});
+
+// モーダルを閉じる
+document.getElementById('closeModal').addEventListener('click', () => {
+  successModal.style.display = 'none';
+  form.reset();
+
+  // すべての状態をリセット
+  form.querySelectorAll('input').forEach(input => {
+    input.classList.remove('error', 'success');
+  });
+
+  document.querySelectorAll('.error-message, .success-message').forEach(el => {
+    el.classList.remove('show');
+  });
+
+  errors = {};
+  updateFormStatus();
+
+  document.getElementById('strengthFill').style.width = '0';
+  document.getElementById('strengthText').textContent = 'パスワードを入力してください';
+
+  document.querySelectorAll('.requirement').forEach(req => {
+    req.classList.remove('met');
+  });
+});
+
+// 初期化
+addLog('📋 フォームバリデーター初期化');
+updateFormStatus();
+  `}
+/>
+
+## 一番簡単な方法: HTMLで指定する
+
+実は、JavaScriptを使わなくても入力チェックができます！
+
+### 必須項目にする
+
+```html
+<input type="text" required />
+```
+
+`required` を書くだけで「必ず入力してください」になります。
+
+### 文字数を制限する
+
+```html
+<!-- 3文字以上、20文字以下 -->
+<input type="text" minlength="3" maxlength="20" />
+```
+
+### メールアドレス専用の入力欄
+
+```html
+<input type="email" />
+```
+
+これだけで「@」が入ってるかチェックしてくれます！
+
+### 数字だけ入力できる
+
+```html
+<!-- 1〜100の数字だけ -->
+<input type="number" min="1" max="100" />
+```
+
+### カスタムエラーメッセージ
+
+```javascript
+const input = document.getElementById('username');
+
+input.addEventListener('invalid', (e) => {
+  e.preventDefault();
+
+  if (input.validity.valueMissing) {
+    input.setCustomValidity('ユーザー名を入力してください');
+  } else if (input.validity.tooShort) {
+    input.setCustomValidity('3文字以上で入力してください');
+  } else if (input.validity.patternMismatch) {
+    input.setCustomValidity('英数字のみ使用できます');
+  }
+});
+
+// エラーメッセージをクリア
+input.addEventListener('input', () => {
+  input.setCustomValidity('');
+});
+```
+
+## JavaScriptで自分でチェックする
+
+もっと細かくチェックしたいときは、JavaScriptを使います。
+
+### ステップ1: 入力されたら即チェック
+
+```javascript
+const input = document.getElementById('username');
+
+input.addEventListener('input', () => {
+  const value = input.value;
+
+  // 3文字未満ならエラー
+  if (value.length < 3) {
+    showError('3文字以上入力してください');
+  } else {
+    showOK();
+  }
+});
+```
+
+### ステップ2: エラーを表示する
+
+```javascript
+function showError(message) {
+  const errorDiv = document.getElementById('error');
+  errorDiv.textContent = message; // エラーメッセージを表示
+  errorDiv.style.color = 'red';
+}
+
+function showOK() {
+  const errorDiv = document.getElementById('error');
+  errorDiv.textContent = '✓ OK';
+  errorDiv.style.color = 'green';
+}
+```
+
+### ステップ3: 送信前に全部チェック
+
+```javascript
+const form = document.getElementById('myForm');
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault(); // 送信を一旦止める
+
+  const username = document.getElementById('username').value;
+  const email = document.getElementById('email').value;
+
+  // 全部チェック
+  if (username.length < 3) {
+    alert('ユーザー名は3文字以上');
+    return; // 送信しない
+  }
+
+  if (!email.includes('@')) {
+    alert('正しいメールアドレスを入力してください');
+    return; // 送信しない
+  }
+
+  // 全部OKなら送信
+  alert('登録完了！');
+});
+```
+
+## 非同期バリデーション
+
+### サーバー側チェック（重複確認など）
+
+```javascript
+class AsyncValidator {
+  async checkUsername(username) {
+    // デバウンス処理
+    clearTimeout(this.usernameTimeout);
+
+    return new Promise((resolve) => {
+      this.usernameTimeout = setTimeout(async () => {
+        try {
+          const response = await fetch(\`/api/check-username?username=\${username}\`);
+          const data = await response.json();
+          resolve(data.available);
+        } catch (error) {
+          console.error('Validation error:', error);
+          resolve(false);
+        }
+      }, 500); // 500ms のデバウンス
+    });
+  }
+
+  async validateUsername(input) {
+    const username = input.value;
+
+    // ローカルバリデーション
+    if (username.length < 3) {
+      this.showError(input, '3文字以上で入力してください');
+      return;
+    }
+
+    // ローディング表示
+    this.showLoading(input);
+
+    // サーバーチェック
+    const available = await this.checkUsername(username);
+
+    if (available) {
+      this.showSuccess(input, '使用可能です');
+    } else {
+      this.showError(input, 'このユーザー名は既に使用されています');
+    }
+  }
+
+  showLoading(input) {
+    const feedback = input.nextElementSibling;
+    feedback.innerHTML = '<span class="loading">確認中...</span>';
+  }
+
+  showError(input, message) {
+    const feedback = input.nextElementSibling;
+    feedback.innerHTML = \`<span class="error">\${message}</span>\`;
+    input.classList.add('error');
+  }
+
+  showSuccess(input, message) {
+    const feedback = input.nextElementSibling;
+    feedback.innerHTML = \`<span class="success">✓ \${message}</span>\`;
+    input.classList.remove('error');
+    input.classList.add('success');
+  }
+}
+```
+
+## よく使うチェック方法
+
+### メールアドレスのチェック
+
+```javascript
+function checkEmail(email) {
+  // @が入っているかチェック
+  return email.includes('@');
+}
+
+// もっと正確にチェック
+function checkEmailStrict(email) {
+  // 「○○@○○.○○」の形かチェック
+  const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return pattern.test(email);
+}
+```
+
+### パスワードの強さをチェック
+
+```javascript
+function checkPasswordStrength(password) {
+  let score = 0;
+
+  if (password.length >= 8) score++; // 8文字以上
+  if (/[a-z]/.test(password)) score++; // 小文字を含む
+  if (/[A-Z]/.test(password)) score++; // 大文字を含む
+  if (/[0-9]/.test(password)) score++; // 数字を含む
+
+  if (score <= 1) return '弱い';
+  if (score === 2) return '普通';
+  if (score === 3) return '強い';
+  return '非常に強い';
+}
+```
+
+### 電話番号のチェック
+
+```javascript
+function checkPhone(phone) {
+  // ハイフンを消す
+  const numbers = phone.replace(/-/g, '');
+
+  // 数字だけになったか、10〜11桁か
+  return /^\d{10,11}$/.test(numbers);
+}
+```
+
+## ベストプラクティス
+
+### 1. UX を重視
+
+- エラーは具体的に
+- 成功のフィードバックも表示
+- インラインバリデーション（リアルタイム）
+- フォーカスアウト時に検証
+
+### 2. アクセシビリティ
+
+```html
+<div class="form-group">
+  <label for="email">メールアドレス</label>
+  <input
+    type="email"
+    id="email"
+    name="email"
+    aria-describedby="email-error"
+    aria-invalid="false"
+  />
+  <div id="email-error" role="alert" aria-live="polite">
+    <!-- エラーメッセージ -->
+  </div>
+</div>
+```
+
+```javascript
+// エラー時
+input.setAttribute('aria-invalid', 'true');
+errorDiv.textContent = 'エラーメッセージ';
+```
+
+### 3. セキュリティ
+
+- **クライアント側のバリデーションは信用しない**
+- サーバー側でも必ず検証
+- XSS 対策（入力値のエスケープ）
+- CSRF トークンの使用
+
+## まとめ
+
+入力チェック（バリデーション）を作るには：
+
+1. **簡単なチェックはHTMLで**
+   - `required`、`minlength`、`type="email"` など
+
+2. **細かいチェックはJavaScriptで**
+   - 入力されたら即チェック
+   - エラーメッセージを表示
+
+3. **ユーザーに優しく**
+   - 「何が間違ってるか」をはっきり伝える
+   - ✓マークでOKを伝える
+   - 送信ボタンを押す前にエラーを教える
+
+これで、使いやすい入力フォームが作れます！
+
+## 参考リンク
+
+- [Constraint Validation - MDN](https://developer.mozilla.org/ja/docs/Web/Guide/HTML/Constraint_validation)
+- [Form Validation UX - Nielsen Norman Group](https://www.nngroup.com/articles/errors-forms-design-guidelines/)
+- [WCAG Form Guidelines](https://www.w3.org/WAI/tutorials/forms/)

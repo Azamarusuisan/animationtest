@@ -1,0 +1,108 @@
+---
+title: トースト通知（タイマー付き）
+description: キュー管理・自動消滅・フォーカス可視で非侵襲。
+tags: [toast, notification, ux]
+frameworks: [Vanilla, Any]
+level: basic
+prompt_template: |
+  右下にスタックされるトースト通知：
+  - 任意の関数 showToast(message, {timeout}) で表示
+  - 自動でフェードアウト、hoverで一時停止
+  - Reduced Motion対応
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="トースト通知のデモ"
+  height="300px"
+  html={`
+<div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+  <button class="demo-btn" onclick="showToast('✅ 保存しました')">成功</button>
+  <button class="demo-btn" onclick="showToast('⚠️ 警告: 確認してください')">警告</button>
+  <button class="demo-btn" onclick="showToast('❌ エラーが発生しました')">エラー</button>
+  <button class="demo-btn" onclick="showToast('ℹ️ 新しい通知があります')">情報</button>
+</div>
+<div id="toasts" aria-live="polite" aria-atomic="true"></div>
+  `}
+  css={`
+.demo-btn {
+  background: #1f2a37;
+  border: 1px solid #374151;
+  color: #e5edf4;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.demo-btn:hover { background: #374151; }
+
+#toasts { position: fixed; right: 12px; bottom: 12px; display: grid; gap: 8px; z-index: 1000; }
+.toast {
+  background:#1f2a37;
+  border:1px solid #374151;
+  padding: .6rem .8rem;
+  border-radius: 10px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity .2s ease, transform .2s ease;
+  min-width: 200px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+.toast.show { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; transform: none; } }
+  `}
+  js={`
+const wrap = document.getElementById('toasts');
+window.showToast = (msg, { timeout = 2200 } = {}) => {
+  const div = document.createElement('div');
+  div.className = 'toast';
+  div.textContent = msg;
+  wrap.appendChild(div);
+  requestAnimationFrame(() => div.classList.add('show'));
+  let t = setTimeout(close, timeout);
+  function close() {
+    div.classList.remove('show');
+    setTimeout(() => div.remove(), 200);
+  }
+  div.addEventListener('mouseenter', ()=> clearTimeout(t));
+  div.addEventListener('mouseleave', ()=> t = setTimeout(close, 800));
+};
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<div id="toasts" aria-live="polite" aria-atomic="true"></div>
+```
+
+**CSS**
+```css
+#toasts { position: fixed; right: 12px; bottom: 12px; display: grid; gap: 8px; }
+.toast { background:#10161c; border:1px solid #1f2a37; padding: .6rem .8rem; border-radius: 10px; opacity: 0; transform: translateY(6px); transition: opacity .2s ease, transform .2s ease; }
+.toast.show { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; transform: none; } }
+```
+
+**JS**
+```js
+(() => {
+  const wrap = document.getElementById('toasts');
+  window.showToast = (msg, { timeout = 2200 } = {}) => {
+    const div = document.createElement('div');
+    div.className = 'toast';
+    div.textContent = msg;
+    wrap.appendChild(div);
+    requestAnimationFrame(() => div.classList.add('show'));
+    let t = setTimeout(close, timeout);
+    function close() {
+      div.classList.remove('show');
+      setTimeout(() => div.remove(), 200);
+    }
+    div.addEventListener('mouseenter', ()=> clearTimeout(t));
+    div.addEventListener('mouseleave', ()=> t = setTimeout(close, 800));
+  };
+})();
+```

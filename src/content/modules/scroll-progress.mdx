@@ -1,0 +1,221 @@
+---
+title: スクロール進捗バー（読書進捗）
+description: ページ上部に表示。スクロール位置に応じて伸びる。
+tags: [scroll, progress, reading, ux]
+frameworks: [Vanilla, Any]
+level: basic
+prompt_template: |
+  スクロール進捗バー：
+  - ページ上部固定バー
+  - スクロール割合計算（0-100%）
+  - transform: scaleX()でGPU最適化
+  - 色グラデーション対応
+  - 特定要素内の進捗（記事のみ）
+  - requestAnimationFrameで最適化
+  - position: fixed; top: 0; z-indexで最前面配置
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="スクロール進捗バーのデモ"
+  height="400px"
+  html={`
+<div class="scroll-progress" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+  <div class="scroll-progress__bar"></div>
+</div>
+
+<div class="scroll-container" id="scrollContainer">
+  <article style="max-width: 600px; margin: 0 auto; padding: 2rem; color: #e5edf4;">
+    <h1 style="font-size: 2rem; margin-bottom: 1rem;">スクロール進捗デモ</h1>
+    <p style="line-height: 1.8; margin-bottom: 1rem;">この記事をスクロールすると、上部の進捗バーが伸びていきます。</p>
+    <p style="line-height: 1.8; margin-bottom: 1rem;">スクロール進捗バーは、ユーザーが現在ページのどの位置にいるかを視覚的に示す優れたUX要素です。</p>
+    <p style="line-height: 1.8; margin-bottom: 1rem;">特に長い記事やドキュメントで有効で、読者に進捗状況を伝えることができます。</p>
+    <p style="line-height: 1.8; margin-bottom: 1rem;">このバーは transform: scaleX() を使用してGPU最適化されており、スムーズなアニメーションを実現しています。</p>
+    <p style="line-height: 1.8; margin-bottom: 1rem;">実装は非常にシンプルで、スクロールイベントとrequestAnimationFrameを組み合わせることで、パフォーマンスを維持しながら正確な進捗を表示できます。</p>
+    <p style="line-height: 1.8; margin-bottom: 1rem;">グラデーションカラーを使用することで、視覚的に魅力的なデザインになります。</p>
+    <p style="line-height: 1.8; margin-bottom: 1rem;">アクセシビリティの観点から、aria属性を適切に設定することも重要です。</p>
+    <p style="line-height: 1.8; margin-bottom: 1rem;">この機能は、ブログ、ニュースサイト、ドキュメントサイトなど、様々なウェブサイトで活用できます。</p>
+    <p style="line-height: 1.8; margin-bottom: 1rem;">下までスクロールすると、進捗バーが100%になります。</p>
+    <p style="line-height: 1.8; margin-bottom: 0;">ぜひ試してみてください！</p>
+  </article>
+</div>
+  `}
+  css={`
+.scroll-progress {
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: rgba(255, 255, 255, 0.05); z-index: 10; overflow: hidden;
+}
+.scroll-progress__bar {
+  height: 100%;
+  background: linear-gradient(90deg, #60a5fa 0%, #3b82f6 50%, #2563eb 100%);
+  transform-origin: left center; transform: scaleX(0);
+  transition: transform 0.1s ease-out; will-change: transform;
+}
+.scroll-container {
+  height: 100%; overflow-y: auto; background: #111827;
+}
+  `}
+  js={`
+const progressEl = document.querySelector('.scroll-progress');
+const bar = document.querySelector('.scroll-progress__bar');
+const container = document.getElementById('scrollContainer');
+let ticking = false;
+
+function updateProgress() {
+  const scrollHeight = container.scrollHeight - container.clientHeight;
+  const scrolled = container.scrollTop;
+  const progress = scrollHeight > 0 ? scrolled / scrollHeight : 0;
+  const clampedProgress = Math.max(0, Math.min(1, progress));
+
+  bar.style.transform = \`scaleX(\${clampedProgress})\`;
+  progressEl.setAttribute('aria-valuenow', Math.round(clampedProgress * 100));
+
+  ticking = false;
+}
+
+container.addEventListener('scroll', () => {
+  if (!ticking) {
+    requestAnimationFrame(updateProgress);
+    ticking = true;
+  }
+}, { passive: true });
+
+updateProgress();
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<!-- ページ全体の進捗 -->
+<div class="scroll-progress" id="scroll-progress" aria-label="読書進捗" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+  <div class="scroll-progress__bar"></div>
+</div>
+
+<!-- 特定記事内の進捗（オプション） -->
+<article id="main-article" style="max-width: 800px; margin: 0 auto; padding: 2rem;">
+  <h1>記事タイトル</h1>
+  <p>長い記事コンテンツ...</p>
+  <!-- 記事が長く続く -->
+</article>
+
+<div class="scroll-progress scroll-progress--article" data-target="#main-article" aria-label="記事の読書進捗" role="progressbar">
+  <div class="scroll-progress__bar"></div>
+</div>
+```
+
+**CSS**
+```css
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.05);
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.scroll-progress__bar {
+  height: 100%;
+  background: linear-gradient(90deg, #60a5fa 0%, #3b82f6 50%, #2563eb 100%);
+  transform-origin: left center;
+  transform: scaleX(0);
+  transition: transform 0.1s ease-out;
+  will-change: transform;
+}
+
+/* 代替カラー例 */
+.scroll-progress--article .scroll-progress__bar {
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+/* 太いバージョン */
+.scroll-progress--thick {
+  height: 8px;
+}
+
+/* アニメーション付き */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.scroll-progress__bar--animated {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+  .scroll-progress {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+```
+
+**JS**
+```js
+(() => {
+  // ページ全体の進捗バー
+  const initScrollProgress = (progressEl) => {
+    const bar = progressEl.querySelector('.scroll-progress__bar');
+    if (!bar) return;
+
+    const targetSelector = progressEl.dataset.target;
+    const targetEl = targetSelector ? document.querySelector(targetSelector) : null;
+    let ticking = false;
+
+    const updateProgress = () => {
+      let progress = 0;
+
+      if (targetEl) {
+        // 特定要素内の進捗
+        const rect = targetEl.getBoundingClientRect();
+        const targetHeight = targetEl.scrollHeight;
+        const viewportHeight = window.innerHeight;
+        const scrolled = Math.max(0, -rect.top);
+        const total = targetHeight - viewportHeight;
+        progress = total > 0 ? Math.min(scrolled / total, 1) : 0;
+      } else {
+        // ページ全体の進捗
+        const windowHeight = document.documentElement.scrollHeight - window.innerHeight;
+        progress = windowHeight > 0 ? window.scrollY / windowHeight : 0;
+      }
+
+      // 進捗を0-1の範囲にクランプ
+      progress = Math.max(0, Math.min(1, progress));
+
+      // GPU最適化のためtransform使用
+      bar.style.transform = `scaleX(${progress})`;
+
+      // aria属性更新
+      const percentValue = Math.round(progress * 100);
+      progressEl.setAttribute('aria-valuenow', percentValue);
+
+      ticking = false;
+    };
+
+    const onScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(updateProgress);
+        ticking = true;
+      }
+    };
+
+    // スクロールイベント登録（passive: trueでパフォーマンス向上）
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    // リサイズ時も更新
+    window.addEventListener('resize', onScroll, { passive: true });
+
+    // 初期表示
+    updateProgress();
+  };
+
+  // すべての進捗バーを初期化
+  document.querySelectorAll('.scroll-progress').forEach(initScrollProgress);
+})();
+```

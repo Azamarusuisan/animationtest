@@ -1,0 +1,497 @@
+---
+import Base from '../../layouts/Base.astro';
+import Search from '../../components/Search.astro';
+import { getCollection } from 'astro:content';
+
+const tips = await getCollection('tips');
+const sortedTips = tips.sort((a, b) => a.data.title.localeCompare(b.data.title));
+
+// カテゴリを集計
+const categories = new Set(tips.map(tip => tip.data.category).filter(Boolean));
+const categoryCounts = {};
+categories.forEach(cat => {
+  categoryCounts[cat] = tips.filter(tip => tip.data.category === cat).length;
+});
+---
+
+<Base title="Tips" description="雑学・豆知識・TILの一覧">
+  <h1 style="margin-bottom: 2rem;">Tips</h1>
+
+  <Search />
+
+  <!-- カテゴリフィルター -->
+  <div class="category-filter" style="margin-top: 2rem; margin-bottom: 1.5rem;">
+    <div class="filter-header">
+      <h3 style="font-size: 1rem; margin: 0 0 1rem 0; color: var(--color-text-light);">カテゴリで絞り込み</h3>
+    </div>
+
+    <div class="filter-groups">
+      <!-- フロントエンド実装 -->
+      <div class="filter-group">
+        <div class="group-title">フロントエンド実装</div>
+        <div class="filter-buttons">
+          <button class="filter-btn active" data-category="all">
+            すべて <span class="count">{tips.length}</span>
+          </button>
+          {['animation', 'css', 'javascript', 'responsive', 'webapp', 'pwa'].map(cat => {
+            const count = categoryCounts[cat] || 0;
+            if (count > 0) {
+              return (
+                <button class="filter-btn" data-category={cat}>
+                  {cat === 'animation' && 'アニメーション'}
+                  {cat === 'css' && 'CSS'}
+                  {cat === 'javascript' && 'JavaScript'}
+                  {cat === 'responsive' && 'レスポンシブ'}
+                  {cat === 'webapp' && 'Webアプリ'}
+                  {cat === 'pwa' && 'PWA'}
+                  <span class="count">{count}</span>
+                </button>
+              );
+            }
+          })}
+        </div>
+      </div>
+
+      <!-- 品質・セキュリティ -->
+      <div class="filter-group">
+        <div class="group-title">品質・セキュリティ</div>
+        <div class="filter-buttons">
+          {['performance', 'accessibility', 'security'].map(cat => {
+            const count = categoryCounts[cat] || 0;
+            if (count > 0) {
+              return (
+                <button class="filter-btn" data-category={cat}>
+                  {cat === 'performance' && 'パフォーマンス'}
+                  {cat === 'accessibility' && 'アクセシビリティ'}
+                  {cat === 'security' && 'セキュリティ'}
+                  <span class="count">{count}</span>
+                </button>
+              );
+            }
+          })}
+        </div>
+      </div>
+
+      <!-- 開発サポート -->
+      <div class="filter-group">
+        <div class="group-title">開発サポート</div>
+        <div class="filter-buttons">
+          {['documentation', 'debugging'].map(cat => {
+            const count = categoryCounts[cat] || 0;
+            if (count > 0) {
+              return (
+                <button class="filter-btn" data-category={cat}>
+                  {cat === 'documentation' && 'ドキュメント'}
+                  {cat === 'debugging' && 'デバッグ'}
+                  <span class="count">{count}</span>
+                </button>
+              );
+            }
+          })}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top: 2rem;">
+    {sortedTips.map(tip => {
+      // タグからアニメーションタイプを判定
+      const tags = tip.data.tags.join(' ').toLowerCase();
+      let animClass = '';
+
+      if (tags.includes('animation')) {
+        animClass = 'anim-animation';
+      } else if (tags.includes('css')) {
+        animClass = 'anim-css';
+      } else if (tags.includes('javascript') || tags.includes('js')) {
+        animClass = 'anim-javascript';
+      } else if (tags.includes('performance')) {
+        animClass = 'anim-performance';
+      } else if (tags.includes('accessibility') || tags.includes('a11y')) {
+        animClass = 'anim-a11y';
+      } else if (tags.includes('responsive')) {
+        animClass = 'anim-responsive';
+      } else if (tags.includes('security')) {
+        animClass = 'anim-security';
+      } else {
+        animClass = 'anim-default';
+      }
+
+      return (
+        <div class={`card ${animClass} tip-card`} data-category={tip.data.category || 'other'}>
+          <div class="card-preview">
+            <div class="preview-element"></div>
+            <div class="preview-element"></div>
+            <div class="preview-element"></div>
+          </div>
+          <div class="card-content">
+            <h3 style="margin-bottom: 0.5rem;">
+              <a href={`/tips/${tip.slug}`}>{tip.data.title}</a>
+            </h3>
+            <p style="color: var(--color-text-light); margin-bottom: 1rem; font-size: 0.875rem;">
+              {tip.data.description}
+            </p>
+            <div style="margin-bottom: 0.5rem;">
+              {tip.data.tags.map((tag: string) => (
+                <span class="tag">{tag}</span>
+              ))}
+            </div>
+            {tip.data.category && (
+              <div class="category-badge">
+                {tip.data.category}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+
+  <script>
+    // カテゴリフィルター
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const tipCards = document.querySelectorAll('.tip-card');
+
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const category = btn.getAttribute('data-category');
+
+        // アクティブ状態を更新
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // カードをフィルタリング
+        tipCards.forEach(card => {
+          const cardCategory = card.getAttribute('data-category');
+
+          if (category === 'all' || cardCategory === category) {
+            card.style.display = 'block';
+            // フェードインアニメーション
+            card.style.animation = 'fadeIn 0.3s ease-out';
+          } else {
+            card.style.display = 'none';
+          }
+        });
+      });
+    });
+  </script>
+
+  <style>
+    /* カテゴリフィルター */
+    .category-filter {
+      background: #fafaf9;
+      border-radius: 16px;
+      padding: 1.75rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      border: 1px solid #e7e5e4;
+    }
+
+    .filter-groups {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.875rem;
+    }
+
+    .group-title {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #78716c;
+      letter-spacing: 0.01em;
+      text-transform: uppercase;
+    }
+
+    .filter-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.625rem;
+    }
+
+    .filter-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.875rem;
+      background: #ffffff;
+      border: 1.5px solid #e7e5e4;
+      border-radius: 10px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #57534e;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .filter-btn:hover {
+      background: #f5f5f4;
+      border-color: #d6d3d1;
+      transform: translateY(-1px);
+    }
+
+    .filter-btn.active {
+      background: #292524;
+      color: #fafaf9;
+      border-color: #292524;
+    }
+
+    .filter-btn .count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.375rem;
+      height: 1.375rem;
+      padding: 0 0.375rem;
+      background: #f5f5f4;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #78716c;
+    }
+
+    .filter-btn.active .count {
+      background: #44403c;
+      color: #d6d3d1;
+    }
+
+    @media (max-width: 768px) {
+      .filter-buttons {
+        flex-direction: column;
+      }
+
+      .filter-btn {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .card {
+      position: relative;
+      overflow: hidden;
+      background: #ffffff;
+      border: 1px solid #e7e5e4;
+    }
+
+    .category-badge {
+      font-size: 0.75rem;
+      color: #78716c;
+      opacity: 0.8;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+    }
+
+    .card-preview {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 100px;
+      height: 100px;
+      opacity: 0.08;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .card:hover .card-preview {
+      opacity: 0.25;
+    }
+
+    .preview-element {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: #d6d3d1;
+      border-radius: 8px;
+    }
+
+    .card-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* アニメーション系 */
+    .anim-animation .preview-element:nth-child(1) { top: 20px; right: 20px; }
+    .anim-animation .preview-element:nth-child(2) { top: 35px; right: 45px; }
+    .anim-animation .preview-element:nth-child(3) { top: 50px; right: 25px; }
+
+    .anim-animation:hover .preview-element {
+      animation: spinBounce 1.5s ease-in-out infinite;
+    }
+
+    @keyframes spinBounce {
+      0%, 100% { transform: rotate(0deg) scale(1); }
+      25% { transform: rotate(90deg) scale(1.1); }
+      50% { transform: rotate(180deg) scale(0.9); }
+      75% { transform: rotate(270deg) scale(1.1); }
+    }
+
+    /* CSS系 */
+    .anim-css .preview-element {
+      border-radius: 50%;
+    }
+    .anim-css .preview-element:nth-child(1) { top: 25px; right: 25px; }
+    .anim-css .preview-element:nth-child(2) { top: 25px; right: 55px; }
+    .anim-css .preview-element:nth-child(3) { top: 55px; right: 40px; }
+
+    .anim-css:hover .preview-element:nth-child(1) {
+      animation: morphCircle 2s ease-in-out infinite;
+    }
+    .anim-css:hover .preview-element:nth-child(2) {
+      animation: morphCircle 2s ease-in-out 0.3s infinite;
+    }
+    .anim-css:hover .preview-element:nth-child(3) {
+      animation: morphCircle 2s ease-in-out 0.6s infinite;
+    }
+
+    @keyframes morphCircle {
+      0%, 100% { border-radius: 50%; transform: scale(1); }
+      50% { border-radius: 0%; transform: scale(1.2); }
+    }
+
+    /* JavaScript系 */
+    .anim-javascript .preview-element {
+      opacity: 0;
+    }
+    .anim-javascript:hover .preview-element:nth-child(1) {
+      animation: codePulse 1.5s ease-in-out infinite;
+    }
+    .anim-javascript:hover .preview-element:nth-child(2) {
+      animation: codePulse 1.5s ease-in-out 0.2s infinite;
+    }
+    .anim-javascript:hover .preview-element:nth-child(3) {
+      animation: codePulse 1.5s ease-in-out 0.4s infinite;
+    }
+
+    @keyframes codePulse {
+      0%, 100% { opacity: 0; transform: translateY(0); }
+      50% { opacity: 1; transform: translateY(-15px); }
+    }
+
+    /* パフォーマンス系 */
+    .anim-performance .preview-element {
+      left: -30px;
+      width: 12px;
+      height: 12px;
+    }
+    .anim-performance:hover .preview-element:nth-child(1) {
+      animation: speedRocket 1.5s ease-out infinite;
+    }
+    .anim-performance:hover .preview-element:nth-child(2) {
+      animation: speedRocket 1.5s ease-out 0.2s infinite;
+    }
+    .anim-performance:hover .preview-element:nth-child(3) {
+      animation: speedRocket 1.5s ease-out 0.4s infinite;
+    }
+
+    @keyframes speedRocket {
+      0% { transform: translateX(0) scale(0); opacity: 0; }
+      20% { opacity: 1; }
+      100% { transform: translateX(130px) scale(1.5); opacity: 0; }
+    }
+
+    /* アクセシビリティ系 */
+    .anim-a11y .preview-element {
+      border: 2px solid #a8a29e;
+      background: transparent;
+    }
+    .anim-a11y .preview-element:nth-child(1) { top: 30px; right: 30px; }
+    .anim-a11y .preview-element:nth-child(2) { top: 30px; right: 60px; opacity: 0.5; }
+    .anim-a11y .preview-element:nth-child(3) { top: 60px; right: 45px; opacity: 0.3; }
+
+    .anim-a11y:hover .preview-element {
+      animation: focusRing 2s ease-in-out infinite;
+    }
+
+    @keyframes focusRing {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.5; }
+    }
+
+    /* レスポンシブ系 */
+    .anim-responsive .preview-element:nth-child(1) {
+      width: 40px;
+      height: 30px;
+      top: 25px;
+      right: 25px;
+    }
+    .anim-responsive .preview-element:nth-child(2) {
+      width: 20px;
+      height: 30px;
+      top: 25px;
+      right: 70px;
+      opacity: 0.7;
+    }
+    .anim-responsive .preview-element:nth-child(3) {
+      width: 50px;
+      height: 30px;
+      top: 60px;
+      right: 25px;
+      opacity: 0.5;
+    }
+
+    .anim-responsive:hover .preview-element {
+      animation: deviceResize 2s ease-in-out infinite;
+    }
+
+    @keyframes deviceResize {
+      0%, 100% { transform: scaleX(1); }
+      33% { transform: scaleX(0.5); }
+      66% { transform: scaleX(1.2); }
+    }
+
+    /* セキュリティ系 */
+    .anim-security .preview-element {
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    }
+    .anim-security .preview-element:nth-child(1) { top: 30px; right: 35px; }
+    .anim-security .preview-element:nth-child(2) { top: 30px; right: 35px; transform: scale(1.3); opacity: 0.5; }
+    .anim-security .preview-element:nth-child(3) { top: 30px; right: 35px; transform: scale(1.6); opacity: 0.3; }
+
+    .anim-security:hover .preview-element {
+      animation: shieldPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes shieldPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+    }
+
+    /* デフォルト */
+    .anim-default .preview-element:nth-child(1) { top: 25px; right: 25px; }
+    .anim-default .preview-element:nth-child(2) { top: 35px; right: 45px; }
+    .anim-default .preview-element:nth-child(3) { top: 45px; right: 30px; }
+
+    .anim-default:hover .preview-element {
+      animation: floatGentle 2s ease-in-out infinite;
+    }
+
+    @keyframes floatGentle {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+  </style>
+
+  {tips.length === 0 && (
+    <div class="card" style="text-align: center; padding: 3rem;">
+      <p style="color: var(--color-text-light); font-size: 1.125rem;">
+        まだTipsがありません。<br />
+        <code>src/content/tips/</code> にMDXファイルを追加してください。
+      </p>
+    </div>
+  )}
+</Base>

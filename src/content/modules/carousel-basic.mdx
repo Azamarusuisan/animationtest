@@ -1,0 +1,310 @@
+---
+title: カルーセル（ノーライブラリ・ボタン＋ドット）
+description: 依存ゼロの横スライダー。ボタン/ドット/キーボード/Reduced Motion対応。
+tags: [carousel, slider, animation, accessibility]
+frameworks: [Vanilla, Any]
+level: basic
+prompt_template: |
+  依存なしカルーセルを実装。要件：
+  - 横方向にスライド（transformのみ、transition 300ms ease-out）
+  - 前後ボタン、ドット、キーボード左右キー対応
+  - スワイプ（pointer/touch）対応（ドラッグ距離30px以上）
+  - prefers-reduced-motion: アニメ無効（切替のみ）
+  - スライドは等幅、レスポンシブ（親幅100%）
+  - ARIA: 現在スライドを aria-current="true"
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="カルーセルのデモ"
+  height="350px"
+  html={`
+<div class="carousel" data-index="0" tabindex="0" role="region" aria-label="画像カルーセル">
+  <div class="carousel-track">
+    <div class="carousel-slide" aria-current="true">
+      <div class="slide-content" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <h3>スライド 1</h3>
+        <p>左右の矢印キーでも操作できます</p>
+      </div>
+    </div>
+    <div class="carousel-slide">
+      <div class="slide-content" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <h3>スライド 2</h3>
+        <p>ドットをクリックで直接移動</p>
+      </div>
+    </div>
+    <div class="carousel-slide">
+      <div class="slide-content" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+        <h3>スライド 3</h3>
+        <p>スワイプ操作にも対応</p>
+      </div>
+    </div>
+  </div>
+  <button class="carousel-btn carousel-prev" aria-label="前へ">‹</button>
+  <button class="carousel-btn carousel-next" aria-label="次へ">›</button>
+  <div class="carousel-dots" role="tablist" aria-label="スライド選択"></div>
+</div>
+  `}
+  css={`
+.carousel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.carousel:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.carousel-track {
+  display: flex;
+  width: 100%;
+  transition: transform 0.3s ease-out;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carousel-track { transition: none; }
+}
+
+.carousel-slide {
+  flex: 0 0 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 250px;
+}
+
+.slide-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+}
+
+.slide-content h3 {
+  margin: 0 0 12px 0;
+  color: white;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.slide-content p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+}
+
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  transition: background 0.2s;
+  z-index: 10;
+}
+
+.carousel-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.carousel-prev { left: 12px; }
+.carousel-next { right: 12px; }
+
+.carousel-dots {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+.carousel-dots button {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid white;
+  background: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: background 0.2s;
+  padding: 0;
+}
+
+.carousel-dots button[aria-current="true"] {
+  background: white;
+}
+  `}
+  js={`
+const carousel = document.querySelector('.carousel');
+const track = carousel.querySelector('.carousel-track');
+const slides = Array.from(carousel.querySelectorAll('.carousel-slide'));
+const dotsWrap = carousel.querySelector('.carousel-dots');
+const prevBtn = carousel.querySelector('.carousel-prev');
+const nextBtn = carousel.querySelector('.carousel-next');
+const n = slides.length;
+let i = 0;
+
+// Create dots
+slides.forEach((_, idx) => {
+  const btn = document.createElement('button');
+  btn.setAttribute('role', 'tab');
+  btn.setAttribute('aria-label', \`スライド \${idx + 1}へ移動\`);
+  btn.addEventListener('click', () => go(idx));
+  dotsWrap.appendChild(btn);
+});
+
+function render() {
+  track.style.transform = \`translateX(\${-i * 100}%)\`;
+  dotsWrap.querySelectorAll('button').forEach((btn, idx) => {
+    btn.setAttribute('aria-current', idx === i ? 'true' : 'false');
+  });
+  slides.forEach((slide, idx) => {
+    slide.setAttribute('aria-current', idx === i ? 'true' : 'false');
+  });
+}
+
+function go(targetIndex) {
+  i = (targetIndex + n) % n;
+  render();
+}
+
+prevBtn.addEventListener('click', () => go(i - 1));
+nextBtn.addEventListener('click', () => go(i + 1));
+
+// Keyboard navigation
+carousel.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') {
+    go(i - 1);
+  } else if (e.key === 'ArrowRight') {
+    go(i + 1);
+  }
+});
+
+// Swipe support
+let startX = 0;
+let deltaX = 0;
+let dragging = false;
+
+const onDown = (e) => {
+  dragging = true;
+  startX = e.touches ? e.touches[0].clientX : e.clientX;
+};
+
+const onMove = (e) => {
+  if (!dragging) return;
+  deltaX = (e.touches ? e.touches[0].clientX : e.clientX) - startX;
+};
+
+const onUp = () => {
+  if (!dragging) return;
+  if (Math.abs(deltaX) > 30) {
+    go(i + (deltaX > 0 ? -1 : 1));
+  }
+  dragging = false;
+  deltaX = 0;
+};
+
+carousel.addEventListener('pointerdown', onDown);
+carousel.addEventListener('pointermove', onMove);
+carousel.addEventListener('pointerup', onUp);
+carousel.addEventListener('touchstart', onDown, { passive: true });
+carousel.addEventListener('touchmove', onMove, { passive: true });
+carousel.addEventListener('touchend', onUp);
+
+render();
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<div class="carousel" data-index="0">
+  <div class="track">
+    <div class="slide">1</div>
+    <div class="slide">2</div>
+    <div class="slide">3</div>
+  </div>
+  <button class="prev" aria-label="前へ">‹</button>
+  <button class="next" aria-label="次へ">›</button>
+  <div class="dots" role="tablist" aria-label="スライドナビ"></div>
+</div>
+```
+
+**CSS**
+```css
+.carousel { position: relative; overflow: hidden; }
+.track { display: flex; width: 100%; transition: transform .3s ease-out; will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .track { transition: none; } }
+.slide { flex: 0 0 100%; display: grid; place-items: center; min-height: 200px; background:#0c1218; border-right: 1px solid #1f2a37; }
+.prev, .next { position: absolute; top: 50%; transform: translateY(-50%); background:#15202b; border:1px solid #1f2a37; color:#e5edf4; padding:.3rem .6rem; border-radius:8px; }
+.prev { left: .5rem; } .next { right: .5rem; }
+.dots { display:flex; gap:.4rem; justify-content:center; margin-top:.5rem; }
+.dots button { width:8px; height:8px; border-radius:999px; border:1px solid #1f2a37; background:#0c1218; }
+.dots [aria-current="true"] { background:#60a5fa; }
+```
+
+**JS**
+```js
+(() => {
+  const root = document.currentScript?.closest('.card')?.querySelector('.carousel') || document.querySelector('.carousel');
+  if (!root) return;
+  const track = root.querySelector('.track');
+  const slides = Array.from(root.querySelectorAll('.slide'));
+  const dotsWrap = root.querySelector('.dots');
+  const prev = root.querySelector('.prev');
+  const next = root.querySelector('.next');
+  const n = slides.length;
+  let i = 0;
+  // dots
+  slides.forEach((_, idx) => {
+    const b = document.createElement('button');
+    b.setAttribute('role','tab');
+    b.addEventListener('click', () => go(idx));
+    dotsWrap.appendChild(b);
+  });
+  function render() {
+    track.style.transform = `translateX(${-i*100}%)`;
+    dotsWrap.querySelectorAll('button').forEach((b, idx) => b.setAttribute('aria-current', idx===i ? 'true':'false'));
+    slides.forEach((s, idx) => s.setAttribute('aria-current', idx===i ? 'true':'false'));
+  }
+  function go(t) { i = (t+n)%n; render(); }
+  prev?.addEventListener('click', () => go(i-1));
+  next?.addEventListener('click', () => go(i+1));
+  // keys
+  root.tabIndex = 0;
+  root.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') go(i-1);
+    if (e.key === 'ArrowRight') go(i+1);
+  });
+  // swipe
+  let sx=0, dx=0, dragging=false;
+  const onDown = e => { dragging=true; sx=(e.touches?e.touches[0].clientX:e.clientX); };
+  const onMove = e => { if(!dragging) return; dx=(e.touches?e.touches[0].clientX:e.clientX)-sx; };
+  const onUp = () => { if(!dragging) return; if (Math.abs(dx) > 30) go(i + (dx>0 ? -1:1)); dragging=false; dx=0; };
+  root.addEventListener('pointerdown', onDown);
+  root.addEventListener('pointermove', onMove);
+  root.addEventListener('pointerup', onUp);
+  root.addEventListener('touchstart', onDown, {passive:true});
+  root.addEventListener('touchmove', onMove, {passive:true});
+  root.addEventListener('touchend', onUp);
+  render();
+})();
+```

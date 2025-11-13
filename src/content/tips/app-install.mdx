@@ -1,0 +1,1241 @@
+---
+title: App Install（PWA）
+description: PWAのインストールプロンプトを実装して、ネイティブアプリのような体験を提供する
+tags: [pwa, app-install, manifest, progressive-web-app, mobile]
+category: pwa
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## PWA（Progressive Web App）とは
+
+PWA は、Web 技術で作られたアプリケーションをネイティブアプリのようにインストールして使える仕組みです。ホーム画面に追加、オフライン動作、プッシュ通知など、ネイティブアプリに近い体験を提供できます。
+
+## インストールプロンプトの実装
+
+<LiveDemo
+  title="PWA インストールフロー シミュレーター"
+  height="700px"
+  html={`
+<div class="pwa-install-demo">
+  <div class="demo-header">
+    <h3>📱 PWA インストールデモ</h3>
+    <p class="subtitle">実際のインストールフローを体験</p>
+  </div>
+
+  <div class="device-mockup">
+    <div class="device-screen">
+      <div class="status-bar">
+        <span class="time">12:34</span>
+        <span class="icons">📶 📶 🔋</span>
+      </div>
+
+      <div class="app-content">
+        <div class="app-header">
+          <div class="app-icon">🎨</div>
+          <div class="app-info">
+            <h4>My Awesome App</h4>
+            <p>Progressive Web App</p>
+          </div>
+        </div>
+
+        <div class="feature-list">
+          <div class="feature-item">
+            <span class="feature-icon">⚡</span>
+            <div class="feature-text">
+              <strong>高速</strong>
+              <small>Service Worker でキャッシュ</small>
+            </div>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">📱</span>
+            <div class="feature-text">
+              <strong>オフライン対応</strong>
+              <small>ネットなしでも動作</small>
+            </div>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">🏠</span>
+            <div class="feature-text">
+              <strong>ホーム画面に追加</strong>
+              <small>アプリのように起動</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="install-section">
+          <button id="installBtn" class="install-button">
+            <span class="btn-icon">📥</span>
+            <span class="btn-text">アプリをインストール</span>
+          </button>
+          <p class="install-hint">タップしてインストール体験</p>
+        </div>
+
+        <div class="status-display" id="statusDisplay">
+          <div class="status-item">
+            <span class="status-label">インストール状態:</span>
+            <span class="status-value" id="installStatus">未インストール</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">表示モード:</span>
+            <span class="status-value" id="displayMode">ブラウザ</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">プロンプト状態:</span>
+            <span class="status-value" id="promptStatus">待機中</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="control-panel">
+    <button class="control-btn" id="resetBtn">
+      <span>🔄</span>
+      <span>状態をリセット</span>
+    </button>
+    <button class="control-btn" id="showPromptBtn" disabled>
+      <span>💬</span>
+      <span>プロンプトを表示</span>
+    </button>
+  </div>
+
+  <div class="event-log">
+    <div class="log-header">イベントログ</div>
+    <div class="log-content" id="logContent">
+      <div class="log-empty">イベントを待機中...</div>
+    </div>
+  </div>
+</div>
+
+<!-- インストールプロンプトモーダル -->
+<div class="install-prompt-modal" id="installModal" style="display: none;">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-icon">🎨</div>
+      <h4>My Awesome App</h4>
+      <p class="modal-url">example.com</p>
+    </div>
+    <div class="modal-body">
+      <p>このアプリをホーム画面に追加しますか？</p>
+      <ul class="modal-features">
+        <li>✓ オフラインで動作</li>
+        <li>✓ 高速な起動</li>
+        <li>✓ アプリのような体験</li>
+      </ul>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" id="cancelBtn">キャンセル</button>
+      <button class="modal-btn install" id="confirmBtn">インストール</button>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.pwa-install-demo {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.demo-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.demo-header h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  color: #e5edf4;
+}
+
+.subtitle {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 0.9375rem;
+}
+
+.device-mockup {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 24px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.device-screen {
+  background: #0c1218;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background: #1f2a37;
+  color: #e5edf4;
+  font-size: 0.75rem;
+}
+
+.app-content {
+  padding: 1.5rem;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #374151;
+}
+
+.app-icon {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.app-info h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.25rem;
+  color: #e5edf4;
+}
+
+.app-info p {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #1f2a37;
+  border-radius: 8px;
+}
+
+.feature-icon {
+  font-size: 1.5rem;
+}
+
+.feature-text strong {
+  display: block;
+  color: #e5edf4;
+  margin-bottom: 0.25rem;
+}
+
+.feature-text small {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.install-section {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.install-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 1.125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+  width: 100%;
+  max-width: 300px;
+}
+
+.install-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+}
+
+.install-button:active {
+  transform: translateY(0);
+}
+
+.install-button.installed {
+  background: #374151;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  font-size: 1.5rem;
+}
+
+.install-hint {
+  margin: 0.75rem 0 0 0;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.status-display {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #374151;
+  font-size: 0.875rem;
+}
+
+.status-item:last-child {
+  border-bottom: none;
+}
+
+.status-label {
+  color: #9ca3af;
+}
+
+.status-value {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.control-panel {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.control-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  background: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 8px;
+  color: #e5edf4;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9375rem;
+}
+
+.control-btn:hover:not(:disabled) {
+  background: #4b5563;
+  transform: translateY(-2px);
+}
+
+.control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.event-log {
+  background: #1f2a37;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.log-header {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #e5edf4;
+  margin-bottom: 1rem;
+}
+
+.log-content {
+  background: #0c1218;
+  border-radius: 6px;
+  padding: 1rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.log-empty {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+  padding: 1rem;
+}
+
+.log-entry {
+  display: flex;
+  align-items: start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: #1f2a37;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  animation: slideIn 0.3s ease-out;
+}
+
+.log-time {
+  color: #10b981;
+  font-weight: 600;
+  min-width: 65px;
+}
+
+.log-message {
+  color: #d1d5db;
+  flex: 1;
+}
+
+.install-prompt-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  position: relative;
+  background: #1f2a37;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 400px;
+  padding: 2rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.modal-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+}
+
+.modal-header h4 {
+  margin: 0 0 0.5rem 0;
+  color: #e5edf4;
+  font-size: 1.25rem;
+}
+
+.modal-url {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.modal-body p {
+  margin: 0 0 1rem 0;
+  color: #d1d5db;
+  text-align: center;
+}
+
+.modal-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem 0;
+  background: #0c1218;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.modal-features li {
+  padding: 0.5rem 0;
+  color: #d1d5db;
+  font-size: 0.9375rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.modal-btn {
+  flex: 1;
+  padding: 0.875rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn.cancel {
+  background: #374151;
+  color: #e5edf4;
+}
+
+.modal-btn.cancel:hover {
+  background: #4b5563;
+}
+
+.modal-btn.install {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.modal-btn.install:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+  `}
+  js={`
+let isInstalled = false;
+let promptDeferred = null;
+
+const installBtn = document.getElementById('installBtn');
+const installStatus = document.getElementById('installStatus');
+const displayMode = document.getElementById('displayMode');
+const promptStatus = document.getElementById('promptStatus');
+const logContent = document.getElementById('logContent');
+const resetBtn = document.getElementById('resetBtn');
+const showPromptBtn = document.getElementById('showPromptBtn');
+const installModal = document.getElementById('installModal');
+const cancelBtn = document.getElementById('cancelBtn');
+const confirmBtn = document.getElementById('confirmBtn');
+
+// ログ追加
+function addLog(message) {
+  if (logContent.querySelector('.log-empty')) {
+    logContent.innerHTML = '';
+  }
+
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('ja-JP', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+
+  entry.innerHTML = \`
+    <span class="log-time">\${timeStr}</span>
+    <span class="log-message">\${message}</span>
+  \`;
+
+  logContent.insertBefore(entry, logContent.firstChild);
+
+  // 古いログを削除（最大10件）
+  while (logContent.children.length > 10) {
+    logContent.removeChild(logContent.lastChild);
+  }
+}
+
+// 初期化
+function initialize() {
+  addLog('📱 アプリケーション起動');
+  addLog('⏳ beforeinstallprompt イベント待機中...');
+
+  // シミュレーション: 1秒後にプロンプト準備完了
+  setTimeout(() => {
+    promptDeferred = { simulated: true };
+    promptStatus.textContent = '利用可能';
+    promptStatus.style.color = '#10b981';
+    showPromptBtn.disabled = false;
+    addLog('✅ インストールプロンプト準備完了');
+    addLog('💡 「アプリをインストール」ボタンが有効になりました');
+  }, 1000);
+}
+
+// インストールボタンクリック
+installBtn.addEventListener('click', () => {
+  if (isInstalled) {
+    addLog('ℹ️ 既にインストール済みです');
+    return;
+  }
+
+  if (!promptDeferred) {
+    addLog('⚠️ インストールプロンプトが準備できていません');
+    return;
+  }
+
+  addLog('👆 インストールボタンがクリックされました');
+  showInstallPrompt();
+});
+
+// プロンプト表示
+function showInstallPrompt() {
+  addLog('💬 インストールプロンプトを表示');
+  installModal.style.display = 'flex';
+  promptStatus.textContent = '表示中';
+  promptStatus.style.color = '#f59e0b';
+}
+
+// キャンセル
+cancelBtn.addEventListener('click', () => {
+  addLog('❌ ユーザーがインストールをキャンセル');
+  installModal.style.display = 'none';
+  promptStatus.textContent = '利用可能';
+  promptStatus.style.color = '#10b981';
+  addLog('💡 再度インストールボタンから実行できます');
+});
+
+// インストール実行
+confirmBtn.addEventListener('click', () => {
+  addLog('✅ ユーザーがインストールを承認');
+  installModal.style.display = 'none';
+
+  // インストール処理シミュレーション
+  setTimeout(() => {
+    isInstalled = true;
+    promptDeferred = null;
+
+    installStatus.textContent = 'インストール済み';
+    installStatus.style.color = '#10b981';
+
+    displayMode.textContent = 'スタンドアロン';
+    displayMode.style.color = '#10b981';
+
+    promptStatus.textContent = '使用済み';
+    promptStatus.style.color = '#6b7280';
+
+    installBtn.classList.add('installed');
+    installBtn.innerHTML = '<span class="btn-icon">✓</span><span class="btn-text">インストール済み</span>';
+    installBtn.disabled = true;
+    showPromptBtn.disabled = true;
+
+    addLog('🎉 インストール完了！');
+    addLog('🏠 ホーム画面から起動できます');
+    addLog('📱 スタンドアロンモードで動作');
+  }, 500);
+});
+
+// リセット
+resetBtn.addEventListener('click', () => {
+  isInstalled = false;
+  promptDeferred = null;
+
+  installStatus.textContent = '未インストール';
+  installStatus.style.color = '#9ca3af';
+
+  displayMode.textContent = 'ブラウザ';
+  displayMode.style.color = '#9ca3af';
+
+  promptStatus.textContent = '待機中';
+  promptStatus.style.color = '#9ca3af';
+
+  installBtn.classList.remove('installed');
+  installBtn.innerHTML = '<span class="btn-icon">📥</span><span class="btn-text">アプリをインストール</span>';
+  installBtn.disabled = false;
+  showPromptBtn.disabled = true;
+
+  logContent.innerHTML = '<div class="log-empty">イベントを待機中...</div>';
+
+  addLog('🔄 状態をリセットしました');
+  initialize();
+});
+
+// プロンプト手動表示
+showPromptBtn.addEventListener('click', () => {
+  if (promptDeferred && !isInstalled) {
+    showInstallPrompt();
+  }
+});
+
+// 初期化実行
+initialize();
+  `}
+/>
+
+## Web App Manifest の作成
+
+### manifest.json
+
+PWA の基本情報を定義するファイルです：
+
+```json
+{
+  "name": "My Awesome App",
+  "short_name": "MyApp",
+  "description": "素晴らしいPWAアプリケーション",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c1218",
+  "theme_color": "#667eea",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+```
+
+### HTML に manifest をリンク
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- Theme Color -->
+  <meta name="theme-color" content="#667eea">
+
+  <!-- Apple Touch Icon -->
+  <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+
+  <title>My Awesome App</title>
+</head>
+<body>
+  <!-- アプリのコンテンツ -->
+</body>
+</html>
+```
+
+## アイコンの準備
+
+### 必要なサイズ
+
+```
+icons/
+├── icon-192x192.png    # Android ホーム画面
+├── icon-512x512.png    # Android スプラッシュ画面
+├── icon-maskable.png   # Maskable icon（Android）
+└── apple-touch-icon.png # iOS ホーム画面（180x180）
+```
+
+### Maskable Icon
+
+Android の適応型アイコンに対応するため：
+
+```json
+{
+  "icons": [
+    {
+      "src": "/icons/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
+```
+
+**デザインガイド:**
+- セーフゾーン: 中央80%以内に重要な要素を配置
+- 背景: 端まで色を塗る（透明不可）
+
+## beforeinstallprompt イベントの実装
+
+### 基本実装
+
+```javascript
+let deferredPrompt;
+
+// beforeinstallprompt イベントをキャプチャ
+window.addEventListener('beforeinstallprompt', (e) => {
+  // デフォルトのプロンプトを防ぐ
+  e.preventDefault();
+
+  // 後で使うために保存
+  deferredPrompt = e;
+
+  // カスタムインストールボタンを表示
+  showInstallButton();
+
+  console.log('インストールプロンプト準備完了');
+});
+
+// インストールボタンのクリック処理
+installButton.addEventListener('click', async () => {
+  if (!deferredPrompt) {
+    return;
+  }
+
+  // プロンプトを表示
+  deferredPrompt.prompt();
+
+  // ユーザーの選択を待つ
+  const { outcome } = await deferredPrompt.userChoice;
+
+  console.log(\`ユーザーの選択: \${outcome}\`);
+
+  if (outcome === 'accepted') {
+    console.log('インストール承認');
+  } else {
+    console.log('インストール拒否');
+  }
+
+  // プロンプトは1回しか使えない
+  deferredPrompt = null;
+
+  // ボタンを非表示
+  hideInstallButton();
+});
+```
+
+### インストール完了の検出
+
+```javascript
+window.addEventListener('appinstalled', (event) => {
+  console.log('アプリがインストールされました', event);
+
+  // アナリティクスに送信
+  gtag('event', 'app_installed');
+
+  // UIを更新
+  hideInstallButton();
+  showThankYouMessage();
+});
+```
+
+## 表示モードの検出
+
+### standalone モードで起動されたか確認
+
+```javascript
+// 起動時に確認
+if (window.matchMedia('(display-mode: standalone)').matches) {
+  console.log('スタンドアロンモードで起動');
+  // インストールボタンを非表示
+  hideInstallButton();
+}
+
+// iOS Safari の場合
+if (window.navigator.standalone === true) {
+  console.log('iOS スタンドアロンモードで起動');
+}
+
+// 変更を監視
+window.matchMedia('(display-mode: standalone)').addEventListener('change', (e) => {
+  if (e.matches) {
+    console.log('スタンドアロンモードに切り替わった');
+  }
+});
+```
+
+### CSS で表示モードに応じたスタイル
+
+```css
+/* ブラウザで開いている時 */
+@media (display-mode: browser) {
+  .install-banner {
+    display: block;
+  }
+}
+
+/* スタンドアロンアプリとして起動した時 */
+@media (display-mode: standalone) {
+  .install-banner {
+    display: none;
+  }
+
+  .app-header {
+    /* ネイティブアプリっぽいスタイル */
+    padding-top: env(safe-area-inset-top);
+  }
+}
+```
+
+## インストール基準チェックリスト
+
+PWA をインストール可能にするための要件：
+
+### 必須要件
+
+- [ ] **HTTPS** で配信（localhost は例外）
+- [ ] **Web App Manifest** を配置
+  - `name` または `short_name`
+  - `icons`（192px と 512px）
+  - `start_url`
+  - `display`（standalone, fullscreen, minimal-ui のいずれか）
+- [ ] **Service Worker** が登録されている
+  - `fetch` イベントをハンドリング
+  - オフライン対応
+
+### 推奨要件
+
+- [ ] 512x512 の Maskable icon
+- [ ] Apple Touch Icon（iOS用）
+- [ ] Theme color 設定
+- [ ] Screenshots（manifest に追加可能）
+
+## 完全な実装例
+
+### index.html
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#667eea">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+
+  <title>My PWA App</title>
+</head>
+<body>
+  <header>
+    <h1>My PWA App</h1>
+  </header>
+
+  <!-- インストールバナー -->
+  <div id="installBanner" style="display: none;">
+    <p>このアプリをインストールできます</p>
+    <button id="installButton">インストール</button>
+    <button id="dismissButton">×</button>
+  </div>
+
+  <main>
+    <!-- アプリのコンテンツ -->
+  </main>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
+```
+
+### app.js
+
+```javascript
+// Service Worker 登録
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(registration => {
+        console.log('Service Worker registered:', registration);
+      })
+      .catch(error => {
+        console.log('Service Worker registration failed:', error);
+      });
+  });
+}
+
+// PWA インストール
+let deferredPrompt;
+const installBanner = document.getElementById('installBanner');
+const installButton = document.getElementById('installButton');
+const dismissButton = document.getElementById('dismissButton');
+
+// beforeinstallprompt イベント
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+
+  // スタンドアロンモードでなければバナー表示
+  if (!window.matchMedia('(display-mode: standalone)').matches) {
+    installBanner.style.display = 'block';
+  }
+});
+
+// インストールボタン
+installButton.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+
+  console.log(\`User choice: \${outcome}\`);
+
+  // アナリティクス送信
+  if (typeof gtag !== 'undefined') {
+    gtag('event', 'pwa_install_prompt', {
+      outcome: outcome
+    });
+  }
+
+  deferredPrompt = null;
+  installBanner.style.display = 'none';
+});
+
+// 閉じるボタン
+dismissButton.addEventListener('click', () => {
+  installBanner.style.display = 'none';
+
+  // 24時間後まで表示しない
+  localStorage.setItem('installBannerDismissed', Date.now());
+});
+
+// インストール完了
+window.addEventListener('appinstalled', () => {
+  console.log('PWA installed');
+  installBanner.style.display = 'none';
+
+  // アナリティクス送信
+  if (typeof gtag !== 'undefined') {
+    gtag('event', 'pwa_installed');
+  }
+});
+
+// 起動時の表示モード確認
+if (window.matchMedia('(display-mode: standalone)').matches) {
+  console.log('Launched in standalone mode');
+}
+```
+
+## iOS Safari での対応
+
+### Add to Home Screen の案内
+
+iOS では自動プロンプトが出ないため、手動案内が必要：
+
+```javascript
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+function showIOSInstallInstructions() {
+  const isInStandaloneMode = window.navigator.standalone === true;
+
+  if (isIOS() && !isInStandaloneMode) {
+    // iOS 用のインストール手順を表示
+    showModal({
+      title: 'ホーム画面に追加',
+      content: `
+        <ol>
+          <li>画面下部の共有ボタン（<span style="font-size: 1.2em;">⎋</span>）をタップ</li>
+          <li>「ホーム画面に追加」を選択</li>
+          <li>「追加」をタップ</li>
+        </ol>
+      `
+    });
+  }
+}
+```
+
+### iOS 専用 meta タグ
+
+```html
+<!-- iOS ステータスバーのスタイル -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<!-- iOS アプリ名 -->
+<meta name="apple-mobile-web-app-title" content="MyApp">
+
+<!-- iOS でスタンドアロン起動を許可 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+```
+
+## テスト方法
+
+### Chrome DevTools（Desktop）
+
+1. **Application タブ** を開く
+2. **Manifest** セクションで設定を確認
+3. **Service Workers** が登録されているか確認
+4. **Add to home screen** リンクでプロンプトをテスト
+
+### 実機テスト（Android）
+
+1. Chrome で HTTPS サイトを開く
+2. メニューから「ホーム画面に追加」
+3. プロンプトが表示されるか確認
+4. インストール後、アプリドロワーから起動
+
+### 実機テスト（iOS）
+
+1. Safari でサイトを開く
+2. 共有ボタンをタップ
+3. 「ホーム画面に追加」を選択
+4. ホーム画面から起動してスタンドアロンモードを確認
+
+## アナリティクストラッキング
+
+### インストールファネルの追跡
+
+```javascript
+// Google Analytics での例
+window.addEventListener('beforeinstallprompt', (e) => {
+  gtag('event', 'pwa_prompt_shown');
+  // ...プロンプト処理
+});
+
+installButton.addEventListener('click', async () => {
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+
+  gtag('event', 'pwa_install_prompt_result', {
+    result: outcome  // 'accepted' or 'dismissed'
+  });
+});
+
+window.addEventListener('appinstalled', () => {
+  gtag('event', 'pwa_installed');
+});
+
+// 起動モードを追跡
+if (window.matchMedia('(display-mode: standalone)').matches) {
+  gtag('event', 'pwa_launched', {
+    mode: 'standalone'
+  });
+}
+```
+
+## よくある問題と解決策
+
+### 1. プロンプトが表示されない
+
+**確認事項:**
+- HTTPS で配信されているか
+- manifest.json が正しく読み込まれているか
+- Service Worker が登録されているか
+- 既にインストール済みではないか
+
+### 2. iOS でインストールできない
+
+**原因:** iOS は beforeinstallprompt 非対応
+
+**解決策:** 手動で「ホーム画面に追加」の案内を表示
+
+### 3. アイコンが正しく表示されない
+
+**確認事項:**
+- アイコンサイズが 192x192、512x512 か
+- アイコンファイルが実際に存在するか
+- manifest.json のパスが正しいか
+
+## ベストプラクティス
+
+### UX設計
+
+- **押し付けない**: 適切なタイミングでプロンプト表示
+- **価値を伝える**: インストールのメリットを明確に
+- **簡単に閉じられる**: ユーザーが拒否しやすく
+- **再表示の配慮**: 一度拒否したら数日待つ
+
+### コード設計
+
+- **プログレッシブエンハンスメント**: PWA 非対応でも動作
+- **状態管理**: インストール済みかを localStorage で管理
+- **エラーハンドリング**: プロンプト失敗時の処理
+
+```javascript
+// インストール状態を保存
+const PWAInstall = {
+  isInstalled() {
+    return localStorage.getItem('pwa_installed') === 'true' ||
+           window.matchMedia('(display-mode: standalone)').matches;
+  },
+
+  markAsInstalled() {
+    localStorage.setItem('pwa_installed', 'true');
+  },
+
+  shouldShowPrompt() {
+    if (this.isInstalled()) return false;
+
+    const lastDismissed = localStorage.getItem('installPromptDismissed');
+    if (lastDismissed) {
+      const daysSince = (Date.now() - parseInt(lastDismissed)) / (1000 * 60 * 60 * 24);
+      return daysSince > 7; // 7日後に再表示
+    }
+
+    return true;
+  }
+};
+```
+
+## まとめ
+
+1. **manifest.json** でアプリ情報を定義
+2. **Service Worker** でオフライン対応
+3. **beforeinstallprompt** でカスタムUI実装
+4. **iOS 対応** を忘れずに（手動案内）
+5. **アナリティクス** でインストール状況を追跡
+
+PWA インストール機能により、Web アプリがネイティブアプリのような体験を提供できます。
+
+## 参考リンク
+
+- [Web App Manifest - MDN](https://developer.mozilla.org/ja/docs/Web/Manifest)
+- [beforeinstallprompt - web.dev](https://web.dev/customize-install/)
+- [Maskable Icons](https://web.dev/maskable-icon/)
+- [PWA Install Criteria](https://web.dev/install-criteria/)
+- [iOS Web App Meta Tags](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html)

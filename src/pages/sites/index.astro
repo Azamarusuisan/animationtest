@@ -1,0 +1,104 @@
+---
+import Base from '../../layouts/Base.astro';
+import Search from '../../components/Search.astro';
+import { getCollection } from 'astro:content';
+
+const sites = await getCollection('sites');
+const sortedSites = sites.sort((a, b) => {
+  const dateA = a.data.last_deployed || '0';
+  const dateB = b.data.last_deployed || '0';
+  return dateB.localeCompare(dateA);
+});
+---
+
+<Base title="Sites" description="制作サイト一覧">
+  <h1 style="margin-bottom: 2rem;">🌐 Sites</h1>
+
+  <Search />
+
+  <div class="grid" style="margin-top: 2rem;">
+    {sortedSites.map((site, index) => (
+      site.data.image ? (
+        <a href={`/sites/${site.slug}`} class="card card-with-image" style="text-decoration: none;">
+          <div class="card-image-wrapper">
+            <img src={site.data.image} alt={site.data.title} class="card-image" />
+          </div>
+          <div class="card-overlay"></div>
+          <div class="card-content">
+            <div class="card-number">{String(index + 1).padStart(2, '0')}</div>
+            <h3>{site.data.title}</h3>
+            <p>{site.data.description}</p>
+          </div>
+        </a>
+      ) : (
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+            <h3 style="margin: 0;">
+              <a href={`/sites/${site.slug}`}>{site.data.title}</a>
+            </h3>
+            {site.data.status && (
+              <span style={`
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+                font-size: 0.75rem;
+                font-weight: bold;
+                ${site.data.status === '稼働中' ? 'background-color: #dcfce7; color: #166534;' :
+                  site.data.status === '停止' ? 'background-color: #fee2e2; color: #991b1b;' :
+                  'background-color: #fef3c7; color: #92400e;'}
+              `}>
+                {site.data.status}
+              </span>
+            )}
+          </div>
+
+          <p style="color: var(--color-text-light); margin-bottom: 1rem; font-size: 0.875rem;">
+            {site.data.description}
+          </p>
+
+          {site.data.url && (
+            <div style="margin-bottom: 1rem;">
+              <a href={site.data.url} target="_blank" rel="noopener noreferrer" style="font-size: 0.875rem;">
+                {site.data.url} →
+              </a>
+            </div>
+          )}
+
+          <div style="margin-bottom: 1rem;">
+            {site.data.tags.map((tag: string) => (
+              <span class="tag">{tag}</span>
+            ))}
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.875rem; color: var(--color-text-light);">
+            {site.data.platform && (
+              <div>
+                <strong>Platform:</strong> {site.data.platform}
+              </div>
+            )}
+            {site.data.hosting && (
+              <div>
+                <strong>Hosting:</strong> {site.data.hosting}
+              </div>
+            )}
+          </div>
+
+          {site.data.last_deployed && (
+            <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--color-text-light);">
+              最終デプロイ: {site.data.last_deployed}
+            </div>
+          )}
+        </div>
+      )
+    ))}
+  </div>
+
+  {sites.length === 0 && (
+    <div class="card" style="text-align: center; padding: 3rem;">
+      <p style="color: var(--color-text-light); font-size: 1.125rem;">
+        まだサイトがありません。<br />
+        <code>npm run import:csv</code> でCSVからインポートするか、<br />
+        <code>src/content/sites/</code> にMDXファイルを追加してください。
+      </p>
+    </div>
+  )}
+</Base>

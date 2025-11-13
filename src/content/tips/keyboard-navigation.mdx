@@ -1,0 +1,1015 @@
+---
+title: キーボードナビゲーションの実装パターン
+description: フォーカス管理、Tab順序、キーボード操作の実装テクニック
+tags: [accessibility, keyboard, a11y, ux, best-practices]
+category: accessibility
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="キーボードナビゲーション インタラクティブデモ"
+  height="750px"
+  html={`
+<div class="keyboard-demo">
+  <div class="instruction-box">
+    <h3>⌨️ キーボード操作ガイド</h3>
+    <ul>
+      <li><kbd>Tab</kbd> 次の要素へ移動</li>
+      <li><kbd>Shift+Tab</kbd> 前の要素へ移動</li>
+      <li><kbd>Enter</kbd> / <kbd>Space</kbd> ボタン実行</li>
+      <li><kbd>↑↓←→</kbd> カスタムナビゲーション</li>
+      <li><kbd>Esc</kbd> モーダルを閉じる</li>
+    </ul>
+  </div>
+
+  <section class="demo-section">
+    <h2>1. フォーカス可視化</h2>
+    <div class="button-group">
+      <button class="focus-visible-btn">標準ボタン</button>
+      <button class="focus-visible-btn custom-focus">カスタムフォーカス</button>
+      <button class="focus-visible-btn no-outline" tabindex="0">
+        アウトライン無し（悪い例）
+      </button>
+    </div>
+  </section>
+
+  <section class="demo-section">
+    <h2>2. Skip Link</h2>
+    <a href="#main-content" class="skip-link">
+      メインコンテンツへスキップ
+    </a>
+    <nav class="demo-nav">
+      <a href="#" class="nav-link">ナビ1</a>
+      <a href="#" class="nav-link">ナビ2</a>
+      <a href="#" class="nav-link">ナビ3</a>
+    </nav>
+    <main id="main-content">
+      <p>メインコンテンツ領域</p>
+    </main>
+  </section>
+
+  <section class="demo-section">
+    <h2>3. タブトラップ（モーダル）</h2>
+    <button id="openModal" class="action-btn">
+      モーダルを開く
+    </button>
+
+    <div id="modal" class="modal" hidden>
+      <div class="modal-content" role="dialog" aria-labelledby="modal-title" aria-modal="true">
+        <h3 id="modal-title">モーダルダイアログ</h3>
+        <p>フォーカスがモーダル内にトラップされます</p>
+        <div class="modal-actions">
+          <button id="modalBtn1">ボタン1</button>
+          <button id="modalBtn2">ボタン2</button>
+          <button id="closeModal" class="close-btn">閉じる</button>
+        </div>
+      </div>
+      <div class="modal-backdrop"></div>
+    </div>
+  </section>
+
+  <section class="demo-section">
+    <h2>4. 矢印キーナビゲーション</h2>
+    <div class="toolbar" role="toolbar" aria-label="テキスト編集ツール">
+      <button class="toolbar-btn" data-index="0">
+        <strong>B</strong>
+      </button>
+      <button class="toolbar-btn" data-index="1">
+        <em>I</em>
+      </button>
+      <button class="toolbar-btn" data-index="2">
+        <u>U</u>
+      </button>
+      <button class="toolbar-btn" data-index="3">
+        S
+      </button>
+    </div>
+    <p class="hint">矢印キー（←→）で移動</p>
+  </section>
+
+  <section class="demo-section">
+    <h2>5. tabindex の使用例</h2>
+    <div class="tabindex-demo">
+      <button tabindex="0">tabindex="0" (自然順)</button>
+      <div tabindex="0" class="focusable-div">
+        tabindex="0" の div（フォーカス可能）
+      </div>
+      <button tabindex="-1" id="programmaticBtn">
+        tabindex="-1" (プログラムのみ)
+      </button>
+      <button id="focusProgrammatic" class="action-btn">
+        ↑をプログラムでフォーカス
+      </button>
+    </div>
+  </section>
+
+  <section class="demo-section">
+    <h2>6. フォーカス管理（SPA遷移）</h2>
+    <div class="spa-demo">
+      <button id="loadContent" class="action-btn">
+        新しいコンテンツを読み込む
+      </button>
+      <div id="dynamicContent" class="dynamic-content"></div>
+    </div>
+  </section>
+</div>
+  `}
+  css={`
+    .keyboard-demo {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .instruction-box {
+      background: linear-gradient(135deg, #1f2a37 0%, #374151 100%);
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      border: 2px solid #60a5fa;
+    }
+
+    .instruction-box h3 {
+      margin-bottom: 1rem;
+      color: #60a5fa;
+    }
+
+    .instruction-box ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .instruction-box li {
+      padding: 0.5rem 0;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    kbd {
+      background: #0c1218;
+      border: 1px solid #4b5563;
+      border-radius: 4px;
+      padding: 0.25rem 0.5rem;
+      font-family: monospace;
+      font-size: 0.875rem;
+      box-shadow: 0 2px 0 #374151;
+    }
+
+    .demo-section {
+      background: #1f2a37;
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      border: 1px solid #374151;
+    }
+
+    .demo-section h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      color: #60a5fa;
+    }
+
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .focus-visible-btn {
+      padding: 0.75rem 1.5rem;
+      background: #374151;
+      border: 2px solid #4b5563;
+      border-radius: 6px;
+      color: #e5edf4;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.2s;
+      min-height: 44px;
+    }
+
+    .focus-visible-btn:hover {
+      background: #4b5563;
+      transform: translateY(-2px);
+    }
+
+    /* 標準のフォーカススタイル */
+    .focus-visible-btn:focus {
+      outline: 3px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    /* カスタムフォーカススタイル */
+    .custom-focus:focus {
+      outline: none;
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.3);
+    }
+
+    /* 悪い例: アウトライン無し */
+    .no-outline:focus {
+      outline: none;
+      background: #ef4444;
+    }
+
+    .skip-link {
+      position: absolute;
+      top: -100px;
+      left: 0;
+      background: #60a5fa;
+      color: #0c1218;
+      padding: 0.75rem 1rem;
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 0 0 6px 0;
+      z-index: 1000;
+    }
+
+    .skip-link:focus {
+      top: 0;
+    }
+
+    .demo-nav {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem;
+      background: #0c1218;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+
+    .nav-link {
+      color: #e5edf4;
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+
+    .nav-link:hover {
+      background: #374151;
+    }
+
+    .nav-link:focus {
+      outline: 2px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    #main-content {
+      padding: 1rem;
+      background: #0c1218;
+      border-radius: 6px;
+      border: 2px solid #10b981;
+    }
+
+    .action-btn {
+      padding: 0.75rem 1.5rem;
+      background: #3b82f6;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.2s;
+      min-height: 44px;
+    }
+
+    .action-btn:hover {
+      background: #2563eb;
+      transform: translateY(-2px);
+    }
+
+    .action-btn:focus {
+      outline: 3px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal[hidden] {
+      display: none;
+    }
+
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      animation: fadeIn 0.2s;
+    }
+
+    .modal-content {
+      position: relative;
+      background: #1f2a37;
+      padding: 2rem;
+      border-radius: 12px;
+      max-width: 500px;
+      width: 90%;
+      border: 2px solid #60a5fa;
+      animation: slideIn 0.3s;
+      z-index: 1001;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .modal-content h3 {
+      margin-bottom: 1rem;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .modal-actions button {
+      flex: 1;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.2s;
+      min-height: 44px;
+    }
+
+    #modalBtn1, #modalBtn2 {
+      background: #374151;
+      color: #e5edf4;
+    }
+
+    #modalBtn1:hover, #modalBtn2:hover {
+      background: #4b5563;
+    }
+
+    .close-btn {
+      background: #ef4444 !important;
+      color: white;
+    }
+
+    .close-btn:hover {
+      background: #dc2626 !important;
+    }
+
+    .modal-actions button:focus {
+      outline: 3px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      background: #0c1218;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+    }
+
+    .toolbar-btn {
+      padding: 0.75rem 1rem;
+      background: #374151;
+      border: 2px solid #4b5563;
+      border-radius: 6px;
+      color: #e5edf4;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.2s;
+      min-width: 44px;
+      min-height: 44px;
+    }
+
+    .toolbar-btn:hover {
+      background: #4b5563;
+    }
+
+    .toolbar-btn:focus {
+      outline: none;
+      border-color: #60a5fa;
+      background: #4b5563;
+    }
+
+    .toolbar-btn[tabindex="-1"] {
+      opacity: 0.6;
+    }
+
+    .hint {
+      font-size: 0.875rem;
+      color: #9ca3af;
+      margin-top: 0.5rem;
+    }
+
+    .tabindex-demo {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .focusable-div {
+      padding: 1rem;
+      background: #0c1218;
+      border: 2px solid #374151;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .focusable-div:focus {
+      outline: none;
+      border-color: #60a5fa;
+      background: #1f2a37;
+    }
+
+    .tabindex-demo button {
+      padding: 0.75rem 1rem;
+      background: #374151;
+      border: 2px solid #4b5563;
+      border-radius: 6px;
+      color: #e5edf4;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-height: 44px;
+    }
+
+    .tabindex-demo button:focus {
+      outline: 3px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    .dynamic-content {
+      min-height: 100px;
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #0c1218;
+      border-radius: 6px;
+      border: 2px dashed #374151;
+    }
+
+    .dynamic-content.loaded {
+      border-color: #10b981;
+      border-style: solid;
+    }
+
+    .dynamic-content:focus {
+      outline: 3px solid #60a5fa;
+      outline-offset: 2px;
+    }
+  `}
+  js={`
+    // モーダルのフォーカストラップ
+    const modal = document.getElementById('modal');
+    const openModalBtn = document.getElementById('openModal');
+    const closeModalBtn = document.getElementById('closeModal');
+    let previousFocus;
+
+    openModalBtn.addEventListener('click', () => {
+      previousFocus = document.activeElement;
+      modal.hidden = false;
+      closeModalBtn.focus();
+
+      // フォーカストラップの実装
+      modal.addEventListener('keydown', trapFocus);
+    });
+
+    closeModalBtn.addEventListener('click', closeModal);
+
+    function closeModal() {
+      modal.hidden = true;
+      modal.removeEventListener('keydown', trapFocus);
+      if (previousFocus) previousFocus.focus();
+    }
+
+    function trapFocus(e) {
+      if (e.key === 'Escape') {
+        closeModal();
+        return;
+      }
+
+      if (e.key !== 'Tab') return;
+
+      const focusableElements = modal.querySelectorAll(
+        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (e.shiftKey && document.activeElement === firstElement) {
+        lastElement.focus();
+        e.preventDefault();
+      } else if (!e.shiftKey && document.activeElement === lastElement) {
+        firstElement.focus();
+        e.preventDefault();
+      }
+    }
+
+    // 矢印キーナビゲーション（Toolbar）
+    const toolbar = document.querySelector('.toolbar');
+    const toolbarBtns = Array.from(toolbar.querySelectorAll('.toolbar-btn'));
+
+    // 最初のボタンのみtabindex="0"、他は"-1"
+    toolbarBtns.forEach((btn, index) => {
+      btn.setAttribute('tabindex', index === 0 ? '0' : '-1');
+    });
+
+    let currentIndex = 0;
+
+    toolbar.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+
+        toolbarBtns[currentIndex].setAttribute('tabindex', '-1');
+
+        if (e.key === 'ArrowRight') {
+          currentIndex = (currentIndex + 1) % toolbarBtns.length;
+        } else {
+          currentIndex = (currentIndex - 1 + toolbarBtns.length) % toolbarBtns.length;
+        }
+
+        toolbarBtns[currentIndex].setAttribute('tabindex', '0');
+        toolbarBtns[currentIndex].focus();
+      }
+    });
+
+    // プログラムによるフォーカス
+    document.getElementById('focusProgrammatic').addEventListener('click', () => {
+      document.getElementById('programmaticBtn').focus();
+    });
+
+    // 動的コンテンツの読み込み
+    document.getElementById('loadContent').addEventListener('click', () => {
+      const content = document.getElementById('dynamicContent');
+      content.innerHTML = '<h3>新しいコンテンツ</h3><p>コンテンツが読み込まれました</p>';
+      content.classList.add('loaded');
+      content.setAttribute('tabindex', '-1');
+      content.focus();
+
+      // フォーカスが表示されたら tabindex を削除
+      content.addEventListener('blur', () => {
+        content.removeAttribute('tabindex');
+      }, { once: true });
+    });
+  `}
+/>
+
+## キーボードナビゲーションの重要性
+
+多くのユーザーがマウスの代わりにキーボードでWebサイトを操作しています:
+
+- **身体的障害のあるユーザー**: マウス操作が困難
+- **視覚障害のあるユーザー**: スクリーンリーダーとキーボードを併用
+- **パワーユーザー**: キーボード操作の方が効率的
+- **一時的な制約**: 怪我、マウスの故障など
+
+**すべてのインタラクティブ要素はキーボードでアクセス可能である必要があります。**
+
+## 基本的なキーボード操作
+
+### 標準のキーボードショートカット
+
+```
+Tab             次のフォーカス可能な要素へ移動
+Shift + Tab     前のフォーカス可能な要素へ移動
+Enter           リンクやボタンをアクティブ化
+Space           ボタンをアクティブ化、チェックボックスをトグル
+矢印キー        ラジオボタン、スライダー、カスタムウィジェット
+Esc             モーダルやポップアップを閉じる
+Home / End      コンテナの最初/最後の要素へ移動
+```
+
+### フォーカス可能な要素
+
+デフォルトでフォーカス可能:
+```html
+<a href="...">リンク</a>
+<button>ボタン</button>
+<input type="text">
+<select>...</select>
+<textarea>...</textarea>
+<button>送信</button>
+```
+
+フォーカス不可能（デフォルト）:
+```html
+<div>通常のdiv</div>
+<span>通常のspan</span>
+<p>段落</p>
+```
+
+## tabindex属性
+
+`tabindex` は要素のフォーカス順序を制御します。
+
+### tabindex="0"
+
+要素を自然なTab順序に含める:
+
+```html
+<div tabindex="0" role="button">
+  カスタムボタン（フォーカス可能）
+</div>
+
+<div class="card" tabindex="0">
+  フォーカス可能なカード
+</div>
+```
+
+### tabindex="-1"
+
+プログラムからのみフォーカス可能:
+
+```html
+<div id="alert" tabindex="-1">
+  エラーメッセージ
+</div>
+
+<script>
+  // エラー発生時にフォーカス
+  document.getElementById('alert').focus();
+</script>
+```
+
+### tabindex="1+"（使用禁止）
+
+```html
+<!-- ❌ 絶対に使用しない -->
+<input tabindex="1">
+<button tabindex="2">
+<a href="..." tabindex="3">
+
+<!-- ✅ 自然な順序を維持 -->
+<input>
+<button>
+<a href="...">
+```
+
+**理由:**
+- HTML構造と異なる順序は混乱を招く
+- メンテナンスが困難
+- アクセシビリティの問題
+
+## フォーカススタイルの実装
+
+### 標準のフォーカススタイル
+
+```css
+/* デフォルトのアウトライン */
+button:focus {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+/* より目立つスタイル */
+button:focus-visible {
+  outline: 3px solid #60a5fa;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.3);
+}
+```
+
+### カスタムフォーカススタイル
+
+```css
+.button {
+  position: relative;
+  border: 2px solid transparent;
+  transition: border-color 0.2s;
+}
+
+/* マウスクリックではフォーカスを表示しない */
+.button:focus {
+  outline: none;
+}
+
+/* キーボードフォーカスのみ表示 */
+.button:focus-visible {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.3);
+}
+```
+
+### 絶対にやってはいけないこと
+
+```css
+/* ❌ フォーカスインジケーターを完全に削除 */
+*:focus {
+  outline: none; /* 絶対NG! */
+}
+
+button:focus {
+  outline: none; /* 代替スタイルがなければNG! */
+}
+```
+
+## Skip Links（スキップリンク）
+
+ナビゲーションをスキップしてメインコンテンツに直接移動:
+
+```html
+<body>
+  <a href="#main-content" class="skip-link">
+    メインコンテンツへスキップ
+  </a>
+
+  <header>
+    <nav>
+      <!-- 長いナビゲーション -->
+    </nav>
+  </header>
+
+  <main id="main-content" tabindex="-1">
+    <!-- メインコンテンツ -->
+  </main>
+</body>
+```
+
+```css
+.skip-link {
+  position: absolute;
+  top: -100px; /* 画面外に配置 */
+  left: 0;
+  background: #60a5fa;
+  color: white;
+  padding: 0.75rem 1rem;
+  text-decoration: none;
+  z-index: 1000;
+}
+
+/* フォーカス時に表示 */
+.skip-link:focus {
+  top: 0;
+}
+```
+
+## フォーカストラップ（モーダル）
+
+モーダル表示中、フォーカスをモーダル内に制限:
+
+```javascript
+function openModal(modal) {
+  // 現在のフォーカス位置を保存
+  const previousFocus = document.activeElement;
+
+  // モーダルを表示
+  modal.style.display = 'block';
+
+  // モーダル内の最初の要素にフォーカス
+  const firstFocusable = modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  firstFocusable?.focus();
+
+  // Escキーでモーダルを閉じる
+  const handleEscape = (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+    }
+  };
+
+  // フォーカストラップ
+  const handleTab = (e) => {
+    if (e.key !== 'Tab') return;
+
+    const focusableElements = modal.querySelectorAll(
+      'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    // 最後の要素で Tab → 最初へ
+    if (!e.shiftKey && document.activeElement === lastElement) {
+      firstElement.focus();
+      e.preventDefault();
+    }
+
+    // 最初の要素で Shift+Tab → 最後へ
+    if (e.shiftKey && document.activeElement === firstElement) {
+      lastElement.focus();
+      e.preventDefault();
+    }
+  };
+
+  modal.addEventListener('keydown', handleEscape);
+  modal.addEventListener('keydown', handleTab);
+
+  // クローズ処理
+  function closeModal() {
+    modal.style.display = 'none';
+    modal.removeEventListener('keydown', handleEscape);
+    modal.removeEventListener('keydown', handleTab);
+
+    // 元の位置にフォーカスを戻す
+    previousFocus?.focus();
+  }
+
+  return closeModal;
+}
+```
+
+## 矢印キーナビゲーション
+
+ツールバーやタブなどのカスタムウィジェット:
+
+```javascript
+class ArrowKeyNavigation {
+  constructor(container, items) {
+    this.container = container;
+    this.items = items;
+    this.currentIndex = 0;
+
+    // 最初の要素のみ tabindex="0"
+    this.items.forEach((item, index) => {
+      item.setAttribute('tabindex', index === 0 ? '0' : '-1');
+    });
+
+    this.container.addEventListener('keydown', (e) => {
+      this.handleKeyDown(e);
+    });
+  }
+
+  handleKeyDown(e) {
+    let newIndex = this.currentIndex;
+
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        e.preventDefault();
+        newIndex = (this.currentIndex + 1) % this.items.length;
+        break;
+
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        e.preventDefault();
+        newIndex = (this.currentIndex - 1 + this.items.length) % this.items.length;
+        break;
+
+      case 'Home':
+        e.preventDefault();
+        newIndex = 0;
+        break;
+
+      case 'End':
+        e.preventDefault();
+        newIndex = this.items.length - 1;
+        break;
+
+      default:
+        return;
+    }
+
+    this.moveFocus(newIndex);
+  }
+
+  moveFocus(newIndex) {
+    // 古い要素を tabindex="-1"
+    this.items[this.currentIndex].setAttribute('tabindex', '-1');
+
+    // 新しい要素を tabindex="0" にしてフォーカス
+    this.items[newIndex].setAttribute('tabindex', '0');
+    this.items[newIndex].focus();
+
+    this.currentIndex = newIndex;
+  }
+}
+
+// 使用例
+const toolbar = document.querySelector('[role="toolbar"]');
+const buttons = toolbar.querySelectorAll('button');
+new ArrowKeyNavigation(toolbar, buttons);
+```
+
+## フォーカス管理（SPA）
+
+ページ遷移後のフォーカス管理:
+
+```javascript
+// ページ遷移時
+function navigateToPage(pageContent) {
+  // コンテンツを更新
+  document.getElementById('content').innerHTML = pageContent;
+
+  // 新しいコンテンツの見出しにフォーカス
+  const heading = document.querySelector('#content h1');
+  if (heading) {
+    heading.setAttribute('tabindex', '-1');
+    heading.focus();
+
+    // フォーカス後は tabindex を削除
+    heading.addEventListener('blur', () => {
+      heading.removeAttribute('tabindex');
+    }, { once: true });
+  }
+
+  // スクリーンリーダーに通知
+  const announcement = document.createElement('div');
+  announcement.setAttribute('role', 'status');
+  announcement.setAttribute('aria-live', 'polite');
+  announcement.textContent = 'ページが読み込まれました';
+  document.body.appendChild(announcement);
+
+  setTimeout(() => {
+    announcement.remove();
+  }, 1000);
+}
+```
+
+## テストとデバッグ
+
+### キーボードのみでテスト
+
+```
+1. マウスを完全に使わずにサイトを操作
+2. すべてのインタラクティブ要素にアクセス可能か確認
+3. フォーカスインジケーターが見えるか確認
+4. 論理的なTab順序か確認
+5. モーダルやドロップダウンが適切に機能するか確認
+```
+
+### Chrome DevToolsで確認
+
+```javascript
+// 現在のフォーカス要素を確認
+console.log(document.activeElement);
+
+// フォーカス可能な要素を全て取得
+const focusableElements = document.querySelectorAll(
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+);
+
+console.log('Focusable elements:', focusableElements.length);
+focusableElements.forEach((el, i) => {
+  console.log(\`\${i + 1}:\`, el);
+});
+```
+
+### 自動テスト
+
+```javascript
+// Tab順序のテスト
+function testTabOrder() {
+  const focusableElements = Array.from(
+    document.querySelectorAll(
+      'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+  );
+
+  console.log('Tab順序:');
+  focusableElements.forEach((el, i) => {
+    console.log(\`\${i + 1}. \${el.tagName} - \${el.textContent?.trim() || el.getAttribute('aria-label')}\`);
+  });
+}
+```
+
+## チェックリスト
+
+キーボードアクセシビリティの確認:
+
+- [ ] すべてのインタラクティブ要素にキーボードでアクセス可能
+- [ ] フォーカスインジケーターが明確に表示される
+- [ ] Tab順序が論理的
+- [ ] Skip Linkを実装
+- [ ] モーダルでフォーカストラップを実装
+- [ ] Escキーでモーダルを閉じられる
+- [ ] カスタムウィジェットで矢印キーをサポート
+- [ ] SPA遷移後にフォーカスを適切に管理
+- [ ] tabindex="1+"を使用していない
+- [ ] キーボードのみでテスト済み
+
+## まとめ
+
+キーボードナビゲーションは、アクセシビリティの基礎です:
+
+1. **すべてアクセス可能** - マウス不要で操作可能
+2. **明確なフォーカス** - 現在位置が常にわかる
+3. **論理的な順序** - 自然なTab順序
+4. **標準的な操作** - 期待通りのキーボード操作
+5. **実機テスト** - キーボードのみで動作確認
+
+これらを実装することで、すべてのユーザーが快適にWebサイトを利用できます。
+
+## 参考リンク
+
+- [Keyboard Navigation - WebAIM](https://webaim.org/techniques/keyboard/)
+- [Focus Management - web.dev](https://web.dev/accessibility-focus/)
+- [ARIA Authoring Practices - Keyboard Navigation](https://www.w3.org/WAI/ARIA/apg/practices/keyboard-interface/)

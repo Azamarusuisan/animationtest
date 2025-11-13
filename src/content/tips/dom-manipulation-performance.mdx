@@ -1,0 +1,545 @@
+---
+title: DOM操作のパフォーマンス最適化
+description: DocumentFragment、batch update、仮想DOMの概念でDOM操作を高速化
+tags: [javascript, performance, dom, optimization, reflow]
+category: javascript
+level: intermediate
+date: 2025-11-11
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## DOM操作がパフォーマンスに与える影響
+
+DOMの操作は非常にコストが高い処理です。特にReflow（レイアウト再計算）とRepaint（再描画）を引き起こす操作は、アプリケーションのパフォーマンスを著しく低下させます。
+
+### ブラウザのレンダリングパイプライン
+
+```
+JavaScript → Style → Layout → Paint → Composite
+           (Recalculate) (Reflow) (Repaint)
+```
+
+<LiveDemo
+  title="DOM操作のパフォーマンス比較"
+  height="650px"
+  html={`
+<div style="max-width: 800px; margin: 0 auto;">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- 悪い例 -->
+    <div>
+      <button id="bad-btn" style="width: 100%; padding: 0.75rem; background: #ef4444; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold; margin-bottom: 1rem;">
+        ❌ 非効率な方法（1000個追加）
+      </button>
+      <div style="padding: 1rem; background: #1f2a37; border-radius: 8px; border-left: 4px solid #ef4444;">
+        <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">処理時間</div>
+        <div id="bad-time" style="font-size: 1.8rem; font-weight: bold; color: #ef4444;">-</div>
+        <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">Reflow: <span id="bad-reflow">0</span>回</div>
+      </div>
+    </div>
+
+    <!-- 良い例 -->
+    <div>
+      <button id="good-btn" style="width: 100%; padding: 0.75rem; background: #10b981; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold; margin-bottom: 1rem;">
+        ✅ 効率的な方法（1000個追加）
+      </button>
+      <div style="padding: 1rem; background: #1f2a37; border-radius: 8px; border-left: 4px solid #10b981;">
+        <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">処理時間</div>
+        <div id="good-time" style="font-size: 1.8rem; font-weight: bold; color: #10b981;">-</div>
+        <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">Reflow: <span id="good-reflow">1</span>回</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding: 1rem; background: #374151; border-radius: 8px; margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.875rem; color: #9ca3af;">比較結果:</span>
+      <span id="comparison" style="font-weight: bold; color: #60a5fa;">-</span>
+    </div>
+  </div>
+
+  <!-- プレビューエリア -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+    <div>
+      <h4 style="margin-bottom: 0.5rem; color: #ef4444; font-size: 0.875rem;">❌ 非効率な結果</h4>
+      <div id="bad-container" style="height: 200px; overflow-y: auto; background: #1f2a37; border-radius: 8px; padding: 0.5rem; font-size: 0.75rem;"></div>
+    </div>
+    <div>
+      <h4 style="margin-bottom: 0.5rem; color: #10b981; font-size: 0.875rem;">✅ 効率的な結果</h4>
+      <div id="good-container" style="height: 200px; overflow-y: auto; background: #1f2a37; border-radius: 8px; padding: 0.5rem; font-size: 0.75rem;"></div>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+    button:hover:not(:disabled) {
+      opacity: 0.9;
+      transform: translateY(-2px);
+      transition: all 0.2s;
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .item {
+      padding: 0.25rem 0.5rem;
+      margin: 0.25rem 0;
+      background: #374151;
+      border-radius: 4px;
+      color: #e5edf4;
+    }
+  `}
+  js={`
+    const badBtn = document.getElementById('bad-btn');
+    const goodBtn = document.getElementById('good-btn');
+    const badContainer = document.getElementById('bad-container');
+    const goodContainer = document.getElementById('good-container');
+    const badTimeEl = document.getElementById('bad-time');
+    const goodTimeEl = document.getElementById('good-time');
+    const comparisonEl = document.getElementById('comparison');
+
+    let badTime = 0;
+    let goodTime = 0;
+
+    // ❌ 悪い例: 個別にDOM追加（1000回のReflow）
+    badBtn.addEventListener('click', () => {
+      badBtn.disabled = true;
+      badContainer.innerHTML = '';
+      badTimeEl.textContent = '実行中...';
+
+      setTimeout(() => {
+        const start = performance.now();
+
+        for (let i = 0; i < 1000; i++) {
+          const div = document.createElement('div');
+          div.className = 'item';
+          div.textContent = \`Item \${i + 1}\`;
+          badContainer.appendChild(div); // 毎回Reflow発生
+        }
+
+        const end = performance.now();
+        badTime = Math.round(end - start);
+        badTimeEl.textContent = badTime + 'ms';
+        badBtn.disabled = false;
+        updateComparison();
+      }, 100);
+    });
+
+    // ✅ 良い例: DocumentFragmentで一括追加（1回のReflow）
+    goodBtn.addEventListener('click', () => {
+      goodBtn.disabled = true;
+      goodContainer.innerHTML = '';
+      goodTimeEl.textContent = '実行中...';
+
+      setTimeout(() => {
+        const start = performance.now();
+
+        // DocumentFragmentを作成
+        const fragment = document.createDocumentFragment();
+
+        for (let i = 0; i < 1000; i++) {
+          const div = document.createElement('div');
+          div.className = 'item';
+          div.textContent = \`Item \${i + 1}\`;
+          fragment.appendChild(div); // メモリ上で構築
+        }
+
+        // 一度だけDOMに追加
+        goodContainer.appendChild(fragment);
+
+        const end = performance.now();
+        goodTime = Math.round(end - start);
+        goodTimeEl.textContent = goodTime + 'ms';
+        goodBtn.disabled = false;
+        updateComparison();
+      }, 100);
+    });
+
+    function updateComparison() {
+      if (badTime > 0 && goodTime > 0) {
+        const improvement = ((badTime - goodTime) / badTime * 100).toFixed(1);
+        const speedup = (badTime / goodTime).toFixed(1);
+        comparisonEl.innerHTML = \`効率的な方法は <strong>\${speedup}x 高速</strong> (\${improvement}% 改善)\`;
+      }
+    }
+  `}
+/>
+
+## DocumentFragmentの使用
+
+### 基本的な使い方
+
+```javascript
+// ❌ 悪い例: 個別にDOM追加（Nレのflow）
+function addItems(items) {
+  const container = document.getElementById('list');
+
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.textContent = item.name;
+    container.appendChild(div); // 毎回Reflow発生
+  });
+}
+
+// ✅ 良い例: DocumentFragmentで一括追加（1回のReflow）
+function addItems(items) {
+  const container = document.getElementById('list');
+  const fragment = document.createDocumentFragment();
+
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.textContent = item.name;
+    fragment.appendChild(div); // メモリ上で構築
+  });
+
+  container.appendChild(fragment); // 1回だけDOM操作
+}
+```
+
+### テンプレート要素との組み合わせ
+
+```javascript
+// HTML: <template id="item-template">
+//         <div class="item">
+//           <h3 class="title"></h3>
+//           <p class="description"></p>
+//         </div>
+//       </template>
+
+function renderItems(items) {
+  const template = document.getElementById('item-template');
+  const fragment = document.createDocumentFragment();
+
+  items.forEach(item => {
+    const clone = template.content.cloneNode(true);
+    clone.querySelector('.title').textContent = item.title;
+    clone.querySelector('.description').textContent = item.description;
+    fragment.appendChild(clone);
+  });
+
+  document.getElementById('list').appendChild(fragment);
+}
+```
+
+## Batch Update（一括更新）
+
+### レイアウト読み取りと書き込みの分離
+
+```javascript
+// ❌ 悪い例: 読み取りと書き込みが混在（強制Reflow）
+function updateElements() {
+  elements.forEach(el => {
+    const height = el.offsetHeight;  // 読み取り → Reflow
+    el.style.height = height * 2 + 'px'; // 書き込み
+    // この繰り返しで毎回Reflowが発生
+  });
+}
+
+// ✅ 良い例: 読み取りと書き込みを分離
+function updateElements() {
+  // 1. まず全ての値を読み取る
+  const heights = elements.map(el => el.offsetHeight);
+
+  // 2. 次に全ての値を書き込む
+  elements.forEach((el, i) => {
+    el.style.height = heights[i] * 2 + 'px';
+  });
+  // Reflowは最後の1回だけ
+}
+```
+
+### requestAnimationFrameの活用
+
+```javascript
+// DOMの変更をフレーム単位でまとめる
+class DOMScheduler {
+  constructor() {
+    this.reads = [];
+    this.writes = [];
+    this.scheduled = false;
+  }
+
+  read(task) {
+    this.reads.push(task);
+    this.scheduleFlush();
+  }
+
+  write(task) {
+    this.writes.push(task);
+    this.scheduleFlush();
+  }
+
+  scheduleFlush() {
+    if (this.scheduled) return;
+    this.scheduled = true;
+
+    requestAnimationFrame(() => {
+      // 全ての読み取りを実行
+      this.reads.forEach(task => task());
+      this.reads = [];
+
+      // 全ての書き込みを実行
+      this.writes.forEach(task => task());
+      this.writes = [];
+
+      this.scheduled = false;
+    });
+  }
+}
+
+// 使用例
+const scheduler = new DOMScheduler();
+
+scheduler.read(() => {
+  const height = element.offsetHeight;
+  scheduler.write(() => {
+    element.style.height = height * 2 + 'px';
+  });
+});
+```
+
+## クラス操作の最適化
+
+### classList API の使用
+
+```javascript
+// ❌ 悪い例: className を直接操作
+element.className = element.className + ' active';
+
+// ✅ 良い例: classList を使用
+element.classList.add('active');
+
+// 複数のクラスを一度に追加
+element.classList.add('active', 'visible', 'animated');
+
+// 条件によるトグル
+element.classList.toggle('hidden', shouldHide);
+```
+
+### スタイルのバッチ適用
+
+```javascript
+// ❌ 悪い例: 個別にスタイル変更（複数回Reflow）
+element.style.width = '100px';
+element.style.height = '100px';
+element.style.backgroundColor = 'red';
+
+// ✅ 良い例: cssTextで一括変更
+element.style.cssText = 'width: 100px; height: 100px; background-color: red;';
+
+// または、クラスで管理
+element.className = 'large-red-box';
+```
+
+## 仮想DOMの概念
+
+### 差分更新の実装
+
+```javascript
+class VirtualDOM {
+  constructor(container) {
+    this.container = container;
+    this.virtualTree = null;
+  }
+
+  // 仮想DOMの差分を計算して最小限の更新を行う
+  render(newTree) {
+    if (!this.virtualTree) {
+      this.container.innerHTML = this.renderToString(newTree);
+      this.virtualTree = newTree;
+      return;
+    }
+
+    const patches = this.diff(this.virtualTree, newTree);
+    this.patch(patches);
+    this.virtualTree = newTree;
+  }
+
+  diff(oldTree, newTree) {
+    const patches = [];
+
+    // 簡略化した差分検出
+    if (JSON.stringify(oldTree) !== JSON.stringify(newTree)) {
+      patches.push({ type: 'UPDATE', data: newTree });
+    }
+
+    return patches;
+  }
+
+  patch(patches) {
+    patches.forEach(patch => {
+      if (patch.type === 'UPDATE') {
+        // 最小限の更新のみ実行
+        this.container.innerHTML = this.renderToString(patch.data);
+      }
+    });
+  }
+
+  renderToString(tree) {
+    // ツリーをHTML文字列に変換
+    return tree.map(item => \`<div>\${item.text}</div>\`).join('');
+  }
+}
+```
+
+## メモリ管理
+
+### イベントリスナーのクリーンアップ
+
+```javascript
+class Component {
+  constructor(element) {
+    this.element = element;
+    this.listeners = [];
+  }
+
+  addEventListener(event, handler) {
+    this.element.addEventListener(event, handler);
+    // 後でクリーンアップできるように保存
+    this.listeners.push({ event, handler });
+  }
+
+  destroy() {
+    // 全てのイベントリスナーを削除
+    this.listeners.forEach(({ event, handler }) => {
+      this.element.removeEventListener(event, handler);
+    });
+
+    // DOMから削除
+    this.element.remove();
+
+    // 参照をクリア
+    this.element = null;
+    this.listeners = null;
+  }
+}
+```
+
+### WeakMapでメモリリークを防ぐ
+
+```javascript
+// DOMと関連データを紐付けるが、DOMが削除されたら自動的にGC
+const elementData = new WeakMap();
+
+function setData(element, data) {
+  elementData.set(element, data);
+}
+
+function getData(element) {
+  return elementData.get(element);
+}
+
+// 要素が削除されると自動的にデータもGCされる
+```
+
+## パフォーマンス測定
+
+### Performance APIの活用
+
+```javascript
+function measureDOMOperation(name, operation) {
+  performance.mark(\`\${name}-start\`);
+
+  operation();
+
+  performance.mark(\`\${name}-end\`);
+  performance.measure(name, \`\${name}-start\`, \`\${name}-end\`);
+
+  const measure = performance.getEntriesByName(name)[0];
+  console.log(\`\${name}: \${measure.duration.toFixed(2)}ms\`);
+
+  // クリーンアップ
+  performance.clearMarks();
+  performance.clearMeasures();
+}
+
+// 使用例
+measureDOMOperation('addItems', () => {
+  addItems(items);
+});
+```
+
+### Reflow/Repaintの検出
+
+```javascript
+// Chrome DevToolsで確認
+// 1. Performance タブを開く
+// 2. Record → 操作 → Stop
+// 3. "Layout" と "Paint" を確認
+
+// コードで検出（実験的）
+const observer = new PerformanceObserver((list) => {
+  for (const entry of list.getEntries()) {
+    if (entry.entryType === 'measure') {
+      console.log(entry.name, entry.duration);
+    }
+  }
+});
+
+observer.observe({ entryTypes: ['measure'] });
+```
+
+## 実践的なパターン
+
+### 大量データのレンダリング
+
+```javascript
+class VirtualScrollList {
+  constructor(container, items, rowHeight) {
+    this.container = container;
+    this.items = items;
+    this.rowHeight = rowHeight;
+    this.visibleCount = Math.ceil(container.clientHeight / rowHeight) + 2;
+
+    this.render();
+    this.container.addEventListener('scroll', () => this.render());
+  }
+
+  render() {
+    const scrollTop = this.container.scrollTop;
+    const startIndex = Math.floor(scrollTop / this.rowHeight);
+    const endIndex = startIndex + this.visibleCount;
+
+    // 表示する範囲のアイテムのみレンダリング
+    const fragment = document.createDocumentFragment();
+
+    for (let i = startIndex; i < endIndex && i < this.items.length; i++) {
+      const div = document.createElement('div');
+      div.style.height = this.rowHeight + 'px';
+      div.textContent = this.items[i];
+      fragment.appendChild(div);
+    }
+
+    // パディングで位置調整
+    this.container.style.paddingTop = startIndex * this.rowHeight + 'px';
+    this.container.innerHTML = '';
+    this.container.appendChild(fragment);
+  }
+}
+```
+
+## まとめ
+
+### DOM操作の最適化テクニック
+
+1. **DocumentFragment**: 大量の要素追加は一括で
+2. **Batch Update**: 読み取りと書き込みを分離
+3. **classList API**: クラス操作を効率的に
+4. **requestAnimationFrame**: 描画タイミングに合わせる
+5. **仮想スクロール**: 大量データは表示範囲のみ
+
+### 避けるべきパターン
+
+- ループ内での個別DOM追加
+- レイアウト読み取りと書き込みの混在
+- 不要なイベントリスナーの残存
+- 強制的な同期レイアウト計算
+
+### パフォーマンス改善の効果
+
+- Reflowの削減: 80-95%
+- 処理時間の短縮: 2-10倍
+- メモリ使用量の削減: 30-50%

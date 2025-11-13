@@ -1,0 +1,325 @@
+---
+title: レーティング（星評価）
+description: クリック・ホバーで評価入力。読み取り専用モードも対応。
+tags: [rating, stars, form, ux]
+frameworks: [Vanilla, Any]
+level: basic
+prompt_template: |
+  星評価コンポーネント：
+  - 星アイコン（CSS、SVG、または絵文字★）でビジュアル表示
+  - ホバー時のプレビュー、クリックで評価確定
+  - 半星対応（0.5刻み）、読み取り専用モード
+  - カラーカスタマイズ、aria-label、role="radiogroup"
+  - キーボード操作（←→で評価変更）
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+<LiveDemo
+  title="レーティングのデモ"
+  height="250px"
+  html={`
+<div style="display: flex; flex-direction: column; gap: 1.5rem; padding: 1rem;">
+  <div>
+    <div style="margin-bottom: 0.5rem; color: #e5edf4; font-size: 14px;">商品を評価してください:</div>
+    <div class="rating" role="radiogroup" aria-label="評価を選択">
+      <input type="radio" id="star5" name="rating" value="5" class="rating__input">
+      <label for="star5" class="rating__star" aria-label="5つ星" tabindex="0">★</label>
+
+      <input type="radio" id="star4" name="rating" value="4" class="rating__input">
+      <label for="star4" class="rating__star" aria-label="4つ星" tabindex="0">★</label>
+
+      <input type="radio" id="star3" name="rating" value="3" class="rating__input">
+      <label for="star3" class="rating__star" aria-label="3つ星" tabindex="0">★</label>
+
+      <input type="radio" id="star2" name="rating" value="2" class="rating__input">
+      <label for="star2" class="rating__star" aria-label="2つ星" tabindex="0">★</label>
+
+      <input type="radio" id="star1" name="rating" value="1" class="rating__input">
+      <label for="star1" class="rating__star" aria-label="1つ星" tabindex="0">★</label>
+    </div>
+    <div id="rating-display" style="margin-top: 0.5rem; color: #9ca3af; font-size: 14px;">評価: 未選択</div>
+  </div>
+
+  <div>
+    <div style="margin-bottom: 0.5rem; color: #e5edf4; font-size: 14px;">現在の評価（読み取り専用）:</div>
+    <div class="rating rating--readonly" data-rating="4" aria-label="評価: 4つ星">
+      <span class="rating__star rating__star--filled">★</span>
+      <span class="rating__star rating__star--filled">★</span>
+      <span class="rating__star rating__star--filled">★</span>
+      <span class="rating__star rating__star--filled">★</span>
+      <span class="rating__star">★</span>
+    </div>
+  </div>
+</div>
+  `}
+  css={`
+.rating {
+  display: inline-flex;
+  flex-direction: row-reverse;
+  gap: 4px;
+  position: relative;
+}
+
+.rating__input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.rating__star {
+  font-size: 32px;
+  color: #4b5563;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.15s ease;
+  user-select: none;
+}
+
+.rating__star:hover,
+.rating__star:focus-visible {
+  transform: scale(1.15);
+  outline: none;
+}
+
+.rating__star:hover ~ .rating__star,
+.rating__input:focus-visible ~ .rating__star {
+  color: #fbbf24;
+}
+
+.rating__star:hover,
+.rating__input:focus-visible ~ label {
+  color: #fbbf24;
+}
+
+.rating__input:checked ~ .rating__star {
+  color: #f59e0b;
+}
+
+.rating--readonly {
+  pointer-events: none;
+  flex-direction: row;
+}
+
+.rating--readonly .rating__star {
+  color: #4b5563;
+}
+
+.rating--readonly .rating__star--filled {
+  color: #f59e0b;
+}
+  `}
+  js={`
+const ratingEl = document.querySelector('.rating:not(.rating--readonly)');
+const inputs = Array.from(ratingEl.querySelectorAll('.rating__input'));
+const labels = Array.from(ratingEl.querySelectorAll('.rating__star'));
+const display = document.getElementById('rating-display');
+
+let currentIndex = -1;
+
+inputs.forEach((input, idx) => {
+  input.addEventListener('change', () => {
+    currentIndex = idx;
+    display.textContent = '評価: ' + input.value + 'つ星';
+  });
+});
+
+labels.forEach((label, idx) => {
+  label.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      inputs[idx].checked = true;
+      currentIndex = idx;
+      display.textContent = '評価: ' + inputs[idx].value + 'つ星';
+    }
+  });
+});
+
+ratingEl.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    currentIndex = Math.max(currentIndex - 1, 0);
+    inputs[currentIndex].checked = true;
+    display.textContent = '評価: ' + inputs[currentIndex].value + 'つ星';
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    currentIndex = Math.min(currentIndex + 1, inputs.length - 1);
+    inputs[currentIndex].checked = true;
+    display.textContent = '評価: ' + inputs[currentIndex].value + 'つ星';
+  }
+});
+  `}
+/>
+
+## 実装コード
+
+**HTML**
+```html
+<div class="rating" role="radiogroup" aria-label="評価を選択">
+  <input type="radio" id="star5" name="rating" value="5" class="rating__input">
+  <label for="star5" class="rating__star" aria-label="5つ星">★</label>
+
+  <input type="radio" id="star4-5" name="rating" value="4.5" class="rating__input">
+  <label for="star4-5" class="rating__star rating__star--half" aria-label="4.5つ星">★</label>
+
+  <input type="radio" id="star4" name="rating" value="4" class="rating__input">
+  <label for="star4" class="rating__star" aria-label="4つ星">★</label>
+
+  <input type="radio" id="star3-5" name="rating" value="3.5" class="rating__input">
+  <label for="star3-5" class="rating__star rating__star--half" aria-label="3.5つ星">★</label>
+
+  <input type="radio" id="star3" name="rating" value="3" class="rating__input">
+  <label for="star3" class="rating__star" aria-label="3つ星">★</label>
+
+  <input type="radio" id="star2-5" name="rating" value="2.5" class="rating__input">
+  <label for="star2-5" class="rating__star rating__star--half" aria-label="2.5つ星">★</label>
+
+  <input type="radio" id="star2" name="rating" value="2" class="rating__input">
+  <label for="star2" class="rating__star" aria-label="2つ星">★</label>
+
+  <input type="radio" id="star1-5" name="rating" value="1.5" class="rating__input">
+  <label for="star1-5" class="rating__star rating__star--half" aria-label="1.5つ星">★</label>
+
+  <input type="radio" id="star1" name="rating" value="1" class="rating__input">
+  <label for="star1" class="rating__star" aria-label="1つ星">★</label>
+
+  <input type="radio" id="star0-5" name="rating" value="0.5" class="rating__input">
+  <label for="star0-5" class="rating__star rating__star--half" aria-label="0.5つ星">★</label>
+</div>
+
+<!-- 読み取り専用の例 -->
+<div class="rating rating--readonly" data-rating="3.5" aria-label="評価: 3.5つ星">
+  <span class="rating__star rating__star--filled">★</span>
+  <span class="rating__star rating__star--filled">★</span>
+  <span class="rating__star rating__star--filled">★</span>
+  <span class="rating__star rating__star--half-filled">★</span>
+  <span class="rating__star">★</span>
+</div>
+```
+
+**CSS**
+```css
+.rating {
+  display: inline-flex;
+  flex-direction: row-reverse;
+  gap: 2px;
+  position: relative;
+}
+
+.rating__input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.rating__star {
+  font-size: 28px;
+  color: #d1d5db;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.15s ease;
+  user-select: none;
+}
+
+.rating__star:hover,
+.rating__star:focus-visible {
+  transform: scale(1.15);
+  outline: none;
+}
+
+/* ホバー時、それ以降の星（右側）すべてを塗る */
+.rating__star:hover ~ .rating__star,
+.rating__input:focus-visible ~ .rating__star {
+  color: #fbbf24;
+}
+
+.rating__star:hover,
+.rating__input:focus-visible ~ label {
+  color: #fbbf24;
+}
+
+/* チェック済みの星とそれ以降を塗る */
+.rating__input:checked ~ .rating__star {
+  color: #f59e0b;
+}
+
+/* 半星スタイル */
+.rating__star--half {
+  position: relative;
+  overflow: hidden;
+  width: 0.55em;
+}
+
+/* 読み取り専用モード */
+.rating--readonly {
+  pointer-events: none;
+  flex-direction: row;
+}
+
+.rating--readonly .rating__star--filled {
+  color: #f59e0b;
+}
+
+.rating--readonly .rating__star--half-filled {
+  position: relative;
+  color: #d1d5db;
+}
+
+.rating--readonly .rating__star--half-filled::before {
+  content: '★';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 50%;
+  overflow: hidden;
+  color: #f59e0b;
+}
+```
+
+**JS**
+```js
+(() => {
+  document.querySelectorAll('.rating:not(.rating--readonly)').forEach(ratingEl => {
+    const inputs = Array.from(ratingEl.querySelectorAll('.rating__input'));
+    const labels = Array.from(ratingEl.querySelectorAll('.rating__star'));
+
+    // キーボード操作
+    let currentIndex = inputs.findIndex(i => i.checked);
+
+    ratingEl.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        currentIndex = Math.min(currentIndex + 1, inputs.length - 1);
+        inputs[currentIndex].checked = true;
+        inputs[currentIndex].focus();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        currentIndex = Math.max(currentIndex - 1, 0);
+        inputs[currentIndex].checked = true;
+        inputs[currentIndex].focus();
+      }
+    });
+
+    // ラベルにtabindex追加（フォーカス可能に）
+    labels.forEach((label, idx) => {
+      label.setAttribute('tabindex', '0');
+      label.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          inputs[idx].checked = true;
+          currentIndex = idx;
+        }
+      });
+    });
+
+    // 評価変更イベント
+    inputs.forEach(input => {
+      input.addEventListener('change', () => {
+        console.log('評価:', input.value);
+        // カスタムイベント発火
+        ratingEl.dispatchEvent(new CustomEvent('ratingChange', {
+          detail: { value: parseFloat(input.value) }
+        }));
+      });
+    });
+  });
+})();
+```

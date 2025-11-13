@@ -1,0 +1,1085 @@
+---
+title: オンボーディングウィザード
+description: 複数のモジュールを組み合わせた完全なユーザーオンボーディングフロー
+tags: [recipe, workflow, integration, onboarding]
+modules_used: [stepper, form-validation, toast, tabs]
+level: intermediate
+use_case: 新規ユーザー登録時の段階的な情報入力フロー。ステップ管理、バリデーション、フィードバック通知を統合した実用的な例。
+prompt_template: |
+  目的: 実践的なオンボーディングウィザードの構築
+  組み合わせるモジュール:
+  - Stepper: 進行状況の可視化
+  - Form Validation: 各ステップの入力検証
+  - Toast: 完了時の通知
+  - 状態管理: ステップ間のデータ保持
+  要件:
+  - 4ステップのウィザード（アカウント → プロフィール → 設定 → 完了）
+  - 各ステップでのバリデーション
+  - 次へ/戻るナビゲーション
+  - 未完了ステップへの進行防止
+  - 完了時のトースト表示
+  - データの永続化（セッションストレージ）
+  - レスポンシブデザイン
+  納品: 統合されたコンポーネント一式
+---
+
+import LiveDemo from '../../components/LiveDemo.astro';
+
+## 概要
+
+このレシピでは、**Stepper**、**Form Validation**、**Toast**を組み合わせて、完全なユーザーオンボーディングフローを構築します。
+
+### このレシピが実現すること
+
+- **段階的な情報収集**: 4つのステップで情報を分割して収集
+- **リアルタイムバリデーション**: 各入力フィールドの即座の検証
+- **進行状況の可視化**: ステッパーで現在位置を明確に表示
+- **データの永続化**: ページをリロードしてもデータが保持される
+- **スムーズな UX**: 完了時の視覚的フィードバック
+
+## インタラクティブデモ
+
+<LiveDemo
+  title="オンボーディングウィザード - 完全版"
+  height="700px"
+  html={`
+<div class="onboarding-wizard">
+  <!-- Progress Stepper -->
+  <div class="stepper" role="navigation" aria-label="オンボーディング進行状況">
+    <div class="stepper-item" data-step="1" aria-current="step">
+      <button class="stepper-button" aria-label="ステップ1: アカウント情報">
+        <span class="stepper-number">
+          <span class="stepper-number-text">1</span>
+          <span class="stepper-check">✓</span>
+        </span>
+      </button>
+      <div class="stepper-label">アカウント</div>
+    </div>
+
+    <div class="stepper-connector">
+      <div class="stepper-connector-line"></div>
+    </div>
+
+    <div class="stepper-item" data-step="2">
+      <button class="stepper-button" aria-label="ステップ2: プロフィール">
+        <span class="stepper-number">
+          <span class="stepper-number-text">2</span>
+          <span class="stepper-check">✓</span>
+        </span>
+      </button>
+      <div class="stepper-label">プロフィール</div>
+    </div>
+
+    <div class="stepper-connector">
+      <div class="stepper-connector-line"></div>
+    </div>
+
+    <div class="stepper-item" data-step="3">
+      <button class="stepper-button" aria-label="ステップ3: 設定">
+        <span class="stepper-number">
+          <span class="stepper-number-text">3</span>
+          <span class="stepper-check">✓</span>
+        </span>
+      </button>
+      <div class="stepper-label">設定</div>
+    </div>
+
+    <div class="stepper-connector">
+      <div class="stepper-connector-line"></div>
+    </div>
+
+    <div class="stepper-item" data-step="4">
+      <button class="stepper-button" aria-label="ステップ4: 完了">
+        <span class="stepper-number">
+          <span class="stepper-number-text">4</span>
+          <span class="stepper-check">✓</span>
+        </span>
+      </button>
+      <div class="stepper-label">完了</div>
+    </div>
+  </div>
+
+  <!-- Wizard Form Container -->
+  <div class="wizard-content">
+    <!-- Step 1: Account Info -->
+    <form class="wizard-step" data-step="1">
+      <h2 class="step-title">アカウント情報</h2>
+      <p class="step-description">メールアドレスとパスワードを設定してください</p>
+
+      <div class="field">
+        <label for="email">メールアドレス</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          required
+          aria-describedby="email-error"
+          placeholder="example@email.com"
+        >
+        <span class="error" id="email-error" role="alert"></span>
+      </div>
+
+      <div class="field">
+        <label for="password">パスワード (8文字以上)</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          required
+          minlength="8"
+          aria-describedby="password-error"
+          placeholder="••••••••"
+        >
+        <span class="error" id="password-error" role="alert"></span>
+      </div>
+
+      <div class="field">
+        <label for="password-confirm">パスワード確認</label>
+        <input
+          type="password"
+          id="password-confirm"
+          name="password-confirm"
+          required
+          minlength="8"
+          aria-describedby="password-confirm-error"
+          placeholder="••••••••"
+        >
+        <span class="error" id="password-confirm-error" role="alert"></span>
+      </div>
+    </form>
+
+    <!-- Step 2: Profile -->
+    <form class="wizard-step" data-step="2" hidden>
+      <h2 class="step-title">プロフィール設定</h2>
+      <p class="step-description">あなたの基本情報を入力してください</p>
+
+      <div class="field">
+        <label for="fullname">氏名</label>
+        <input
+          type="text"
+          id="fullname"
+          name="fullname"
+          required
+          minlength="2"
+          aria-describedby="fullname-error"
+          placeholder="山田 太郎"
+        >
+        <span class="error" id="fullname-error" role="alert"></span>
+      </div>
+
+      <div class="field">
+        <label for="company">会社名 (任意)</label>
+        <input
+          type="text"
+          id="company"
+          name="company"
+          aria-describedby="company-error"
+          placeholder="株式会社サンプル"
+        >
+        <span class="error" id="company-error" role="alert"></span>
+      </div>
+
+      <div class="field">
+        <label for="role">役職</label>
+        <select id="role" name="role" required aria-describedby="role-error">
+          <option value="">選択してください</option>
+          <option value="developer">開発者</option>
+          <option value="designer">デザイナー</option>
+          <option value="manager">マネージャー</option>
+          <option value="other">その他</option>
+        </select>
+        <span class="error" id="role-error" role="alert"></span>
+      </div>
+    </form>
+
+    <!-- Step 3: Preferences -->
+    <form class="wizard-step" data-step="3" hidden>
+      <h2 class="step-title">環境設定</h2>
+      <p class="step-description">お好みの設定を選択してください</p>
+
+      <div class="field-group">
+        <label class="checkbox-label">
+          <input type="checkbox" name="newsletter" id="newsletter">
+          <span>ニュースレターを受け取る</span>
+        </label>
+
+        <label class="checkbox-label">
+          <input type="checkbox" name="notifications" id="notifications" checked>
+          <span>プッシュ通知を有効にする</span>
+        </label>
+
+        <label class="checkbox-label">
+          <input type="checkbox" name="analytics" id="analytics" checked>
+          <span>使用状況の分析を許可する</span>
+        </label>
+      </div>
+
+      <div class="field">
+        <label for="timezone">タイムゾーン</label>
+        <select id="timezone" name="timezone" required aria-describedby="timezone-error">
+          <option value="">選択してください</option>
+          <option value="Asia/Tokyo" selected>Asia/Tokyo (GMT+9)</option>
+          <option value="America/New_York">America/New_York (GMT-5)</option>
+          <option value="Europe/London">Europe/London (GMT+0)</option>
+        </select>
+        <span class="error" id="timezone-error" role="alert"></span>
+      </div>
+    </form>
+
+    <!-- Step 4: Complete -->
+    <div class="wizard-step" data-step="4" hidden>
+      <div class="completion-screen">
+        <div class="success-icon">✓</div>
+        <h2 class="step-title">セットアップ完了！</h2>
+        <p class="step-description">アカウントの準備ができました</p>
+
+        <div class="summary-card">
+          <h3>登録内容</h3>
+          <dl class="summary-list">
+            <dt>メール:</dt>
+            <dd id="summary-email">-</dd>
+            <dt>氏名:</dt>
+            <dd id="summary-fullname">-</dd>
+            <dt>役職:</dt>
+            <dd id="summary-role">-</dd>
+            <dt>会社:</dt>
+            <dd id="summary-company">-</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Buttons -->
+  <div class="wizard-actions">
+    <button class="wizard-btn wizard-btn-secondary" id="prev-btn" disabled>
+      ← 戻る
+    </button>
+    <button class="wizard-btn wizard-btn-primary" id="next-btn">
+      次へ →
+    </button>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toasts" aria-live="polite" aria-atomic="true"></div>
+  `}
+  css={`
+/* Container */
+.onboarding-wizard {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: #0c1218;
+}
+
+/* Stepper */
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 3rem;
+  padding: 1rem;
+}
+
+.stepper-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stepper-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid #374151;
+  background: #1f2a37;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.stepper-item[aria-current="step"] .stepper-button {
+  border-color: #60a5fa;
+  background: #60a5fa;
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.2);
+}
+
+.stepper-item[data-completed="true"] .stepper-button {
+  border-color: #10b981;
+  background: #10b981;
+}
+
+.stepper-number {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepper-number-text {
+  color: #9ca3af;
+  font-weight: 700;
+  transition: all 0.3s;
+}
+
+.stepper-item[aria-current="step"] .stepper-number-text,
+.stepper-item[data-completed="true"] .stepper-number-text {
+  color: white;
+}
+
+.stepper-check {
+  position: absolute;
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.3s;
+  color: white;
+  font-weight: bold;
+}
+
+.stepper-item[data-completed="true"] .stepper-number-text {
+  opacity: 0;
+  transform: scale(0);
+}
+
+.stepper-item[data-completed="true"] .stepper-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.stepper-connector {
+  width: 60px;
+  height: 2px;
+  background: #374151;
+  position: relative;
+  overflow: hidden;
+  margin: 0 0.5rem;
+}
+
+.stepper-connector-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0;
+  background: #10b981;
+  transition: width 0.5s ease;
+}
+
+.stepper-connector[data-completed="true"] .stepper-connector-line {
+  width: 100%;
+}
+
+.stepper-label {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.stepper-item[aria-current="step"] .stepper-label {
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+/* Wizard Content */
+.wizard-content {
+  min-height: 400px;
+  margin-bottom: 2rem;
+}
+
+.wizard-step {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.step-title {
+  color: #e5edf4;
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.step-description {
+  color: #9ca3af;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+/* Form Fields */
+.field {
+  margin-bottom: 1.5rem;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #e5edf4;
+  font-size: 0.875rem;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  padding: 0.75rem;
+  background: #1f2a37;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  color: #e5edf4;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+.field input[aria-invalid="true"],
+.field select[aria-invalid="true"] {
+  border-color: #ef4444;
+}
+
+.field input[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.error {
+  display: block;
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+  min-height: 1rem;
+}
+
+.error:empty {
+  visibility: hidden;
+}
+
+/* Checkbox Group */
+.field-group {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #1f2a37;
+  border-radius: 8px;
+  border: 1px solid #374151;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  color: #e5edf4;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+/* Completion Screen */
+.completion-screen {
+  text-align: center;
+  padding: 2rem;
+}
+
+.success-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #10b981;
+  color: white;
+  font-size: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  animation: scaleIn 0.5s ease;
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+.summary-card {
+  background: #1f2a37;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+  text-align: left;
+}
+
+.summary-card h3 {
+  color: #e5edf4;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+}
+
+.summary-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.summary-list dt {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.summary-list dd {
+  color: #e5edf4;
+  margin-left: 0;
+  padding-left: 0.5rem;
+  border-left: 2px solid #60a5fa;
+}
+
+/* Navigation */
+.wizard-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.wizard-btn {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.wizard-btn-secondary {
+  background: #1f2a37;
+  border: 1px solid #374151;
+  color: #e5edf4;
+}
+
+.wizard-btn-secondary:hover:not(:disabled) {
+  background: #374151;
+}
+
+.wizard-btn-primary {
+  background: #60a5fa;
+  color: white;
+}
+
+.wizard-btn-primary:hover:not(:disabled) {
+  background: #3b82f6;
+}
+
+.wizard-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Toast */
+#toasts {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  display: grid;
+  gap: 8px;
+  z-index: 1000;
+}
+
+.toast {
+  background: #1f2a37;
+  border: 1px solid #374151;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  min-width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  color: #e5edf4;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: none;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .onboarding-wizard {
+    padding: 1rem;
+  }
+
+  .stepper {
+    padding: 0.5rem;
+  }
+
+  .stepper-connector {
+    width: 30px;
+  }
+
+  .stepper-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .stepper-label {
+    font-size: 0.625rem;
+  }
+
+  .wizard-actions {
+    flex-direction: column;
+  }
+}
+  `}
+  js={`
+// State Management
+const wizardState = {
+  currentStep: 1,
+  totalSteps: 4,
+  formData: {}
+};
+
+// Elements
+const stepperItems = document.querySelectorAll('.stepper-item');
+const stepperConnectors = document.querySelectorAll('.stepper-connector');
+const wizardSteps = document.querySelectorAll('.wizard-step');
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
+const toastContainer = document.getElementById('toasts');
+
+// Form Validation Messages
+const validationMessages = {
+  valueMissing: '入力必須です',
+  typeMismatch: '正しい形式で入力してください',
+  tooShort: '最低{min}文字必要です',
+  tooLong: '最大{max}文字までです',
+  patternMismatch: '無効な形式です'
+};
+
+// Validate single input
+function validateInput(input) {
+  const error = input.parentElement.querySelector('.error');
+  if (!error) return true;
+
+  // Password confirmation check
+  if (input.id === 'password-confirm') {
+    const password = document.getElementById('password');
+    if (input.value !== password.value) {
+      input.setCustomValidity('パスワードが一致しません');
+    } else {
+      input.setCustomValidity('');
+    }
+  }
+
+  if (input.validity.valid) {
+    input.setAttribute('aria-invalid', 'false');
+    error.textContent = '';
+    return true;
+  }
+
+  input.setAttribute('aria-invalid', 'true');
+
+  for (let key in validationMessages) {
+    if (input.validity[key]) {
+      error.textContent = validationMessages[key]
+        .replace('{min}', input.minLength || input.min)
+        .replace('{max}', input.maxLength || input.max);
+      return false;
+    }
+  }
+
+  error.textContent = input.validationMessage;
+  return false;
+}
+
+// Validate current step
+function validateCurrentStep() {
+  const currentForm = document.querySelector(\`.wizard-step[data-step="\${wizardState.currentStep}"]\`);
+  if (!currentForm || currentForm.tagName !== 'FORM') return true;
+
+  const inputs = currentForm.querySelectorAll('input, select, textarea');
+  let isValid = true;
+  let firstInvalid = null;
+
+  inputs.forEach(input => {
+    if (!validateInput(input) && !firstInvalid) {
+      firstInvalid = input;
+      isValid = false;
+    } else if (!validateInput(input)) {
+      isValid = false;
+    }
+  });
+
+  if (firstInvalid) {
+    firstInvalid.focus();
+  }
+
+  return isValid;
+}
+
+// Save form data
+function saveFormData() {
+  const currentForm = document.querySelector(\`.wizard-step[data-step="\${wizardState.currentStep}"]\`);
+  if (!currentForm || currentForm.tagName !== 'FORM') return;
+
+  const formData = new FormData(currentForm);
+  for (let [key, value] of formData.entries()) {
+    wizardState.formData[key] = value;
+  }
+
+  // Save to session storage
+  sessionStorage.setItem('onboardingData', JSON.stringify(wizardState.formData));
+}
+
+// Load form data
+function loadFormData() {
+  const saved = sessionStorage.getItem('onboardingData');
+  if (saved) {
+    wizardState.formData = JSON.parse(saved);
+
+    // Populate forms
+    Object.keys(wizardState.formData).forEach(key => {
+      const input = document.getElementById(key) || document.querySelector(\`[name="\${key}"]\`);
+      if (input) {
+        if (input.type === 'checkbox') {
+          input.checked = wizardState.formData[key] === 'on';
+        } else {
+          input.value = wizardState.formData[key];
+        }
+      }
+    });
+  }
+}
+
+// Update stepper UI
+function updateStepper() {
+  stepperItems.forEach((item, index) => {
+    const stepNum = index + 1;
+    const btn = item.querySelector('.stepper-button');
+
+    item.removeAttribute('aria-current');
+    item.removeAttribute('data-completed');
+    btn.removeAttribute('aria-current');
+
+    if (stepNum < wizardState.currentStep) {
+      item.setAttribute('data-completed', 'true');
+    } else if (stepNum === wizardState.currentStep) {
+      item.setAttribute('aria-current', 'step');
+      btn.setAttribute('aria-current', 'step');
+    }
+  });
+
+  stepperConnectors.forEach((connector, index) => {
+    if (index < wizardState.currentStep - 1) {
+      connector.setAttribute('data-completed', 'true');
+    } else {
+      connector.removeAttribute('data-completed');
+    }
+  });
+}
+
+// Update step visibility
+function updateStepVisibility() {
+  wizardSteps.forEach((step, index) => {
+    if (index + 1 === wizardState.currentStep) {
+      step.hidden = false;
+    } else {
+      step.hidden = true;
+    }
+  });
+}
+
+// Update buttons
+function updateButtons() {
+  prevBtn.disabled = wizardState.currentStep === 1;
+
+  if (wizardState.currentStep === wizardState.totalSteps) {
+    nextBtn.textContent = '完了';
+    nextBtn.classList.add('wizard-btn-success');
+  } else {
+    nextBtn.textContent = '次へ →';
+    nextBtn.classList.remove('wizard-btn-success');
+  }
+}
+
+// Show summary
+function showSummary() {
+  document.getElementById('summary-email').textContent = wizardState.formData.email || '-';
+  document.getElementById('summary-fullname').textContent = wizardState.formData.fullname || '-';
+  document.getElementById('summary-role').textContent = wizardState.formData.role || '-';
+  document.getElementById('summary-company').textContent = wizardState.formData.company || '未入力';
+}
+
+// Toast notification
+function showToast(message, options = {}) {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  toastContainer.appendChild(toast);
+
+  requestAnimationFrame(() => toast.classList.add('show'));
+
+  let timeout = setTimeout(closeToast, options.duration || 3000);
+
+  function closeToast() {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 200);
+  }
+
+  toast.addEventListener('mouseenter', () => clearTimeout(timeout));
+  toast.addEventListener('mouseleave', () => timeout = setTimeout(closeToast, 1000));
+}
+
+// Navigate to step
+function goToStep(step) {
+  if (step < 1 || step > wizardState.totalSteps) return;
+
+  // Save current step data before moving
+  if (wizardState.currentStep !== step) {
+    saveFormData();
+  }
+
+  wizardState.currentStep = step;
+  updateStepper();
+  updateStepVisibility();
+  updateButtons();
+
+  if (step === wizardState.totalSteps) {
+    showSummary();
+  }
+}
+
+// Next button handler
+nextBtn.addEventListener('click', () => {
+  if (wizardState.currentStep === wizardState.totalSteps) {
+    // Complete
+    showToast('✅ オンボーディングが完了しました！', { duration: 4000 });
+    setTimeout(() => {
+      sessionStorage.removeItem('onboardingData');
+      showToast('ℹ️ 実際のアプリではダッシュボードに移動します');
+    }, 1500);
+    return;
+  }
+
+  // Validate before proceeding
+  if (!validateCurrentStep()) {
+    showToast('⚠️ 入力内容を確認してください', { duration: 2000 });
+    return;
+  }
+
+  saveFormData();
+  goToStep(wizardState.currentStep + 1);
+});
+
+// Previous button handler
+prevBtn.addEventListener('click', () => {
+  if (wizardState.currentStep > 1) {
+    saveFormData();
+    goToStep(wizardState.currentStep - 1);
+  }
+});
+
+// Real-time validation
+document.querySelectorAll('.wizard-step input, .wizard-step select').forEach(input => {
+  input.addEventListener('blur', () => validateInput(input));
+  input.addEventListener('input', () => {
+    if (input.getAttribute('aria-invalid') === 'true') {
+      validateInput(input);
+    }
+  });
+});
+
+// Initialize
+loadFormData();
+updateStepper();
+updateStepVisibility();
+updateButtons();
+  `}
+/>
+
+## 使用モジュール
+
+このレシピでは以下のモジュールを統合しています:
+
+1. **Stepper (ステッパー)** - 進行状況の可視化
+2. **Form Validation (フォーム検証)** - 入力データの検証
+3. **Toast (トースト通知)** - ユーザーへのフィードバック
+4. **状態管理** - ステップ間のデータ永続化
+
+## 実装の要点
+
+### 1. ステップ間の状態管理
+
+```javascript
+const wizardState = {
+  currentStep: 1,
+  totalSteps: 4,
+  formData: {}
+};
+
+// データの保存
+function saveFormData() {
+  const currentForm = document.querySelector(\`.wizard-step[data-step="\${wizardState.currentStep}"]\`);
+  const formData = new FormData(currentForm);
+
+  for (let [key, value] of formData.entries()) {
+    wizardState.formData[key] = value;
+  }
+
+  sessionStorage.setItem('onboardingData', JSON.stringify(wizardState.formData));
+}
+```
+
+### 2. バリデーションとステップ遷移の連携
+
+```javascript
+function validateCurrentStep() {
+  const currentForm = document.querySelector(\`.wizard-step[data-step="\${wizardState.currentStep}"]\`);
+  const inputs = currentForm.querySelectorAll('input, select, textarea');
+  let isValid = true;
+
+  inputs.forEach(input => {
+    if (!validateInput(input)) {
+      isValid = false;
+    }
+  });
+
+  return isValid;
+}
+
+// 次へボタン
+nextBtn.addEventListener('click', () => {
+  if (!validateCurrentStep()) {
+    showToast('⚠️ 入力内容を確認してください');
+    return;
+  }
+
+  saveFormData();
+  goToStep(wizardState.currentStep + 1);
+});
+```
+
+### 3. ステッパーとフォームの同期
+
+```javascript
+function goToStep(step) {
+  // データ保存
+  saveFormData();
+
+  // ステップ更新
+  wizardState.currentStep = step;
+
+  // UI更新
+  updateStepper();
+  updateStepVisibility();
+  updateButtons();
+}
+```
+
+## カスタマイズのポイント
+
+### ステップ数の変更
+
+`wizardState.totalSteps` を変更し、対応する HTML とステッパーアイテムを追加/削除します。
+
+### バリデーションルールの追加
+
+```javascript
+// カスタムバリデーション例
+if (input.id === 'password-confirm') {
+  const password = document.getElementById('password');
+  if (input.value !== password.value) {
+    input.setCustomValidity('パスワードが一致しません');
+  } else {
+    input.setCustomValidity('');
+  }
+}
+```
+
+### 非同期処理の追加
+
+```javascript
+nextBtn.addEventListener('click', async () => {
+  if (!validateCurrentStep()) return;
+
+  // API 呼び出し例
+  try {
+    const response = await fetch('/api/validate-step', {
+      method: 'POST',
+      body: JSON.stringify(wizardState.formData)
+    });
+
+    if (response.ok) {
+      goToStep(wizardState.currentStep + 1);
+    }
+  } catch (error) {
+    showToast('❌ エラーが発生しました');
+  }
+});
+```
+
+## よくある問題と解決策
+
+### 問題: ページリロード時にデータが消える
+
+**解決策**: SessionStorage または LocalStorage を使用してデータを永続化
+
+```javascript
+// 保存
+sessionStorage.setItem('onboardingData', JSON.stringify(wizardState.formData));
+
+// 読み込み
+const saved = sessionStorage.getItem('onboardingData');
+if (saved) {
+  wizardState.formData = JSON.parse(saved);
+}
+```
+
+### 問題: バリデーションエラーが複数表示される
+
+**解決策**: 各フィールドに一意の error 要素を用意し、`aria-describedby` で関連付ける
+
+```html
+<input id="email" aria-describedby="email-error">
+<span class="error" id="email-error" role="alert"></span>
+```
+
+### 問題: モバイルでステッパーが見づらい
+
+**解決策**: レスポンシブデザインで小画面時にラベルを省略
+
+```css
+@media (max-width: 640px) {
+  .stepper-label {
+    font-size: 0.625rem;
+  }
+  .stepper-connector {
+    width: 30px;
+  }
+}
+```
+
+## アクセシビリティの考慮事項
+
+- ステッパーに `role="navigation"` と `aria-label` を設定
+- 現在のステップに `aria-current="step"` を付与
+- エラーメッセージに `role="alert"` を設定
+- フォームフィールドに適切な `aria-describedby` を設定
+- キーボードでの完全な操作を保証
+
+## まとめ
+
+このレシピは、複数のモジュールを統合して実用的なオンボーディングフローを構築する方法を示しています。各モジュールが独立しながらも、状態管理を通じてシームレスに連携することで、優れたユーザー体験を実現できます。
