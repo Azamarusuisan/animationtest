@@ -12,5 +12,14 @@ export default defineConfig({
   output: 'static',
   build: {
     format: 'directory'
+  },
+  vite: {
+    server: {
+      host: true
+    },
+    preview: {
+      host: true,
+      port: 4321
+    }
   }
 });
