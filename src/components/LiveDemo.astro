@@ -1,6 +1,6 @@
 ---
 interface Props {
-  html: string;
+  html?: string;
   css?: string;
   js?: string;
   title?: string;
@@ -9,8 +9,14 @@ interface Props {
 
 const { html, css = '', js = '', title = 'ライブデモ', height = '400px' } = Astro.props;
 
+// スロットからコンテンツを取得
+const slots = await Astro.slots.render('default');
+const htmlContent = html || slots || '';
+
 // コンテンツをBase64エンコード
-const demoContent = `
+const demoContent = htmlContent.trim().startsWith('<!DOCTYPE')
+  ? htmlContent // 完全なHTMLドキュメント
+  : `
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -29,7 +35,7 @@ const demoContent = `
   </style>
 </head>
 <body>
-  ${html}
+  ${htmlContent}
   <script>
     ${js}
   <\/script>

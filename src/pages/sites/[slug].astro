@@ -1,5 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
+import LiveDemo from '../../components/LiveDemo.astro';
 import { getCollection } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -148,7 +149,7 @@ const { Content } = await site.render();
     ) : null}
 
     <div class="card" style="padding: 2rem;">
-      <Content />
+      <Content components={{ LiveDemo }} />
     </div>
   </article>
 </Base>
