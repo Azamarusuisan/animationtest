@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "npm run build:index && astro build",
-    "preview": "astro preview",
+    "preview": "astro preview --host 0.0.0.0",
     "build:index": "node scripts/build-index.mjs",
     "import:csv": "node scripts/csv-to-mdx.mjs"
   },
