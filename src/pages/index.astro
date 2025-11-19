@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import Search from '../components/Search.astro';
+import Hero from '../components/Hero.astro';
 import { getCollection } from 'astro:content';
 
 const modules = await getCollection('modules');
@@ -9,50 +10,44 @@ const sites = await getCollection('sites');
 ---
 
 <Base title="ホーム">
-  <div style="text-align: center; margin-bottom: 3rem;">
-    <h1 style="font-size: 3rem; margin-bottom: 1rem; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
-      ZettAI Prompt Factory
-    </h1>
-    <p style="font-size: 1.25rem; color: var(--color-text-light);">
-      あなた専用のプロンプト工房 - サイト要素・アニメーション・機能を一元管理
-    </p>
-  </div>
+  <Hero />
 
   <Search />
 
-  <div style="margin-top: 3rem;">
+  <div style="margin-top: 4rem;">
+    <h2 style="text-align: center; margin-bottom: 2rem; font-size: 1.5rem; color: var(--color-text-muted);">Explore Resources</h2>
     <div class="grid">
-      <div class="card" style="text-align: center; padding: 2rem;">
-        <div style="font-size: 3rem; margin-bottom: 1rem;">🧩</div>
+      <div class="card" style="text-align: center; padding: 3rem 2rem;">
+        <div style="font-size: 4rem; margin-bottom: 1.5rem; filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.5));">🧩</div>
         <h3>Modules</h3>
-        <p style="color: var(--color-text-light); margin-bottom: 1rem;">
+        <p style="margin-bottom: 1.5rem;">
           UI/機能モジュール（実装部品）
         </p>
-        <p style="font-size: 2rem; font-weight: bold; color: var(--color-primary); margin-bottom: 1rem;">
+        <p style="font-size: 3rem; font-weight: 800; color: var(--color-primary); margin-bottom: 2rem; text-shadow: 0 0 20px var(--color-primary-glow);">
           {modules.length}
         </p>
         <a href="/modules" class="btn">一覧を見る</a>
       </div>
 
-      <div class="card" style="text-align: center; padding: 2rem;">
-        <div style="font-size: 3rem; margin-bottom: 1rem;">💡</div>
+      <div class="card" style="text-align: center; padding: 3rem 2rem;">
+        <div style="font-size: 4rem; margin-bottom: 1.5rem; filter: drop-shadow(0 0 10px rgba(236, 72, 153, 0.5));">💡</div>
         <h3>Tips</h3>
-        <p style="color: var(--color-text-light); margin-bottom: 1rem;">
+        <p style="margin-bottom: 1.5rem;">
           雑学・豆知識・TIL
         </p>
-        <p style="font-size: 2rem; font-weight: bold; color: var(--color-primary); margin-bottom: 1rem;">
+        <p style="font-size: 3rem; font-weight: 800; color: var(--color-secondary); margin-bottom: 2rem; text-shadow: 0 0 20px var(--color-secondary-glow);">
           {tips.length}
         </p>
         <a href="/tips" class="btn">一覧を見る</a>
       </div>
 
-      <div class="card" style="text-align: center; padding: 2rem;">
-        <div style="font-size: 3rem; margin-bottom: 1rem;">🌐</div>
+      <div class="card" style="text-align: center; padding: 3rem 2rem;">
+        <div style="font-size: 4rem; margin-bottom: 1.5rem; filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.5));">🌐</div>
         <h3>Sites</h3>
-        <p style="color: var(--color-text-light); margin-bottom: 1rem;">
+        <p style="margin-bottom: 1.5rem;">
           制作サイト一覧
         </p>
-        <p style="font-size: 2rem; font-weight: bold; color: var(--color-primary); margin-bottom: 1rem;">
+        <p style="font-size: 3rem; font-weight: 800; color: var(--color-accent); margin-bottom: 2rem; text-shadow: 0 0 20px var(--color-accent-glow);">
           {sites.length}
         </p>
         <a href="/sites" class="btn">一覧を見る</a>
@@ -60,14 +55,25 @@ const sites = await getCollection('sites');
     </div>
   </div>
 
-  <div style="margin-top: 3rem; padding: 2rem; background-color: var(--color-bg-alt); border-radius: var(--border-radius);">
-    <h2 style="margin-bottom: 1rem;">使い方</h2>
-    <ol style="margin-left: 1.5rem; line-height: 1.8;">
-      <li><strong>Modules:</strong> 実装した UI/機能部品をプロンプト付きで記録</li>
-      <li><strong>Tips:</strong> 開発中に得た知見やベストプラクティスを蓄積</li>
-      <li><strong>Sites:</strong> 制作サイトの詳細情報（URL、技術スタック、使用要素など）を管理</li>
-      <li><strong>検索:</strong> Fuse.js で曖昧検索。タイトル、説明、タグから素早く見つける</li>
-      <li><strong>CSV インポート:</strong> <code>npm run import:csv</code> で過去サイトを一括登録</li>
-    </ol>
+  <div style="margin-top: 4rem; padding: 3rem; background: var(--glass-bg); border: 1px solid var(--color-border); border-radius: var(--border-radius); backdrop-filter: blur(10px);">
+    <h2 style="margin-bottom: 2rem; border-bottom: 1px solid var(--color-border); padding-bottom: 1rem;">使い方</h2>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem;">
+      <div>
+        <h4 style="color: var(--color-primary);">🧩 Modules</h4>
+        <p>実装した UI/機能部品をプロンプト付きで記録。再利用性を高めます。</p>
+      </div>
+      <div>
+        <h4 style="color: var(--color-secondary);">💡 Tips</h4>
+        <p>開発中に得た知見やベストプラクティスを蓄積。技術の引き出しを増やします。</p>
+      </div>
+      <div>
+        <h4 style="color: var(--color-accent);">🌐 Sites</h4>
+        <p>制作サイトの詳細情報（URL、技術スタック、使用要素など）を一元管理。</p>
+      </div>
+      <div>
+        <h4 style="color: white;">🔍 検索</h4>
+        <p>Fuse.js で曖昧検索。タイトル、説明、タグから素早く見つけ出せます。</p>
+      </div>
+    </div>
   </div>
 </Base>

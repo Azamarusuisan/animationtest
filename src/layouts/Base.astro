@@ -15,6 +15,9 @@ const { title, description = 'ZettAI Prompt Factory - あなた専用のプロ�
   <meta name="description" content={description}>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>{title} | ZettAI Prompt Factory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/src/styles/global.css">
 </head>
 <body>
@@ -29,11 +32,11 @@ const { title, description = 'ZettAI Prompt Factory - あなた専用のプロ�
     </div>
   </nav>
 
-  <main class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+  <main class="container" style="padding-top: 2rem; padding-bottom: 4rem; min-height: 80vh;">
     <slot />
   </main>
 
-  <footer style="border-top: 1px solid var(--color-border); padding: 2rem 0; margin-top: 4rem; text-align: center; color: var(--color-text-light);">
+  <footer style="border-top: 1px solid var(--color-border); padding: 3rem 0; margin-top: auto; text-align: center; color: var(--color-text-muted); background: rgba(0,0,0,0.2);">
     <div class="container">
       <p>&copy; 2024 ZettAI Prompt Factory. Built with Astro.</p>
     </div>

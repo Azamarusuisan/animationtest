@@ -1,0 +1,237 @@
+---
+---
+
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="overlay"></div>
+  <div class="content">
+    <div class="terminal-window">
+      <div class="terminal-header">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+        <span class="title">ai_agent.ts</span>
+      </div>
+      <div class="terminal-body">
+        <div class="code-line"><span class="keyword">const</span> <span class="variable">agent</span> = <span class="keyword">new</span> <span class="class">Antigravity</span>();</div>
+        <div class="code-line"><span class="keyword">await</span> <span class="variable">agent</span>.<span class="function">analyze</span>(<span class="string">"User Request"</span>);</div>
+        <div class="code-line"><span class="keyword">await</span> <span class="variable">agent</span>.<span class="function">generateSolution</span>(&#123;</div>
+        <div class="code-line indent">  <span class="property">creativity</span>: <span class="number">1.0</span>,</div>
+        <div class="code-line indent">  <span class="property">efficiency</span>: <span class="string">"MAX"</span></div>
+        <div class="code-line">&#125;);</div>
+        <div class="code-line typing-line">
+          <span class="prompt">&gt;</span> <span id="typewriter"></span><span class="cursor">|</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="hero-text">
+      <h1>ZettAI Prompt Factory</h1>
+      <p>あなた専用のAIコーディングアシスタントで、開発を加速させる。</p>
+    </div>
+  </div>
+</section>
+
+<script>
+  const text = "未来を構築中... プロンプトを一つずつ...";
+  const speed = 100;
+  const typewriter = document.getElementById("typewriter");
+  let i = 0;
+
+  function typeWriter() {
+    if (i < text.length) {
+      if (typewriter) {
+        typewriter.innerHTML += text.charAt(i);
+        i++;
+        setTimeout(typeWriter, speed);
+      }
+    } else {
+      // Reset after a delay
+      setTimeout(() => {
+        if (typewriter) {
+           typewriter.innerHTML = "";
+           i = 0;
+           typeWriter();
+        }
+      }, 3000);
+    }
+  }
+
+  // Start animation when element is in view
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        typeWriter();
+        observer.disconnect();
+      }
+    });
+  });
+
+  if (typewriter) {
+    observer.observe(typewriter);
+  }
+</script>
+
+<style>
+  .hero {
+    position: relative;
+    height: 500px;
+    width: 100%;
+    overflow: hidden;
+    border-radius: var(--border-radius);
+    margin-bottom: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  }
+
+  .hero-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('/hero-bg.png');
+    background-size: cover;
+    background-position: center;
+    z-index: 1;
+    transition: transform 10s ease;
+  }
+  
+  .hero:hover .hero-bg {
+    transform: scale(1.05);
+  }
+
+  .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+    z-index: 2;
+  }
+
+  .content {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    width: 90%;
+    max-width: 800px;
+  }
+
+  /* Terminal Styles */
+  .terminal-window {
+    background-color: rgba(30, 30, 40, 0.95);
+    border-radius: 8px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+    font-family: 'Fira Code', monospace; /* Fallback to monospace if not available */
+  }
+
+  .terminal-header {
+    background-color: rgba(20, 20, 30, 0.9);
+    padding: 10px 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .red { background-color: #ff5f56; }
+  .yellow { background-color: #ffbd2e; }
+  .green { background-color: #27c93f; }
+  
+  .title {
+    margin-left: 10px;
+    color: #888;
+    font-size: 0.8rem;
+  }
+
+  .terminal-body {
+    padding: 20px;
+    color: #d4d4d4;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    text-align: left;
+  }
+
+  .code-line {
+    margin-bottom: 4px;
+  }
+  
+  .indent {
+    padding-left: 20px;
+  }
+
+  /* Syntax Highlighting */
+  .keyword { color: #c586c0; }
+  .variable { color: #9cdcfe; }
+  .function { color: #dcdcaa; }
+  .string { color: #ce9178; }
+  .number { color: #b5cea8; }
+  .class { color: #4ec9b0; }
+  .property { color: #9cdcfe; }
+  .prompt { color: #27c93f; margin-right: 8px; }
+
+  .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 1.2em;
+    background-color: #d4d4d4;
+    vertical-align: middle;
+    animation: blink 1s step-end infinite;
+    margin-left: 2px;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .hero-text {
+    text-align: center;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  }
+  
+  .hero-text h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .hero-text p {
+    font-size: 1.1rem;
+    color: #cbd5e1;
+  }
+
+  @media (min-width: 768px) {
+    .content {
+      flex-direction: row;
+      align-items: center;
+    }
+    .terminal-window {
+      width: 60%;
+    }
+    .hero-text {
+      width: 40%;
+      text-align: left;
+    }
+  }
+</style>
