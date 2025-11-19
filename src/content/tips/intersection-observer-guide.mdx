@@ -1,6 +1,6 @@
 ---
-title: Intersection Observerの実践活用
-description: 遅延ロード、スクロールアニメーション、無限スクロールをパフォーマンス良く実装する方法
+title: "Intersection Observerの実践活用"
+description: "遅延ロード、スクロールアニメーション、無限スクロールをパフォーマンス良く実装する方法"
 tags: [javascript, performance, intersection-observer, lazy-loading]
 category: performance
 level: intermediate
@@ -832,3 +832,30 @@ elements.forEach(el => observer.observe(el));
 - [Intersection Observer API - MDN](https://developer.mozilla.org/ja/docs/Web/API/Intersection_Observer_API)
 - [IntersectionObserver polyfill](https://github.com/w3c/IntersectionObserver/tree/main/polyfill)
 - [web.dev: Trust is Good, Observation is Better](https://web.dev/intersectionobserver/)
+
+## Claude Codeへの指示
+
+このTipsをClaude Codeに実装してもらう場合、以下の点を指示してください：
+
+- 1. パフォーマンス指標（LCP、FID、CLS等）を改善
+- 2. 実装前後のベンチマーク結果を提示
+- 3. Chrome DevToolsでの検証方法を説明
+- 4. 最適化の理由と効果を明確に
+- 5. トレードオフがあれば説明
+
+### プロンプト例
+
+```
+Intersection Observerの実践活用を実装してください。
+
+要件：
+遅延ロード、スクロールアニメーション、無限スクロールをパフォーマンス良く実装する方法
+
+以下の点を守ってください：
+1. パフォーマンス指標（LCP、FID、CLS等）を改善
+2. 実装前後のベンチマーク結果を提示
+3. Chrome DevToolsでの検証方法を説明
+4. 最適化の理由と効果を明確に
+5. トレードオフがあれば説明
+```
+

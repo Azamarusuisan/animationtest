@@ -1,6 +1,6 @@
 ---
-title: ホバー時の画像ズームアニメーション
-description: カード要素にホバーした時に背景画像がスムーズにズームイン/アウトするエフェクトの実装方法
+title: "ホバー時の画像ズームアニメーション"
+description: "カード要素にホバーした時に背景画像がスムーズにズームイン/アウトするエフェクトの実装方法"
 tags: [css, animation, hover, transform, scale, image]
 category: animation
 level: basic
@@ -585,3 +585,30 @@ const items = [
 - [CSS Transforms - MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/transform)
 - [CSS Transitions - MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Transitions)
 - [Rendering Performance - web.dev](https://web.dev/rendering-performance/)
+
+## Claude Codeへの指示
+
+このTipsをClaude Codeに実装してもらう場合、以下の点を指示してください：
+
+- 1. CSSまたはJavaScriptでアニメーションを実装
+- 2. パフォーマンスを考慮してtransform/opacityを使用
+- 3. prefers-reduced-motionに対応
+- 4. レスポンシブデザインに対応
+- 5. サンプルコードとデモを提供
+
+### プロンプト例
+
+```
+ホバー時の画像ズームアニメーションを実装してください。
+
+要件：
+カード要素にホバーした時に背景画像がスムーズにズームイン/アウトするエフェクトの実装方法
+
+以下の点を守ってください：
+1. CSSまたはJavaScriptでアニメーションを実装
+2. パフォーマンスを考慮してtransform/opacityを使用
+3. prefers-reduced-motionに対応
+4. レスポンシブデザインに対応
+5. サンプルコードとデモを提供
+```
+

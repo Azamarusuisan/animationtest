@@ -1,6 +1,6 @@
 ---
-title: requestAnimationFrameで滑らかなアニメーション
-description: setTimeout/setIntervalではなくrAFを使って60fpsを実現する方法
+title: "requestAnimationFrameで滑らかなアニメーション"
+description: "setTimeout/setIntervalではなくrAFを使って60fpsを実現する方法"
 tags: [javascript, animation, performance, requestanimationframe]
 category: animation
 level: intermediate
@@ -964,3 +964,30 @@ document.addEventListener('visibilitychange', () => {
 - [requestAnimationFrame - MDN](https://developer.mozilla.org/ja/docs/Web/API/window/requestAnimationFrame)
 - [Rendering Performance - web.dev](https://web.dev/rendering-performance/)
 - [Using requestAnimationFrame - CSS-Tricks](https://css-tricks.com/using-requestanimationframe/)
+
+## Claude Codeへの指示
+
+このTipsをClaude Codeに実装してもらう場合、以下の点を指示してください：
+
+- 1. CSSまたはJavaScriptでアニメーションを実装
+- 2. パフォーマンスを考慮してtransform/opacityを使用
+- 3. prefers-reduced-motionに対応
+- 4. レスポンシブデザインに対応
+- 5. サンプルコードとデモを提供
+
+### プロンプト例
+
+```
+requestAnimationFrameで滑らかなアニメーションを実装してください。
+
+要件：
+setTimeout/setIntervalではなくrAFを使って60fpsを実現する方法
+
+以下の点を守ってください：
+1. CSSまたはJavaScriptでアニメーションを実装
+2. パフォーマンスを考慮してtransform/opacityを使用
+3. prefers-reduced-motionに対応
+4. レスポンシブデザインに対応
+5. サンプルコードとデモを提供
+```
+

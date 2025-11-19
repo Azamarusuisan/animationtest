@@ -1,6 +1,6 @@
 ---
-title: スクロールリビールの設計指針
-description: IntersectionObserver でパフォーマンスを落とさずに演出する要点
+title: "スクロールリビールの設計指針"
+description: "IntersectionObserver でパフォーマンスを落とさずに演出する要点"
 tags: [animation, performance, best-practices]
 category: animation
 level: intermediate
@@ -155,3 +155,30 @@ measureFPS();
 3. 不要な監視を解除してメモリ節約
 4. prefers-reduced-motion に必ず対応
 5. DevTools でパフォーマンスを確認
+
+## Claude Codeへの指示
+
+このTipsをClaude Codeに実装してもらう場合、以下の点を指示してください：
+
+- 1. CSSまたはJavaScriptでアニメーションを実装
+- 2. パフォーマンスを考慮してtransform/opacityを使用
+- 3. prefers-reduced-motionに対応
+- 4. レスポンシブデザインに対応
+- 5. サンプルコードとデモを提供
+
+### プロンプト例
+
+```
+スクロールリビールの設計指針を実装してください。
+
+要件：
+IntersectionObserver でパフォーマンスを落とさずに演出する要点
+
+以下の点を守ってください：
+1. CSSまたはJavaScriptでアニメーションを実装
+2. パフォーマンスを考慮してtransform/opacityを使用
+3. prefers-reduced-motionに対応
+4. レスポンシブデザインに対応
+5. サンプルコードとデモを提供
+```
+

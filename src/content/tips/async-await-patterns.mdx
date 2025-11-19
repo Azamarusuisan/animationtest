@@ -1,6 +1,6 @@
 ---
-title: async/awaitの実践パターン
-description: エラーハンドリング、並列処理、タイムアウト処理など本番で使える実践テクニック
+title: "async/awaitの実践パターン"
+description: "エラーハンドリング、並列処理、タイムアウト処理など本番で使える実践テクニック"
 tags: [javascript, async, promises, error-handling, patterns]
 category: javascript
 level: advanced
@@ -611,3 +611,30 @@ class SearchManager {
 - async関数は常にPromiseを返す
 - awaitは本当に必要な時だけ使う
 - AbortControllerでリクエストのキャンセルを実装
+
+## Claude Codeへの指示
+
+このTipsをClaude Codeに実装してもらう場合、以下の点を指示してください：
+
+- 1. 明確で理解しやすいコードを書く
+- 2. コメントで重要な箇所を説明
+- 3. エッジケースを考慮
+- 4. ベストプラクティスに従う
+- 5. 実装例とドキュメントを提供
+
+### プロンプト例
+
+```
+async/awaitの実践パターンを実装してください。
+
+要件：
+エラーハンドリング、並列処理、タイムアウト処理など本番で使える実践テクニック
+
+以下の点を守ってください：
+1. 明確で理解しやすいコードを書く
+2. コメントで重要な箇所を説明
+3. エッジケースを考慮
+4. ベストプラクティスに従う
+5. 実装例とドキュメントを提供
+```
+

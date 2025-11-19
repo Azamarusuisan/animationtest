@@ -1,6 +1,6 @@
 ---
-title: CSP/Trusted Typesの最小セット
-description: Content Security PolicyとTrusted Typesで本番環境のXSS攻撃を防ぐ実装ガイド
+title: "CSP/Trusted Typesの最小セット"
+description: "Content Security PolicyとTrusted Typesで本番環境のXSS攻撃を防ぐ実装ガイド"
 tags: [security, csp, xss, trusted-types, headers]
 category: security
 level: advanced
@@ -708,3 +708,30 @@ CSPとTrusted Typesは、入力サニタイゼーション、出力エンコー�
 - [OWASP: Content Security Policy Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html)
 - [web.dev: Trusted Types](https://web.dev/trusted-types/)
 - [CSP Level 3 Specification](https://www.w3.org/TR/CSP3/)
+
+## Claude Codeへの指示
+
+このTipsをClaude Codeに実装してもらう場合、以下の点を指示してください：
+
+- 1. セキュリティのベストプラクティスに従う
+- 2. 潜在的な脆弱性を排除
+- 3. OWASP Top 10を考慮
+- 4. 実装例とNG例を両方提示
+- 5. テスト方法を説明
+
+### プロンプト例
+
+```
+CSP/Trusted Typesの最小セットを実装してください。
+
+要件：
+Content Security PolicyとTrusted Typesで本番環境のXSS攻撃を防ぐ実装ガイド
+
+以下の点を守ってください：
+1. セキュリティのベストプラクティスに従う
+2. 潜在的な脆弱性を排除
+3. OWASP Top 10を考慮
+4. 実装例とNG例を両方提示
+5. テスト方法を説明
+```
+

@@ -19,7 +19,8 @@ export default defineConfig({
     },
     preview: {
       host: true,
-      port: 4321
+      port: 4321,
+      allowedHosts: ['animationtest.onrender.com']
     }
   }
 });

@@ -1,6 +1,6 @@
 ---
-title: XSS/CSRF対策の実装例
-description: Cross-Site Scripting (XSS)とCross-Site Request Forgery (CSRF)攻撃を防ぐための実践的な実装ガイド
+title: "XSS/CSRF対策の実装例"
+description: "Cross-Site Scripting (XSS)とCross-Site Request Forgery (CSRF)攻撃を防ぐための実践的な実装ガイド"
 tags: [security, xss, csrf, sanitization, tokens]
 category: security
 level: advanced
@@ -992,3 +992,30 @@ app.post('/api/upload', validateCSRF, upload.single('file'), (req, res) => {
 - [DOMPurify Documentation](https://github.com/cure53/DOMPurify)
 - [MDN: CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+
+## Claude Codeへの指示
+
+このTipsをClaude Codeに実装してもらう場合、以下の点を指示してください：
+
+- 1. セキュリティのベストプラクティスに従う
+- 2. 潜在的な脆弱性を排除
+- 3. OWASP Top 10を考慮
+- 4. 実装例とNG例を両方提示
+- 5. テスト方法を説明
+
+### プロンプト例
+
+```
+XSS/CSRF対策の実装例を実装してください。
+
+要件：
+Cross-Site Scripting (XSS)とCross-Site Request Forgery (CSRF)攻撃を防ぐための実践的な実装ガイド
+
+以下の点を守ってください：
+1. セキュリティのベストプラクティスに従う
+2. 潜在的な脆弱性を排除
+3. OWASP Top 10を考慮
+4. 実装例とNG例を両方提示
+5. テスト方法を説明
+```
+
